@@ -1,0 +1,49 @@
+{
+  "stop": [
+    "Done",
+    "Finished",
+    "All set"
+  ],
+  "edit": [
+    "Writing code",
+    "Implementing"
+  ],
+  "bash": [
+    "Running command",
+    "Accessing OS"
+  ],
+  "search": [
+    "Searching",
+    "Where is it"
+  ],
+  "permission": [
+    "Need your approval",
+    "Do you agree?"
+  ],
+  "error": [
+    "Something went wrong",
+    "something failed"
+  ],
+  "subagent_start": [
+    ["Look into this", "On it"],
+    ["Hey, check this out", "I'm on it"],
+    ["Need your help here", "Let me see"],
+    ["Can you handle this?", "Sure thing"],
+    ["Dig into this", "Already on it"]
+  ],
+  "subagent_stop": [
+    ["Done", "Got it"],
+    ["Here you go", "Perfect"],
+    ["All set", "Thanks"],
+    ["Found it", "Nice work"],
+    ["That's done", "Let's move on"]
+  ],
+  "session_start": [
+    "Hi there",
+    "Let's do that",
+    "what's on your mind"
+  ],
+  "compact": [
+    "Compacting memory"
+  ]
+}

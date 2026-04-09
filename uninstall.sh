@@ -1,0 +1,1 @@
+soundbar/uninstall.sh

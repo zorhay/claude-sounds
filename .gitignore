@@ -1,0 +1,11 @@
+.server.pid
+/config.json
+/phrases.json
+/soundbar/config.json
+/soundbar/phrases.json
+/soundbar/sounds/generals/*.aiff
+*.soundbar-backup
+.manifest
+.soundbar-window
+__pycache__/
+.DS_Store

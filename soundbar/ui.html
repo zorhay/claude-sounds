@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundbar</title>
+<style>
+  :root {
+    --bg: #1c1c26;
+    --bg2: #222230;
+    --bg3: #2a2a38;
+    --fg: #d0d0d8;
+    --fg2: #909098;
+    --fg3: #606068;
+    --accent: #e0a030;
+    --accent-dim: #503c18;
+    --green: #50b858;
+    --green-dim: #2a4028;
+    --red: #d05050;
+    --border: #33334a;
+    --radius: 5px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    padding: 20px 24px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .brand {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--fg2);
+    text-transform: uppercase;
+  }
+  .tagline { font-size: 11px; color: var(--fg3); }
+
+  /* ── Channel strips ── */
+  .channels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .channel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .channel-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .channel-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--fg3);
+    text-transform: uppercase;
+    min-width: 52px;
+  }
+
+  /* Toggle */
+  .toggle { position: relative; width: 36px; height: 18px; cursor: pointer; flex-shrink: 0; }
+  .toggle input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 9px; transition: 0.2s;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute; width: 12px; height: 12px;
+    left: 2px; top: 2px;
+    background: var(--fg3); border-radius: 50%; transition: 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--green-dim); border-color: var(--green); }
+  .toggle input:checked + .toggle-track::after { background: var(--green); transform: translateX(18px); }
+
+  /* Profile select */
+  .profile-select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 12px;
+    padding: 4px 24px 4px 8px; cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23606068'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+    flex: 1; min-width: 0;
+  }
+  .profile-select:focus { outline: none; border-color: var(--accent); }
+
+  /* Voice settings row */
+  .voice-settings {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap;
+  }
+  .voice-label { font-size: 10px; color: var(--fg3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .voice-select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 11px;
+    padding: 3px 20px 3px 6px; cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23606068'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 5px center;
+  }
+  .voice-select:focus { outline: none; border-color: var(--accent); }
+  .mini-play {
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    color: var(--fg3); font-size: 9px; width: 20px; height: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: 0.15s;
+  }
+  .mini-play:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Volume slider */
+  .volume-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px;
+  }
+  .volume-label { font-size: 10px; color: var(--fg3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .volume-slider {
+    flex: 1;
+    min-width: 0;
+    -webkit-appearance: none; appearance: none;
+    height: 4px; background: var(--border); border-radius: 2px; outline: none;
+  }
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--fg2); cursor: pointer; border: none;
+  }
+  .volume-slider::-webkit-slider-thumb:hover { background: var(--accent); }
+  .volume-value { font-size: 10px; color: var(--fg3); min-width: 28px; text-align: right; }
+
+  /* ── Event mixer table ── */
+  .mixer {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .mixer table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .mixer th {
+    text-align: left;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    color: var(--fg3); text-transform: uppercase;
+    padding: 8px 10px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .mixer th.col-event { width: 120px; }
+  .mixer th.col-layer { width: calc((100% - 120px) / 2); }
+  .mixer td {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid #25253a;
+    vertical-align: middle;
+  }
+  .mixer tr:last-child td { border-bottom: none; }
+  .mixer tr:hover td { background: #1e1e2c; }
+
+  .event-name {
+    font-weight: 600;
+    color: var(--fg2);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Sound cell: icon + label + play */
+  .sound-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+  }
+  .sound-cell.off { opacity: 0.5; }
+
+  .origin-icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    border-radius: 3px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    title: attr(data-tip);
+  }
+  .origin-icon[data-origin="system"]    { color: #8888cc; }
+  .origin-icon[data-origin="sampled"]   { color: var(--accent); }
+  .origin-icon[data-origin="generated"] { color: #50b8b8; }
+  .origin-icon[data-origin="tts"]       { color: var(--green); }
+  .origin-icon[data-origin="recorded"]  { color: var(--red); }
+  .origin-icon[data-origin="complex"]   { color: var(--fg3); }
+
+  .sound-label {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--fg3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    max-width: 220px;
+  }
+
+  .play-btn {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 3px;
+    color: var(--fg3); width: 24px; height: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; transition: 0.15s; flex-shrink: 0;
+  }
+  .play-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .play-btn.playing { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .empty-cell { color: var(--fg3); font-size: 11px; font-style: italic; }
+
+  /* ── Phrases section ── */
+  .phrases-section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .phrases-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .phrases-header:hover { background: #2e2e40; }
+  .phrases-arrow { font-size: 9px; color: var(--fg3); transition: transform 0.2s; }
+  .phrases-arrow.open { transform: rotate(90deg); }
+  .phrases-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    color: var(--fg3); text-transform: uppercase;
+  }
+  .phrases-body { display: none; padding: 10px 14px; }
+  .phrases-body.open { display: block; }
+
+  .phrase-event { margin-bottom: 8px; }
+  .phrase-event:last-child { margin-bottom: 0; }
+  .phrase-header-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  .phrase-ev-name { font-size: 12px; color: var(--accent); font-weight: 500; }
+  .phrase-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 2px 7px; font-size: 12px; color: var(--fg2);
+  }
+  .chip:hover { border-color: #48485a; }
+  .chip-text { cursor: text; outline: none; min-width: 20px; }
+  .chip-text:focus { color: var(--fg); }
+  .chip-x { cursor: pointer; color: var(--fg3); font-size: 13px; line-height: 1; }
+  .chip-x:hover { color: var(--red); }
+  .chip-add {
+    background: none; border: 1px dashed var(--border); border-radius: 4px;
+    color: var(--fg3); font-size: 14px; width: 22px; height: 22px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;
+  }
+  .chip-add:hover { border-color: var(--accent); color: var(--accent); }
+  .dlg-row { display: flex; align-items: center; gap: 4px; margin: 2px 0; flex-wrap: wrap; }
+  .dlg-arrow { color: var(--fg3); font-size: 10px; }
+  .speaker {
+    font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 600; letter-spacing: 0.3px;
+  }
+  .speaker-main { background: var(--green-dim); color: var(--green); }
+  .speaker-sub { background: var(--accent-dim); color: var(--accent); }
+
+  @media (max-width: 700px) {
+    .channels { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="brand">Soundbar</span>
+  <span class="tagline">Claude Code audio mixer</span>
+</div>
+
+<!-- Channel strips -->
+<div class="channels">
+  <div class="channel" id="effectsChannel"></div>
+  <div class="channel" id="voiceChannel"></div>
+</div>
+
+<!-- Event mixer table -->
+<div class="mixer"><table>
+  <thead><tr>
+    <th class="col-event">Event</th>
+    <th class="col-layer">Effects</th>
+    <th class="col-layer">Voice</th>
+  </tr></thead>
+  <tbody id="mixerBody"></tbody>
+</table></div>
+
+<!-- Phrases (collapsible) -->
+<div class="phrases-section" id="phrasesSection" style="display:none">
+  <div class="phrases-header" onclick="togglePhrases()">
+    <span class="phrases-arrow" id="phrasesArrow">&#9654;</span>
+    <span class="phrases-title">Narration phrases</span>
+  </div>
+  <div class="phrases-body" id="phrasesBody"></div>
+</div>
+
+<script>
+const ORIGIN_ICONS = {
+  system:    '&#x1F5A5;',  // 🖥
+  sampled:   '&#x1F3B5;',  // 🎵
+  generated: '&#x1F39B;',  // 🎛
+  tts:       '&#x1F5E3;',  // 🗣
+  recorded:  '&#x23FA;',   // ⏺
+  complex:   '&#x2699;',   // ⚙
+};
+const ORIGIN_TIPS = {
+  system: 'System sound', sampled: 'Sampled audio', generated: 'Sox generated',
+  tts: 'Text-to-speech', recorded: 'Recorded', complex: 'Complex/multi-step',
+};
+
+let S = {};
+let saveTimeout = null;
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  return (await fetch(path, opts)).json();
+}
+
+async function load() {
+  S = await api('GET', '/api/status');
+  render();
+}
+
+function render() {
+  renderEffectsChannel();
+  renderVoiceChannel();
+  renderMixer();
+  renderPhrasesVisibility();
+}
+
+// ── Helpers ──
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function originCell(origin) {
+  return `<span class="origin-icon" data-origin="${origin}" title="${ORIGIN_TIPS[origin] || ''}">${ORIGIN_ICONS[origin] || ''}</span>`;
+}
+
+function shortLabel(cmd) {
+  if (!cmd || cmd === '(complex)') return '...';
+  // Extract filename from afplay commands
+  const m = cmd.match(/afplay\s+"?\$[^"]*\/([^"\/]+)"?/);
+  if (m) return m[1];
+  const m2 = cmd.match(/afplay\s+\/[^\s]*\/([^\s]+)/);
+  if (m2) return m2[1];
+  // Sox: show synth type
+  const m3 = cmd.match(/play\s+-qn\s+synth\s+[\d.]+\s+(\w+)/);
+  if (m3) return `synth ${m3[1]}`;
+  // say
+  if (cmd.startsWith('say ')) return 'TTS';
+  // Truncate
+  return cmd.length > 30 ? cmd.substring(0, 30) + '...' : cmd;
+}
+
+// ══════════ EFFECTS CHANNEL ══════════
+
+function renderEffectsChannel() {
+  const el = document.getElementById('effectsChannel');
+  const profiles = Object.keys(S.effects_profiles || {});
+  const opts = profiles.map(n => `<option value="${n}" ${n === S.effects_profile ? 'selected' : ''}>${n}</option>`).join('');
+
+  const evol = S.effects_volume ?? 100;
+  el.innerHTML = `
+    <div class="channel-top">
+      <span class="channel-label">Effects</span>
+      <label class="toggle"><input type="checkbox" id="effectsOn" ${S.effects_on ? 'checked' : ''}><span class="toggle-track"></span></label>
+      <select class="profile-select" id="effectsProfile">${opts}</select>
+    </div>
+    <div class="volume-row">
+      <span class="volume-label">Vol</span>
+      <input type="range" class="volume-slider" id="effectsVol" min="0" max="100" value="${evol}">
+      <span class="volume-value" id="effectsVolVal">${evol}%</span>
+    </div>`;
+
+  document.getElementById('effectsOn').onchange = async (e) => {
+    S.effects_on = e.target.checked;
+    await api('POST', '/api/config', { effects_on: S.effects_on });
+    renderMixer();
+  };
+  document.getElementById('effectsProfile').onchange = async (e) => {
+    S.effects_profile = e.target.value;
+    await api('POST', '/api/config', { effects_profile: S.effects_profile });
+    renderMixer();
+  };
+  document.getElementById('effectsVol').oninput = (e) => {
+    document.getElementById('effectsVolVal').textContent = e.target.value + '%';
+  };
+  document.getElementById('effectsVol').onchange = async (e) => {
+    S.effects_volume = parseInt(e.target.value);
+    await api('POST', '/api/config', { effects_volume: S.effects_volume });
+  };
+}
+
+// ══════════ VOICE CHANNEL ══════════
+
+function renderVoiceChannel() {
+  const el = document.getElementById('voiceChannel');
+  const vnames = S.voice_profile_names || [];
+  const opts = vnames.map(n => `<option value="${n}" ${n === S.voice_profile ? 'selected' : ''}>${n}</option>`).join('');
+  const isNarr = S.voice_profile === 'narration';
+  const vvol = S.voice_volume ?? 100;
+
+  let voiceSettingsHTML = '';
+  if (isNarr) {
+    const voices = (S.voices || []).filter(v => v.locale.startsWith('en_'));
+    const voiceOpts = voices.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+    voiceSettingsHTML = `
+      <div class="voice-settings">
+        <span class="voice-label">Main</span>
+        <select class="voice-select" id="mainVoice">${voiceOpts}</select>
+        <button class="mini-play" onclick="previewVoice('main')">&#9654;</button>
+        <span class="voice-label" style="margin-left:6px">Sub</span>
+        <select class="voice-select" id="subVoice">${voiceOpts}</select>
+        <button class="mini-play" onclick="previewVoice('sub')">&#9654;</button>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="channel-top">
+      <span class="channel-label">Voice</span>
+      <label class="toggle"><input type="checkbox" id="voiceOn" ${S.voice_on ? 'checked' : ''}><span class="toggle-track"></span></label>
+      <select class="profile-select" id="voiceProfile">${opts}</select>
+    </div>
+    <div class="volume-row">
+      <span class="volume-label">Vol</span>
+      <input type="range" class="volume-slider" id="voiceVol" min="0" max="100" value="${vvol}">
+      <span class="volume-value" id="voiceVolVal">${vvol}%</span>
+    </div>
+    ${voiceSettingsHTML}`;
+
+  if (isNarr) {
+    const mv = document.getElementById('mainVoice');
+    const sv = document.getElementById('subVoice');
+    if (mv) mv.value = S.voice_main || 'Tara';
+    if (sv) sv.value = S.voice_sub || 'Aman';
+    if (mv) mv.onchange = async (e) => { S.voice_main = e.target.value; await api('POST', '/api/config', { voice_main: S.voice_main }); renderPhrases(); };
+    if (sv) sv.onchange = async (e) => { S.voice_sub = e.target.value; await api('POST', '/api/config', { voice_sub: S.voice_sub }); renderPhrases(); };
+  }
+
+  document.getElementById('voiceVol').oninput = (e) => {
+    document.getElementById('voiceVolVal').textContent = e.target.value + '%';
+  };
+  document.getElementById('voiceVol').onchange = async (e) => {
+    S.voice_volume = parseInt(e.target.value);
+    await api('POST', '/api/config', { voice_volume: S.voice_volume });
+  };
+  document.getElementById('voiceOn').onchange = async (e) => {
+    S.voice_on = e.target.checked;
+    await api('POST', '/api/config', { voice_on: S.voice_on });
+    renderMixer();
+    renderPhrasesVisibility();
+  };
+  document.getElementById('voiceProfile').onchange = async (e) => {
+    S.voice_profile = e.target.value;
+    await api('POST', '/api/config', { voice_profile: S.voice_profile });
+    render();
+  };
+}
+
+// ══════════ MIXER TABLE ══════════
+
+function renderMixer() {
+  const tbody = document.getElementById('mixerBody');
+  const ep = S.effects_profile || 'default';
+  const vp = S.voice_profile || 'narration';
+  const eEvents = (S.effects_profiles || {})[ep] || {};
+  const vEvents = (S.voice_profiles || {})[vp] || {};
+  const eOn = S.effects_on === true;
+  const vOn = S.voice_on === true;
+
+  tbody.innerHTML = (S.events || []).map(ev => {
+    const eInfo = eEvents[ev];
+    const vInfo = vEvents[ev];
+
+    const eCell = eInfo
+      ? `<div class="sound-cell ${eOn ? '' : 'off'}">
+          ${originCell(eInfo.origin)}
+          <span class="sound-label" title="${esc(eInfo.cmd)}">${esc(shortLabel(eInfo.cmd))}</span>
+          <button class="play-btn" onclick="playSound('effects','${ep}','${ev}',this)">&#9654;</button>
+        </div>`
+      : '<span class="empty-cell">—</span>';
+
+    const vCell = vInfo
+      ? `<div class="sound-cell ${vOn ? '' : 'off'}">
+          ${originCell(vInfo.origin)}
+          <span class="sound-label" title="${esc(vInfo.cmd)}">${esc(shortLabel(vInfo.cmd))}</span>
+          <button class="play-btn" onclick="playSound('voice','${vp}','${ev}',this)">&#9654;</button>
+        </div>`
+      : '<span class="empty-cell">—</span>';
+
+    return `<tr>
+      <td class="event-name">${ev.replace(/_/g, ' ')}</td>
+      <td>${eCell}</td>
+      <td>${vCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════ PHRASES ══════════
+
+function renderPhrasesVisibility() {
+  const sec = document.getElementById('phrasesSection');
+  sec.style.display = S.voice_profile === 'narration' ? '' : 'none';
+  renderPhrases();
+}
+
+function togglePhrases() {
+  document.getElementById('phrasesArrow').classList.toggle('open');
+  document.getElementById('phrasesBody').classList.toggle('open');
+}
+
+function renderPhrases() {
+  const body = document.getElementById('phrasesBody');
+  const phrases = S.phrases || {};
+  const dlgSet = new Set(S.dialogue_events || []);
+
+  body.innerHTML = (S.events || []).map(ev => {
+    const items = phrases[ev] || [];
+    const isDlg = dlgSet.has(ev);
+    return `<div class="phrase-event">
+      <div class="phrase-header-row">
+        <span class="phrase-ev-name">${ev}</span>
+        <button class="play-btn" onclick="playSound('voice','narration','${ev}',this)">&#9654;</button>
+      </div>
+      ${isDlg ? renderDlg(ev, items) : renderSimple(ev, items)}
+    </div>`;
+  }).join('');
+}
+
+function renderSimple(ev, items) {
+  const chips = items.map((t, i) =>
+    `<span class="chip"><span class="chip-text" contenteditable="true" data-ev="${ev}" data-i="${i}" onblur="editPhrase(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(t)}</span><span class="chip-x" onclick="rmPhrase('${ev}',${i})">x</span></span>`
+  ).join('');
+  return `<div class="phrase-chips"><span class="speaker speaker-main">${esc(S.voice_main||'Main')}</span>${chips}<button class="chip-add" onclick="addPhrase('${ev}')">+</button></div>`;
+}
+
+function renderDlg(ev, items) {
+  const isStart = ev === 'subagent_start';
+  const [l1, c1] = isStart ? [S.voice_main, 'speaker-main'] : [S.voice_sub, 'speaker-sub'];
+  const [l2, c2] = isStart ? [S.voice_sub, 'speaker-sub'] : [S.voice_main, 'speaker-main'];
+  const rows = items.map((pair, i) =>
+    `<div class="dlg-row">
+      <span class="speaker ${c1}">${esc(l1)}</span>
+      <span class="chip"><span class="chip-text" contenteditable="true" data-ev="${ev}" data-i="${i}" data-p="0" onblur="editDlg(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(pair[0])}</span></span>
+      <span class="dlg-arrow">&rarr;</span>
+      <span class="speaker ${c2}">${esc(l2)}</span>
+      <span class="chip"><span class="chip-text" contenteditable="true" data-ev="${ev}" data-i="${i}" data-p="1" onblur="editDlg(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${esc(pair[1])}</span></span>
+      <span class="chip-x" onclick="rmPhrase('${ev}',${i})" style="margin-left:3px">x</span>
+    </div>`
+  ).join('');
+  return `<div>${rows}<button class="chip-add" onclick="addDlgPhrase('${ev}')" style="margin-top:4px">+</button></div>`;
+}
+
+// ── Phrase editing ──
+
+function editPhrase(el) {
+  const ev = el.dataset.ev, i = +el.dataset.i, t = el.textContent.trim();
+  if (!t) return;
+  const p = S.phrases || {};
+  if ((p[ev]||[])[i] !== t) { p[ev][i] = t; S.phrases = p; debounceSave(ev); }
+}
+function editDlg(el) {
+  const ev = el.dataset.ev, i = +el.dataset.i, pos = +el.dataset.p, t = el.textContent.trim();
+  if (!t) return;
+  const p = S.phrases || {};
+  if (p[ev]&&p[ev][i]&&p[ev][i][pos]!==t) { p[ev][i][pos]=t; S.phrases=p; debounceSave(ev); }
+}
+function addPhrase(ev) {
+  const p = S.phrases||{}; if(!p[ev]) p[ev]=[];
+  p[ev].push('New phrase'); S.phrases=p; savePhrases(ev); renderPhrases();
+  setTimeout(()=>{const c=document.querySelectorAll(`[data-ev="${ev}"].chip-text`);const l=c[c.length-1];if(l){l.focus();document.execCommand('selectAll');}},50);
+}
+function addDlgPhrase(ev) {
+  const p=S.phrases||{}; if(!p[ev]) p[ev]=[];
+  p[ev].push(['...','...']); S.phrases=p; savePhrases(ev); renderPhrases();
+}
+function rmPhrase(ev, i) {
+  const p=S.phrases||{}; const items=p[ev]||[];
+  if(items.length<=1) return;
+  items.splice(i,1); p[ev]=items; S.phrases=p; savePhrases(ev); renderPhrases();
+}
+function debounceSave(ev) { clearTimeout(saveTimeout); saveTimeout=setTimeout(()=>savePhrases(ev),600); }
+async function savePhrases(ev) { await api('POST','/api/phrases',{event:ev,phrases:S.phrases[ev]}); }
+
+// ── Actions ──
+
+async function playSound(layer, profile, event, btn) {
+  btn.classList.add('playing');
+  await api('POST', '/api/play', { layer, profile, event });
+  setTimeout(() => btn.classList.remove('playing'), 600);
+}
+
+async function previewVoice(which) {
+  const voice = which === 'main'
+    ? document.getElementById('mainVoice').value
+    : document.getElementById('subVoice').value;
+  await api('POST', '/api/say', { voice, phrase: `Hello, I am ${voice}`, rate: 200 });
+}
+
+load();
+</script>
+</body>
+</html>

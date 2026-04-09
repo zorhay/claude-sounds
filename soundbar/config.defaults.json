@@ -1,0 +1,10 @@
+{
+  "effects_on": true,
+  "effects_profile": "default",
+  "effects_volume": 100,
+  "voice_on": false,
+  "voice_profile": "narration",
+  "voice_volume": 100,
+  "voice_main": "Tara",
+  "voice_sub": "Aman"
+}
