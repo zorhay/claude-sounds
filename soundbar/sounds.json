@@ -1,0 +1,190 @@
+{
+  "effects": {
+    "ambient": {
+      "events": {
+        "session_start": {"sox": "synth 0.8 pluck 330 synth 0.8 pluck 440 synth 0.8 pluck 550 reverb 60 fade 0.05 0.8 0.5"},
+        "edit":          {"sox": "synth 0.25 pluck 500 reverb 30 fade 0.01 0.25 0.15"},
+        "bash":          {"sox": "synth 0.3 sine 300 fade 0.05 0.3 0.2 reverb 40"},
+        "search":        {"sox": "synth 0.15 triangle 700 reverb 25 fade 0.01 0.15 0.1"},
+        "permission":    {"sox": "synth 0.3 pluck 440:660 reverb 50 fade 0.01 0.3 0.2"},
+        "error":         {"sox": "synth 0.4 sine 400:200 reverb 60 fade 0.02 0.4 0.3"},
+        "subagent_start": {"sox": "synth 0.3 sine 300:600 reverb 50 fade 0.01 0.3 0.15 tremolo 4"},
+        "subagent_stop":  {"sox": "synth 0.25 sine 600:350 reverb 45 fade 0.01 0.25 0.15"},
+        "compact":       {"sox": "synth 0.5 pinknoise vol 0.2 fade 0.05 0.5 0.4 reverb 50"},
+        "stop":          {"sox": "synth 0.8 sine 220:330 reverb 60 fade 0.05 0.8 0.4"}
+      }
+    },
+    "attention": {
+      "events": {
+        "permission": {"sox": "synth 0.8 sine 396 vol 0.18 fade 0.15 0.8 0.5 reverb 60"},
+        "stop":       {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"}
+      }
+    },
+    "chiptune": {
+      "events": {
+        "session_start": {"sox": "synth 0.1 square 523 : synth 0.1 square 659 : synth 0.1 square 784 : synth 0.2 square 1047 : synth 0.1 square 784 : synth 0.15 square 1047"},
+        "edit":          {"sox": "synth 0.06 square 1000 : synth 0.06 square 1150"},
+        "bash":          {"sox": "synth 0.1 square 200 : synth 0.05 square 250 : synth 0.05 square 300"},
+        "search":        {"sox": "synth 0.05 square 1250"},
+        "permission":    {"sox": "synth 0.08 square 600 : synth 0.08 square 800 : synth 0.12 square 600"},
+        "error":         {"sox": "synth 0.1 square 200 : synth 0.1 square 150 : synth 0.15 square 100"},
+        "subagent_start": {"sox": "synth 0.05 square 400 : synth 0.05 square 600 : synth 0.05 square 800 : synth 0.05 square 1000"},
+        "subagent_stop":  {"sox": "synth 0.05 square 1000 : synth 0.05 square 800 : synth 0.05 square 600 : synth 0.05 square 400"},
+        "compact":       {"sox": "synth 0.08 square 800 : synth 0.08 square 400 : synth 0.08 square 200"},
+        "stop":          {"sox": "synth 0.08 square 523 : synth 0.08 square 659 : synth 0.08 square 784 : synth 0.15 square 1047"}
+      }
+    },
+    "construction": {
+      "dir": "sounds/construction",
+      "events": {
+        "session_start": {"file": "jackhammer.mp3"},
+        "edit":          {"file": "saw.mp3"},
+        "bash":          {"file": "stapler_wood.mp3"},
+        "search":        {"file": "ratchet.mp3"},
+        "permission":    {"file": "whistle.mp3"},
+        "error":         {"file": "steel_drop.mp3"},
+        "subagent_start": {"file": "walkie_start.mp3"},
+        "subagent_stop":  {"file": "walkie_tones.mp3"},
+        "compact":       {"file": "metal_barrier.mp3"},
+        "stop":          {"files": ["hammer.mp3", "hammering_single.mp3", "hammering_few.mp3"]}
+      }
+    },
+    "default": {
+      "events": {
+        "session_start": {"file": "/System/Library/Sounds/Glass.aiff"},
+        "edit":          {"file": "/System/Library/Sounds/Frog.aiff"},
+        "bash":          {"file": "/System/Library/Sounds/Submarine.aiff"},
+        "search":        {"file": "/System/Library/Sounds/Pop.aiff"},
+        "permission":    {"file": "/System/Library/Sounds/Funk.aiff"},
+        "error":         {"file": "/System/Library/Sounds/Basso.aiff"},
+        "subagent_start": {"file": "/System/Library/Sounds/Bottle.aiff"},
+        "subagent_stop":  {"file": "/System/Library/Sounds/Ping.aiff"},
+        "compact":       {"file": "/System/Library/Sounds/Purr.aiff"},
+        "stop":          {"file": "/System/Library/Sounds/Hero.aiff"}
+      }
+    },
+    "factory": {
+      "events": {
+        "session_start": {"sox": "synth 0.6 sawtooth 60:180 tremolo 8 vol 0.35 fade 0.02 0.6 0.3 : synth 0.2 noise vol 0.15 fade 0.01 0.2 0.15"},
+        "edit":          {"sox": "synth 0.04 square 140 synth 0.04 noise vol 0.5 fade 0 0.04 0.03 : synth 0.15 sine 420 vol 0.15 fade 0 0.15 0.12"},
+        "bash":          {"sox": "synth 0.2 brownnoise vol 0.4 fade 0.01 0.2 0.1 : synth 0.1 sawtooth 120:60 vol 0.3 fade 0.01 0.1 0.05"},
+        "search":        {"sox": "synth 0.08 sine 1500 vol 0.3 fade 0.005 0.08 0.06 repeat 1 reverb 50"},
+        "permission":    {"sox": "synth 0.1 square 300 vol 0.35 : synth 0.05 noise vol 0.2 : synth 0.1 square 350 vol 0.35 fade 0.01 0.25 0.05"},
+        "error":         {"sox": "synth 0.2 sawtooth 200:80 vol 0.4 : synth 0.1 noise vol 0.3 fade 0.01 0.3 0.1"},
+        "subagent_start": {"sox": "synth 0.25 sawtooth 80:200 tremolo 15 vol 0.3 fade 0.01 0.25 0.1"},
+        "subagent_stop":  {"sox": "synth 0.2 sawtooth 200:60 tremolo 10 vol 0.25 fade 0.01 0.2 0.12"},
+        "compact":       {"sox": "synth 0.15 brownnoise vol 0.3 : synth 0.1 square 100:50 vol 0.25 fade 0.01 0.25 0.1"},
+        "stop":          {"sox": "synth 0.15 noise vol 0.4 fade 0.01 0.15 0.05 : synth 0.4 square 180:160 tremolo 25 vol 0.3 fade 0.01 0.4 0.2"}
+      }
+    },
+    "minimal": {
+      "events": {
+        "session_start": {"sox": "synth 0.3 sine 440 vol 0.25 fade 0.03 0.3 0.2"},
+        "edit":          {"sox": "synth 0.08 sine 750 vol 0.2 fade 0.01 0.08 0.05"},
+        "bash":          {"sox": "synth 0.1 sine 425 vol 0.25 fade 0.01 0.1 0.06"},
+        "search":        {"sox": "synth 0.06 sine 950 vol 0.15 fade 0.01 0.06 0.03"},
+        "permission":    {"sox": "synth 0.06 sine 700 vol 0.25 fade 0.01 0.06 0.04 : synth 0.08 sine 750 vol 0.2 fade 0.01 0.08 0.05"},
+        "error":         {"sox": "synth 0.15 sine 350:250 vol 0.2 fade 0.01 0.15 0.1"},
+        "subagent_start": {"sox": "synth 0.1 sine 500:700 vol 0.2 fade 0.01 0.1 0.06"},
+        "subagent_stop":  {"sox": "synth 0.1 sine 700:450 vol 0.15 fade 0.01 0.1 0.07"},
+        "compact":       {"sox": "synth 0.15 sine 600:400 vol 0.15 fade 0.02 0.15 0.1"},
+        "stop":          {"sox": "synth 0.2 sine 660 vol 0.3 fade 0.02 0.2 0.15"}
+      }
+    },
+    "organic": {
+      "events": {
+        "session_start": {"sox": "synth 0.6 pluck 375 synth 0.6 pluck 485 synth 0.6 pluck 595 chorus 0.7 0.9 55 0.4 0.3 2 reverb 40"},
+        "edit":          {"sox": "synth 0.2 pluck 650 chorus 0.5 0.9 40 0.3 0.2 2 fade 0.01 0.2 0.1"},
+        "bash":          {"sox": "synth 0.25 pluck 375 reverb 20"},
+        "search":        {"sox": "synth 0.12 pluck 850 fade 0.01 0.12 0.05"},
+        "permission":    {"sox": "synth 0.2 pluck 700 : synth 0.2 pluck 550 chorus 0.6 0.9 50 0.4 0.25 2 reverb 25"},
+        "error":         {"sox": "synth 0.15 pluck 200 synth 0.15 noise vol 0.3 fade 0 0.15 0.1"},
+        "subagent_start": {"sox": "synth 0.15 pluck 400 : synth 0.15 pluck 550 : synth 0.15 pluck 700 reverb 20"},
+        "subagent_stop":  {"sox": "synth 0.2 pluck 650 : synth 0.2 pluck 430 chorus 0.5 0.8 40 0.3 0.2 2 reverb 20"},
+        "compact":       {"sox": "synth 0.3 pluck 300:200 vol 0.2 reverb 35 fade 0.02 0.3 0.25"},
+        "stop":          {"sox": "synth 0.5 pluck 450 synth 0.5 pluck 550 synth 0.5 pluck 650 chorus 0.6 0.9 50 0.4 0.25 2 reverb 30"}
+      }
+    },
+    "paper": {
+      "dir": "sounds/paper",
+      "events": {
+        "session_start": {"file": "book_open.mp3"},
+        "edit":          {"file": "pencil_short.mp3"},
+        "bash":          {"file": "typewriter_short.mp3"},
+        "search":        {"files": ["page_flip.mp3", "page_flip2.mp3", "page_flip3.mp3"]},
+        "permission":    {"file": "bell.mp3"},
+        "error":         {"file": "crumple_short.mp3"},
+        "subagent_start": {"files": ["paper_rip_short.mp3", "paper_rip2_short.mp3"]},
+        "subagent_stop":  {"file": "page_turn_quick.mp3"},
+        "compact":       {"file": "paper_rustle2.mp3"},
+        "stop":          {"file": "book_close.mp3"}
+      }
+    },
+    "sci-fi": {
+      "events": {
+        "session_start": {"sox": "synth 0.6 sine 100:800 tremolo 3 reverb 40 fade 0.02 0.6 0.3"},
+        "edit":          {"sox": "synth 0.15 sine 1100:550 fade 0.01 0.15 0.08"},
+        "bash":          {"sox": "synth 0.2 sawtooth 150:300 tremolo 10 fade 0.01 0.2 0.1"},
+        "search":        {"sox": "synth 0.1 sine 1400:900 fade 0.01 0.1 0.05"},
+        "permission":    {"sox": "synth 0.1 sine 800:1200 : synth 0.1 sine 1200:800 tremolo 8 fade 0.01 0.2 0.08"},
+        "error":         {"sox": "synth 0.3 sawtooth 600:100 tremolo 20 vol 0.4 fade 0.01 0.3 0.1"},
+        "subagent_start": {"sox": "synth 0.2 sine 200:1000 tremolo 6 fade 0.01 0.2 0.08 reverb 30"},
+        "subagent_stop":  {"sox": "synth 0.2 sine 1000:300 fade 0.01 0.2 0.1 reverb 25"},
+        "compact":       {"sox": "synth 0.3 sine 800:200 tremolo 12 vol 0.3 fade 0.01 0.3 0.15"},
+        "stop":          {"sox": "synth 0.5 sine 300:900 fade 0.01 0.5 0.2 tremolo 6 reverb 40"}
+      }
+    },
+    "submarine": {
+      "events": {
+        "session_start": {"sox": "synth 1.2 sine 260:330 vol 0.15 fade 0.3 1.2 0.8 reverb 80"},
+        "edit":          {"sox": "synth 0.5 sine 420:400 vol 0.10 fade 0.12 0.5 0.35 reverb 65"},
+        "bash":          {"sox": "synth 0.6 sine 180:160 vol 0.14 fade 0.15 0.6 0.4 reverb 60"},
+        "search":        {"sox": "synth 0.4 sine 530 vol 0.09 fade 0.1 0.4 0.28 reverb 75"},
+        "permission":    {"sox": "synth 0.8 sine 396 vol 0.18 fade 0.15 0.8 0.5 reverb 60"},
+        "error":         {"sox": "synth 1.0 sine 220:150 vol 0.12 fade 0.2 1.0 0.7 reverb 75"},
+        "subagent_start": {"sox": "synth 0.6 sine 340:440 vol 0.11 fade 0.15 0.6 0.4 reverb 65"},
+        "subagent_stop":  {"sox": "synth 0.6 sine 440:340 vol 0.11 fade 0.15 0.6 0.4 reverb 65"},
+        "compact":       {"sox": "synth 0.7 sine 200 vol 0.08 fade 0.2 0.7 0.5 reverb 70"},
+        "stop":          {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"}
+      }
+    },
+    "silent": {
+      "events": {}
+    }
+  },
+  "voice": {
+    "generals": {
+      "dir": "sounds/generals",
+      "events": {
+        "session_start": {"file": "command_center.aiff"},
+        "edit":          {"file": "building.aiff"},
+        "bash":          {"file": "yes_sir.aiff"},
+        "search":        {"file": "scanning_area.aiff"},
+        "permission":    {"file": "awaiting_orders.aiff"},
+        "error":         {"file": "unit_lost.aiff"},
+        "subagent_start": {
+          "sequence": [
+            ["cmd_moving_out.aiff", "unit_ready_action.aiff"],
+            ["cmd_move_out.aiff", "unit_on_my_way.aiff"],
+            ["cmd_deploy.aiff", "unit_consider_done.aiff"],
+            ["cmd_recon.aiff", "unit_copy_that.aiff"],
+            ["cmd_need_intel.aiff", "unit_right_away.aiff"]
+          ],
+          "gap": 0.15
+        },
+        "subagent_stop": {
+          "sequence": [
+            ["unit_reporting.aiff", "cmd_good_work.aiff"],
+            ["unit_mission_complete.aiff", "cmd_excellent.aiff"],
+            ["unit_target_neutralized.aiff", "cmd_affirmative.aiff"],
+            ["unit_area_clear.aiff", "cmd_acknowledged.aiff"],
+            ["unit_all_done.aiff", "cmd_carry_on.aiff"]
+          ],
+          "gap": 0.15
+        },
+        "compact":       {"file": "upgrading.aiff"},
+        "stop":          {"file": "construction_complete.aiff"}
+      }
+    }
+  }
+}

@@ -15,6 +15,7 @@ Audio feedback plugin for Claude Code. Two independent, mixable layers:
 ```
 soundbar/                          →  ~/.claude/soundbar/
 ├── play.sh                        →  Sound engine (hooks call this)
+├── sounds.json                    →  Sound manifest (single source of truth)
 ├── switch.sh                      →  CLI control
 ├── panel.sh                       →  Control panel (runs server, opens browser)
 ├── server.py                      →  Panel HTTP backend (port 8111)
@@ -29,37 +30,42 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 ## Architecture
 
-**Event flow:** Claude Code hook → `soundbar/play.sh <event>` → Layer 1 (voice) + Layer 2 (effects) in parallel.
+**Event flow:** Claude Code hook → `soundbar/play.sh <event>` → reads `sounds.json` → Layer 1 (voice) + Layer 2 (effects) in parallel.
+
+**Sound manifest:** `sounds.json` is the single source of truth for all sound mappings. Both `play.sh` (hooks) and `server.py` (UI) read it. Three spec types: `file`/`files` (sampled), `sox` (generated), `sequence` (multi-file). Narration voice profile reads `phrases.json` separately (TTS-specific).
 
 **Config:** Single `config.json` (booleans + strings) read by one `jq` call.
 
-**Panel lifecycle:** `panel.sh` runs `server.py` in foreground, opens browser. Ctrl+C stops it. Heartbeat watchdog auto-shuts down if browser tab closes. No dangling processes.
+**Panel:** `server.py` plays sounds directly (no shell script) — resolves manifest specs and runs `afplay`/`play`/`say` via subprocess. Volume is locale-safe (pure integer math).
+
+**Panel lifecycle:** `panel.sh` runs `server.py` in foreground, opens browser. Ctrl+C stops it.
 
 **Install/Uninstall:** DRY operations list — same list drives `--dry-run` preview and actual execution.
 - `install.sh` — checks deps, copies files, creates user config, injects hooks (backup + validate)
 - `uninstall.sh` — stops server, removes hooks surgically, removes files (preserves user config unless `--purge`)
+- `test-install.sh` — validates an installation (files, JSON, manifest, assets, hooks, smoke tests)
 
 ## Key conventions
 
-- `play.sh` has two marked sections: `LAYER 1: VOICE` and `LAYER 2: EFFECTS`. Each is nested case (outer = profile, inner = event).
-- Effects profiles alphabetically ordered.
+- `sounds.json` is the single source of truth for sound mappings. Both `play.sh` and `server.py` read it.
+- `play.sh` is a generic dispatcher — reads manifest via `jq`, plays via `afplay`/`play`/`say`. Narration is the only special case (reads `phrases.json`).
 - All 10 events: `stop`, `edit`, `bash`, `search`, `permission`, `error`, `subagent_start`, `subagent_stop`, `session_start`, `compact`.
-- Web UI auto-discovers profiles by regex-parsing `play.sh` (via `parse_effects_profiles()` in `server.py`).
 - Hook tag: any hook containing `soundbar/play.sh` is ours.
 - `server.py` uses unified `/api/config` POST — send any subset of keys.
-- `/api/play` takes `{layer, profile, event}` and plays that specific profile's sound directly.
+- `/api/play` takes `{layer, profile, event}` and plays sounds directly (no shell script).
+- Volume: `afplay -v` for file-based, `vol` effect for sox, render-to-temp for TTS.
 
 ## Adding a new effects profile
 
-1. Add a case block in `LAYER 2: EFFECTS` section of `play.sh` (alphabetical order)
-2. For sampled: create `sounds/<profile>/`, use `afplay`
-3. For sox-generated: use `play -qn synth ...`
+1. Add profile entry in `sounds.json` under `effects` with an `events` object
+2. For sampled: set `"dir": "sounds/<name>"`, create directory, add audio files, use `{"file": "name.mp3"}` specs
+3. For sox-generated: use `{"sox": "synth args..."}` specs
 4. Add the profile name to `EFFECTS_PROFILES` in `switch.sh`
 5. Profile auto-appears in the web UI
 
 ## Adding a new voice profile
 
-1. Add a case block in `LAYER 1: VOICE` section of `play.sh`
+1. Add profile entry in `sounds.json` under `voice`
 2. Add the profile name to `VOICE_PROFILES` in `server.py`
 
 ## Testing
@@ -68,6 +74,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 ~/.claude/soundbar/play.sh stop        # play a single event
 ~/.claude/soundbar/switch.sh           # show current status
 ~/.claude/soundbar/panel.sh            # open control panel
+./test-install.sh                      # verify installation (42 checks)
 ```
 
 ## Dependencies

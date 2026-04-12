@@ -203,7 +203,7 @@ run_op() {
 
     verify)
       local ok=1
-      for f in play.sh switch.sh panel.sh server.py ui.html config.json phrases.json; do
+      for f in play.sh switch.sh panel.sh server.py ui.html config.json phrases.json sounds.json; do
         [ ! -f "$arg1/$f" ] && { red "Missing: $f"; ok=0; }
       done
       [ "$ok" = "1" ] && green "$desc"

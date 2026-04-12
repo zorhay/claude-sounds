@@ -31,7 +31,7 @@ Both layers fire on every event, in parallel (backgrounded subshells). Each laye
 
 ### 2.1 play.sh — Sound Engine
 
-**Purpose:** Core audio engine. Receives an event name, reads config, plays sounds from both layers.
+**Purpose:** Core audio engine. Receives an event name, reads config and sound manifest, plays sounds from both layers.
 
 **Invocation:** Called by Claude Code hooks: `~/.claude/soundbar/play.sh <event> &`
 
@@ -46,21 +46,60 @@ config.json → jq → EFFECTS_ON, EFFECTS_PROFILE, EFFECTS_VOL,
                     VOICE, SUBVOICE
 ```
 
+**Sound dispatch:** Generic `play_sound()` function reads `sounds.json` via one `jq` call per layer, dispatching by spec type:
+- `file` → `afplay -v <vol> <path>`
+- `files` → random pick, then `afplay`
+- `sox` → `play -qn <args> vol <vol>`
+- `sequence` → random pair, play in order with gap
+
+**Volume:** Locale-safe integer math (`printf -v '%d.%02d'`). Applied as `afplay -v` for files, `vol` effect for sox, render-to-temp + `afplay -v` for TTS.
+
 **Structure:**
 ```bash
 # Config read (single jq call)
-# Preview overrides (FORCE_LAYER, FORCE_EFFECTS_PROFILE, FORCE_VOICE_PROFILE)
-# Volume calculation (0-100 → 0.00-1.00)
-# LAYER 1: VOICE — outer case: profile, inner case: event
-# LAYER 2: EFFECTS — outer case: profile, inner case: event
+# Volume calculation (0-100 → 0.00-1.00, pure bash)
+# play_sound() — generic manifest dispatcher
+# LAYER 1: VOICE — narration (phrases.json) or play_sound()
+# LAYER 2: EFFECTS — play_sound()
 ```
 
-**Preview mode:** Environment variables override config for panel playback:
+**Preview mode:** Environment variables override config for manual testing:
 - `FORCE_LAYER=effects|voice` — play only one layer
 - `FORCE_EFFECTS_PROFILE=<name>` — override effects profile
 - `FORCE_VOICE_PROFILE=<name>` — override voice profile
 
-These allow the panel to play any profile's sound for any event, regardless of what's currently active.
+### 2.1.1 sounds.json — Sound Manifest
+
+**Purpose:** Single source of truth for all sound mappings. Read by both `play.sh` (hooks) and `server.py` (UI).
+
+**Structure:**
+```json
+{
+  "effects": {
+    "<profile>": {
+      "dir": "sounds/<name>",
+      "events": {
+        "<event>": {"file": "name.mp3"},
+        "<event>": {"files": ["a.mp3", "b.mp3"]},
+        "<event>": {"sox": "synth 0.3 sine 440 fade 0.01 0.3 0.2"},
+        "<event>": {"sequence": [["a.aiff","b.aiff"]], "gap": 0.15}
+      }
+    }
+  },
+  "voice": { ... }
+}
+```
+
+**Spec types:**
+
+| Type | Key | Playback | Volume |
+|------|-----|----------|--------|
+| Single file | `file` | `afplay -v <vol> <path>` | `afplay -v` |
+| Random file | `files` | Pick one, `afplay` | `afplay -v` |
+| Sox generated | `sox` | `play -qn <args> vol <vol>` | `vol` effect |
+| Sequence | `sequence` | Random pair, play with gap | `afplay -v` |
+
+**Why not parse play.sh?** Previously, `server.py` regex-parsed play.sh's case blocks to discover profiles. This broke whenever command format changed (e.g., adding `-v` flags). The manifest eliminates this fragile coupling.
 
 ### 2.2 server.py — Panel HTTP Backend
 
@@ -76,27 +115,26 @@ These allow the panel to play any profile's sound for any event, regardless of w
 | GET | `/api/status` | — | Full state: config + profiles + phrases + voices |
 | POST | `/api/config` | `{key: value, ...}` | Update config (whitelisted keys only) |
 | POST | `/api/phrases` | `{event, phrases}` | Update phrases for one event |
-| POST | `/api/play` | `{layer, profile, event}` | Play a specific sound via play.sh |
+| POST | `/api/play` | `{layer, profile, event}` | Play a sound directly (no play.sh) |
 | POST | `/api/say` | `{voice, phrase, rate}` | Preview a TTS voice |
 
 **Config key whitelist:** `effects_on`, `effects_profile`, `effects_volume`, `voice_on`, `voice_profile`, `voice_volume`, `voice_main`, `voice_sub`
 
-**Profile discovery:** Regex-parses `play.sh` to extract profile names, event commands, and detect sound origin type. Two parse functions:
-- `parse_effects_profiles()` — parses LAYER 2 section
-- `parse_voice_profiles()` — narration built from phrases.json; others parsed from LAYER 1
+**Profile discovery:** Reads `sounds.json` manifest. Two functions:
+- `parse_effects_profiles()` — reads `effects` section of manifest
+- `parse_voice_profiles()` — narration built from phrases.json; others from `voice` section
 
-**Origin detection** (from command string):
+**Origin detection** (derived from spec structure):
 
-| Origin | Detection rule | Icon |
-|--------|---------------|------|
-| system | `afplay /System/` | 🖥 |
-| sampled | `afplay` + `.mp3` | 🎵 |
-| recorded | `afplay` + `.aiff` (non-system) | ⏺ |
-| generated | `play -qn` | 🎛 |
-| tts | `say -v` | 🗣 |
-| complex | fallback | ⚙ |
+| Origin | Rule | Icon |
+|--------|------|------|
+| system | file path starts with `/System/` | 🖥 |
+| sampled | `.mp3` extension | 🎵 |
+| recorded | `.aiff` extension | ⏺ |
+| generated | has `sox` key | 🎛 |
+| tts | narration profile | 🗣 |
 
-**Playback:** `/api/play` runs `play.sh` with environment overrides (`FORCE_LAYER`, `FORCE_*_PROFILE`), not by extracting and replaying commands. This ensures bash arrays, `$RANDOM`, nested case blocks, and local variables all work correctly.
+**Playback:** `/api/play` executes audio commands directly — `afplay` for files, `play` (sox) for generated, `say` → temp file → `afplay` for TTS. No shell script in the playback path. Volume computed in Python (locale-safe).
 
 ### 2.3 ui.html — Panel Frontend
 
@@ -244,7 +282,11 @@ Read by `play.sh` (single jq call), `switch.sh`, and `server.py`. Written by `sw
 
 Each event maps to an array. Simple events: array of strings (random choice). Dialogue events (`subagent_start`, `subagent_stop`): array of `[speaker1, speaker2]` pairs.
 
-### 3.3 settings.json (Claude Code)
+### 3.3 sounds.json
+
+Sound manifest — single source of truth for all profile→event→sound mappings. See section 2.1.1 for full spec documentation. Read by `play.sh` (hooks) and `server.py` (UI). Not user-editable in normal use; edited when adding/modifying profiles.
+
+### 3.4 settings.json (Claude Code)
 
 Hooks are injected into `~/.claude/settings.json`:
 
@@ -283,25 +325,25 @@ Hooks are injected into `~/.claude/settings.json`:
 
 | Profile | Type | Sound source | Volume control |
 |---------|------|-------------|----------------|
-| ambient | generated | `play -qn synth` (sox) | Not yet (sox vol flag needed) |
-| attention | generated | `play -qn synth` (sox) | Not yet |
-| chiptune | generated | `play -qn synth` (sox) | Not yet |
-| construction | sampled | `afplay -v` mp3 files | `afplay -v $EFX_VOL` |
-| default | system | `afplay -v` system .aiff | `afplay -v $EFX_VOL` |
-| factory | generated | `play -qn synth` (sox) | Not yet |
-| minimal | generated | `play -qn synth` (sox) | Not yet |
-| organic | generated | `play -qn synth` (sox) | Not yet |
-| paper | sampled | `afplay -v` mp3 files | `afplay -v $EFX_VOL` |
-| sci-fi | generated | `play -qn synth` (sox) | Not yet |
-| submarine | generated | `play -qn synth` (sox) | Not yet |
+| ambient | generated | sox synth | `vol` effect |
+| attention | generated | sox synth | `vol` effect |
+| chiptune | generated | sox synth | `vol` effect |
+| construction | sampled | mp3 files | `afplay -v` |
+| default | system | system .aiff | `afplay -v` |
+| factory | generated | sox synth | `vol` effect |
+| minimal | generated | sox synth | `vol` effect |
+| organic | generated | sox synth | `vol` effect |
+| paper | sampled | mp3 files | `afplay -v` |
+| sci-fi | generated | sox synth | `vol` effect |
+| submarine | generated | sox synth | `vol` effect |
 | silent | — | No sounds | — |
 
 ### 4.2 Voice Profiles
 
 | Profile | Type | Sound source | Volume control |
 |---------|------|-------------|----------------|
-| narration | TTS | `say -v` (macOS) | Not yet (say has no vol flag) |
-| generals | pre-rendered | `afplay -v` .aiff files | `afplay -v $VOX_VOL` |
+| narration | TTS | `say -v` (macOS) | render to temp → `afplay -v` |
+| generals | pre-rendered | .aiff files | `afplay -v` |
 
 ## 5. Sound Assets
 
@@ -331,29 +373,27 @@ Linux equivalents: `espeak-ng` for TTS, `paplay`/`pw-play`/`aplay` for playback.
 ## 7. Connection Map
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Claude Code                                             │
-│  settings.json ──hooks──→ play.sh ──reads──→ config.json│
-│                                    ──reads──→ phrases.json
-│                                    ──plays──→ sounds/*   │
-│                                    ──calls──→ say, afplay, play (sox)
-│                                                         │
-│  Panel:                                                 │
-│  panel.sh ──exec──→ server.py ──serves──→ ui.html       │
-│                     ──reads/writes──→ config.json       │
-│                     ──reads/writes──→ phrases.json      │
-│                     ──parses──→ play.sh (profile discovery)
-│                     ──calls──→ play.sh (FORCE_* env vars)
-│                                                         │
-│  CLI:                                                   │
-│  switch.sh ──reads/writes──→ config.json               │
-│                                                         │
-│  Install:                                               │
-│  install.sh ──copies──→ soundbar/ → ~/.claude/soundbar/ │
-│             ──merges──→ settings.json (hooks)           │
-│  uninstall.sh ──removes──→ hooks from settings.json    │
-│               ──removes──→ ~/.claude/soundbar/          │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                    sounds.json                            │
+│                  (single source of truth)                 │
+│                    ▲              ▲                       │
+│                    │              │                       │
+│  Claude Code       │   Panel      │                      │
+│  settings.json ─hooks─→ play.sh   server.py ──→ ui.html  │
+│                    │      │          │   │                │
+│                    │      ▼          │   ▼                │
+│                    │  config.json ◄──┘  phrases.json      │
+│                    │      │                  │            │
+│                    ▼      ▼                  ▼            │
+│              afplay / play (sox) / say   afplay / say     │
+│                                                          │
+│  CLI: switch.sh ──reads/writes──→ config.json            │
+│                                                          │
+│  Install:                                                │
+│  install.sh ──copies──→ soundbar/ → ~/.claude/soundbar/  │
+│             ──merges──→ settings.json (hooks)            │
+│  test-install.sh ──validates──→ 42 checks                │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## 8. Plans — Not Yet Implemented
@@ -374,25 +414,9 @@ Second mode in the panel alongside Live mode. For building custom profiles.
 - Designer reads/writes profile case blocks in play.sh (or a structured profile format)
 - Recorder uses `navigator.mediaDevices.getUserMedia()` for capture, sends WAV to server for storage
 
-### 8.2 Profile Files (repo structure)
+### ~~8.2 Profile Files~~ → Done (sounds.json)
 
-Currently all profiles are inline case blocks in play.sh. Planned: each profile as a separate file.
-
-```
-soundbar/
-├── profiles/
-│   ├── effects/
-│   │   ├── ambient.sh
-│   │   ├── paper.sh
-│   │   └── ...
-│   └── voices/
-│       ├── narration.sh
-│       └── generals.sh
-```
-
-**Benefits:** Visible in repo, independently editable, designer mode can create new files without touching play.sh.
-
-**play.sh becomes:** Thin dispatcher that sources `profiles/effects/$EFFECTS_PROFILE.sh` and `profiles/voices/$VOICE_PROFILE.sh`.
+Profiles are now defined in `sounds.json` (structured JSON manifest). `play.sh` is a thin dispatcher that reads the manifest via `jq`. Adding/editing profiles is a JSON edit — no shell code to touch.
 
 ### 8.3 MCP Server
 
@@ -410,9 +434,9 @@ Claude Code MCP integration for idiomatic settings interaction.
 
 **Benefits:** Claude can interact with soundbar through native tool use instead of shell commands. The `/sounds` skill would become an MCP client.
 
-### 8.4 Volume for Generated Profiles
+### ~~8.4 Volume for Generated Profiles~~ → Done
 
-Sox-generated profiles (`play -qn synth`) don't currently use `$EFX_VOL`. Needs `vol $EFX_VOL` appended to each sox command. Similarly, `say` (narration) has no direct volume flag — would need piping through sox or writing to temp file and playing with `afplay -v`.
+Sox: `vol` effect appended to synth chain. TTS: render to temp file via `say -o`, play with `afplay -v`. All profile types now respect the volume slider.
 
 ### 8.5 Linux Support
 
