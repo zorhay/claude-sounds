@@ -689,13 +689,13 @@ def _run_kokoro_install():
             log.info("kokoro install: creating venv via %s at %s", method, KOKORO_VENV)
 
             if method == "uv":
-                # uv creates the venv and downloads Python 3.11 if needed
+                # uv venv --seed ensures pip is available inside the venv
                 result = subprocess.run(
-                    ["uv", "venv", "--python", "3.11", str(KOKORO_VENV)],
+                    ["uv", "venv", "--seed", "--python", "3.11", str(KOKORO_VENV)],
                     capture_output=True, text=True, timeout=120,
                 )
             else:
-                # direct / pyenv / conda — use the found python binary
+                # direct / pyenv / conda — use the found python to create a standard venv
                 result = subprocess.run(
                     [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
                     capture_output=True, text=True, timeout=60,
@@ -705,7 +705,6 @@ def _run_kokoro_install():
                 _kokoro_install["status"] = "error"
                 _kokoro_install["message"] = f"venv creation failed: {result.stderr.strip()[-200:]}"
                 log.error("kokoro install: venv creation failed: %s", result.stderr.strip())
-                # Clear cached python info so next attempt re-detects
                 write_integration("kokoro_python", None)
                 return
 
@@ -716,6 +715,15 @@ def _run_kokoro_install():
                 log.error("kokoro install: venv python missing after creation")
                 write_integration("kokoro_python", None)
                 return
+
+            # Ensure pip is available (ensurepip as fallback)
+            venv_pip = KOKORO_VENV / "bin" / "pip"
+            if not venv_pip.exists():
+                log.info("kokoro install: pip not found in venv, running ensurepip")
+                subprocess.run(
+                    [str(KOKORO_VENV_PY), "-m", "ensurepip", "--upgrade"],
+                    capture_output=True, timeout=30,
+                )
 
         log.info("kokoro install: pip install kokoro + soundfile")
         _kokoro_install["message"] = "Installing kokoro + dependencies (this may take a few minutes)..."
