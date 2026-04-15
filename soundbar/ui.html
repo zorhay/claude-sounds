@@ -19,6 +19,8 @@
     --red: #d05050;
     --border: #33334a;
     --radius: 5px;
+    --glow-green: 0 0 6px rgba(80, 184, 88, 0.4);
+    --glow-accent: 0 0 6px rgba(224, 160, 48, 0.3);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -37,13 +39,13 @@
     margin-bottom: 16px;
   }
   .brand {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--fg2);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: var(--accent);
     text-transform: uppercase;
   }
-  .tagline { font-size: 11px; color: var(--fg3); }
+  .tagline { font-size: 11px; color: var(--fg3); font-style: italic; }
 
   /* ── Channel strips ── */
   .channels {
@@ -59,7 +61,9 @@
     padding: 10px 14px;
     min-width: 0;
     overflow: hidden;
+    transition: border-color 0.2s;
   }
+  .channel:hover { border-color: #444460; }
   .channel-top {
     display: flex;
     align-items: center;
@@ -89,7 +93,7 @@
     left: 2px; top: 2px;
     background: var(--fg3); border-radius: 50%; transition: 0.2s;
   }
-  .toggle input:checked + .toggle-track { background: var(--green-dim); border-color: var(--green); }
+  .toggle input:checked + .toggle-track { background: var(--green-dim); border-color: var(--green); box-shadow: var(--glow-green); }
   .toggle input:checked + .toggle-track::after { background: var(--green); transform: translateX(18px); }
 
   /* Profile select */
@@ -141,7 +145,7 @@
     width: 12px; height: 12px; border-radius: 50%;
     background: var(--fg2); cursor: pointer; border: none;
   }
-  .volume-slider::-webkit-slider-thumb:hover { background: var(--accent); }
+  .volume-slider::-webkit-slider-thumb:hover { background: var(--accent); box-shadow: var(--glow-accent); }
   .volume-value { font-size: 10px; color: var(--fg3); min-width: 28px; text-align: right; }
 
   /* ── Event mixer table ── */
@@ -169,6 +173,7 @@
     vertical-align: middle;
   }
   .mixer tr:last-child td { border-bottom: none; }
+  .mixer tr:nth-child(even) td { background: rgba(255, 255, 255, 0.015); }
   .mixer tr:hover td { background: #1e1e2c; }
 
   .event-name {
@@ -222,7 +227,14 @@
     font-size: 9px; transition: 0.15s; flex-shrink: 0;
   }
   .play-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .play-btn.playing { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .play-btn.playing {
+    border-color: var(--accent); color: var(--accent); background: var(--accent-dim);
+    animation: play-pulse 0.6s ease-out;
+  }
+  @keyframes play-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(224, 160, 48, 0.5); }
+    100% { box-shadow: 0 0 0 6px rgba(224, 160, 48, 0); }
+  }
 
   .empty-cell { color: var(--fg3); font-size: 11px; font-style: italic; }
 
@@ -300,9 +312,10 @@
   }
   .tts-select:focus { outline: none; border-color: var(--accent); }
   .tts-dot {
-    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    transition: box-shadow 0.3s;
   }
-  .tts-dot.ok { background: var(--green); }
+  .tts-dot.ok { background: var(--green); box-shadow: var(--glow-green); }
   .tts-dot.err { background: var(--red); }
   .tts-dot.checking { background: var(--accent); animation: pulse 1s infinite; }
   .tts-hint { font-size: 9px; color: var(--fg3); font-style: italic; }
@@ -310,7 +323,7 @@
   /* ── Kokoro info box ── */
   .kokoro-info {
     margin: 6px 10px; padding: 8px 10px;
-    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
     font-size: 10px; color: var(--fg3); line-height: 1.5;
   }
   .kokoro-info summary {
@@ -362,10 +375,10 @@
     background: var(--border);
   }
   .narrator-pane-title {
-    font-size: 9px; font-weight: 700; letter-spacing: 1px;
-    color: var(--fg3); text-transform: uppercase;
+    font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+    color: var(--fg2); text-transform: uppercase;
     margin-bottom: 8px;
-    padding-bottom: 4px;
+    padding-bottom: 5px;
     border-bottom: 1px solid var(--border);
   }
   .narrator-grid {
@@ -417,9 +430,9 @@
   }
   .narrator-dot {
     width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
+    flex-shrink: 0; transition: box-shadow 0.3s;
   }
-  .narrator-dot.ok { background: var(--green); }
+  .narrator-dot.ok { background: var(--green); box-shadow: var(--glow-green); }
   .narrator-dot.err { background: var(--red); }
   .narrator-dot.checking { background: var(--accent); animation: pulse 1s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }

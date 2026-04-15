@@ -29,7 +29,7 @@ echo "Target: $DEST"
 # ── Files ──
 
 printf '\n\033[1mFiles\033[0m\n'
-for f in play.sh server.py ui.html panel.sh switch.sh sounds.json \
+for f in play.sh server.py narrate.py kokoro_server.py ui.html panel.sh switch.sh sounds.json \
          config.defaults.json phrases.defaults.json; do
   check "$f" test -f "$DEST/$f"
 done
@@ -97,6 +97,8 @@ check "play.sh reads sounds.json" \
   jq -e '.effects.default.events.stop.file' "$DEST/sounds.json"
 check "server.py imports cleanly" \
   python3 -c "import sys; sys.path.insert(0,'$DEST'); import server"
+check "narrate.py imports cleanly" \
+  python3 -c "import sys; sys.path.insert(0,'$DEST'); import narrate"
 
 # ── Results ──
 

@@ -100,7 +100,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 ~/.claude/soundbar/play.sh stop        # play a single event
 ~/.claude/soundbar/switch.sh           # show current status
 ~/.claude/soundbar/panel.sh            # open control panel
-./test-install.sh                      # verify installation (42 checks)
+./test-install.sh                      # verify installation
 
 # Narrator testing
 python3 ~/.claude/soundbar/narrate.py --check                    # test provider connection

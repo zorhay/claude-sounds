@@ -43,6 +43,7 @@ OPS=()
 
 # Phase 1: Stop running processes
 OPS+=("kill_server|Stop panel server if running|$DEST/.server.pid|")
+OPS+=("kill_kokoro|Stop kokoro daemon if running|$DEST/kokoro.sock|")
 
 # Phase 2: Remove hooks from settings.json
 OPS+=("remove_hooks|Remove soundbar hooks from settings.json|$SETTINGS|$TAG")
@@ -74,6 +75,22 @@ run_op() {
           green "$desc (pid $pid)"
         else
           green "$desc — not running"
+        fi
+        rm -f "$arg1"
+      else
+        green "$desc — not running"
+      fi
+      ;;
+
+    kill_kokoro)
+      if [ -S "$arg1" ]; then
+        local pid
+        pid=$(lsof -t "$arg1" 2>/dev/null || true)
+        if [ -n "$pid" ]; then
+          kill "$pid" 2>/dev/null || true
+          green "$desc (pid $pid)"
+        else
+          green "$desc — socket exists but no process found"
         fi
         rm -f "$arg1"
       else
@@ -124,7 +141,7 @@ run_op() {
         green "$desc (removed symlink)"
       else
         # Remove everything except user config
-        find "$arg1" -type f \
+        find "$arg1" \( -type f -o -type s \) \
           ! -name 'config.json' \
           ! -name 'phrases.json' \
           -delete 2>/dev/null || true
@@ -174,7 +191,7 @@ fi
 phase "1/4" "Stop processes"
 for op in "${OPS[@]}"; do
   IFS='|' read -r action desc arg1 arg2 <<< "$op"
-  case "$action" in kill_server) run_op "$action" "$desc" "$arg1" "$arg2" ;; esac
+  case "$action" in kill_server|kill_kokoro) run_op "$action" "$desc" "$arg1" "$arg2" ;; esac
 done
 
 phase "2/4" "Remove hooks"

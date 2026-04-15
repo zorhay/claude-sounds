@@ -61,6 +61,13 @@ else
   OPS+=("create_config|Create phrases.json from defaults|$DEST/phrases.defaults.json|$DEST/phrases.json")
 fi
 
+# Phase 4b: Migrate renamed config values
+if [ "$DEV" = "1" ]; then
+  OPS+=("migrate_config|Migrate voice_profile narration → senior|$SCRIPT_DIR/config.json|voice_profile")
+else
+  OPS+=("migrate_config|Migrate voice_profile narration → senior|$DEST/config.json|voice_profile")
+fi
+
 # Phase 5: Inject hooks into settings.json
 OPS+=("inject_hooks|Inject hooks into settings.json|$SETTINGS|$BACKUP")
 
@@ -172,6 +179,17 @@ run_op() {
       fi
       ;;
 
+    migrate_config)
+      if [ -f "$arg1" ] && jq -e '.voice_profile == "narration"' "$arg1" > /dev/null 2>&1; then
+        local tmp
+        tmp=$(jq '.voice_profile = "senior"' "$arg1")
+        echo "$tmp" > "$arg1"
+        green "$desc"
+      else
+        green "$desc — not needed"
+      fi
+      ;;
+
     inject_hooks)
       if [ -f "$arg1" ]; then
         if ! jq . "$arg1" > /dev/null 2>&1; then
@@ -203,7 +221,7 @@ run_op() {
 
     verify)
       local ok=1
-      for f in play.sh switch.sh panel.sh server.py ui.html config.json phrases.json sounds.json; do
+      for f in play.sh switch.sh panel.sh server.py narrate.py kokoro_server.py ui.html config.json phrases.json sounds.json; do
         [ ! -f "$arg1/$f" ] && { red "Missing: $f"; ok=0; }
       done
       [ "$ok" = "1" ] && green "$desc"
@@ -227,6 +245,13 @@ preview_op() {
         echo "  ○ $desc — already exists, will keep"
       else
         echo "  ○ $desc"
+      fi
+      ;;
+    migrate_config)
+      if [ -f "$arg1" ] && jq -e '.voice_profile == "narration"' "$arg1" > /dev/null 2>&1; then
+        echo "  ○ $desc"
+      else
+        echo "  ○ $desc — not needed"
       fi
       ;;
     inject_hooks)
@@ -273,7 +298,7 @@ if [ "$DRY_RUN" = "1" ]; then
   phase "4/6" "User configuration"
   for op in "${OPS[@]}"; do
     IFS='|' read -r action desc arg1 arg2 <<< "$op"
-    case "$action" in create_config|dev_config) preview_op "$action" "$desc" "$arg1" "$arg2" ;; esac
+    case "$action" in create_config|dev_config|migrate_config) preview_op "$action" "$desc" "$arg1" "$arg2" ;; esac
   done
   phase "5/6" "Hook injection"
   for op in "${OPS[@]}"; do
@@ -311,7 +336,7 @@ done
 phase "4/6" "User configuration"
 for op in "${OPS[@]}"; do
   IFS='|' read -r action desc arg1 arg2 <<< "$op"
-  case "$action" in create_config|dev_config) run_op "$action" "$desc" "$arg1" "$arg2" ;; esac
+  case "$action" in create_config|dev_config|migrate_config) run_op "$action" "$desc" "$arg1" "$arg2" ;; esac
 done
 
 phase "5/6" "Hook injection"

@@ -33,7 +33,7 @@ IFS=$'\t' read -r EFFECTS_ON EFFECTS_PROFILE EFFECTS_VOL VOICE_ON VOICE_PROFILE 
     (.voice_sub // "Aman"),
     (.tts_engine // "say"),
     (.kokoro_voice // "af_heart")
-  ] | @tsv' "$CFG" 2>/dev/null || printf 'on\tdefault\t100\toff\tnarration\t100\tTara\tAman\tsay\taf_heart'
+  ] | @tsv' "$CFG" 2>/dev/null || printf 'on\tdefault\t100\toff\tsenior\t100\tTara\tAman\tsay\taf_heart'
 )
 
 # Convert volume 0-100 to afplay scale 0-1 (pure bash, locale-safe)
