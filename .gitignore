@@ -16,3 +16,4 @@ soundbar/debug.log
 soundbar/error.log
 soundbar/kokoro_daemon.log
 .DS_Store
+TASKS.md

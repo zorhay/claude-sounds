@@ -21,6 +21,7 @@ soundbar/                          →  ~/.claude/soundbar/
 ├── switch.sh                      →  CLI control
 ├── panel.sh                       →  Control panel (runs server, opens browser)
 ├── server.py                      →  Panel HTTP backend (port 8111)
+├── integrations.py                →  Modular venv integration system (Kokoro install, Python detection)
 ├── ui.html                        →  Panel frontend (mixer layout)
 ├── kokoro_server.py                →  Kokoro TTS daemon (runs from .venv)
 ├── uninstall.sh                   →  Uninstaller (also symlinked at repo root)
@@ -45,6 +46,8 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 **TTS engines:** Two TTS backends: `say` (macOS built-in, default) and `kokoro` (local neural TTS). Config key `tts_engine` selects which. Both narrator and senior profiles respect this setting. `play.sh` dispatches narration phrases to `narrate.py --speak` when kokoro is selected.
 
 **Kokoro daemon:** `kokoro_server.py` runs from `.venv/bin/python3`, listens on Unix socket (`kokoro.sock`). Loads `hexgrad/Kokoro-82M` once on startup (~3-5s), then serves TTS in ~100-200ms. Auto-starts on first speak request (via `narrate.py`), auto-shuts down after 10 minutes idle. Protocol: newline-delimited JSON over Unix stream socket (`health`, `speak` commands). Setup: `python3 -m venv .venv && .venv/bin/pip install kokoro soundfile`.
+
+**Integrations:** `integrations.py` provides `VenvIntegration` — a reusable base class for on-demand Python venv-based tools. Handles Python version detection (direct/uv/pyenv/conda), venv creation with fallbacks, package installation, pyvenv.cfg repair, and state persistence via `integrations.json`. Pre-configured `kokoro` instance is imported by `server.py`. Future integrations (different TTS engines, local models) plug into the same pattern.
 
 **Config:** Single `config.json` (booleans + strings) read by one `jq` call in `play.sh`, or `json.load` in `narrate.py`/`server.py`. Key `python3_path` stores the absolute path to python3 (detected at install time); all scripts use it instead of bare `python3` to avoid PATH issues in hook environments.
 
