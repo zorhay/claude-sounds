@@ -577,15 +577,32 @@ def _find_kokoro_python():
                 return result
         tried.append(name)
 
-    # 2. uv — can download + manage Python versions itself
-    if shutil.which("uv"):
-        result = {
-            "ok": True, "python": "", "method": "uv",
-            "version": "3.11 (managed by uv)",
-            "message": "Using uv to create venv with Python 3.11",
-        }
-        write_integration("kokoro_python", result)
-        return result
+    # 2. uv — install + find a compatible Python binary
+    uv_bin = shutil.which("uv")
+    if uv_bin:
+        try:
+            # Ensure Python 3.11 is available via uv
+            subprocess.run(
+                [uv_bin, "python", "install", "3.11"],
+                capture_output=True, text=True, timeout=120,
+            )
+            r = subprocess.run(
+                [uv_bin, "python", "find", "3.11"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if r.returncode == 0:
+                py_path = r.stdout.strip()
+                ver = _get_python_version(py_path)
+                if ver and 9 <= ver[1] <= 11:
+                    result = {
+                        "ok": True, "python": py_path, "method": "uv",
+                        "version": f"{ver[0]}.{ver[1]}",
+                        "message": f"Using Python {ver[0]}.{ver[1]} via uv",
+                    }
+                    write_integration("kokoro_python", result)
+                    return result
+        except Exception:
+            pass
     tried.append("uv")
 
     # 3. pyenv — check installed versions
@@ -688,18 +705,11 @@ def _run_kokoro_install():
             _kokoro_install["message"] = f"Creating venv ({py_info['message']})..."
             log.info("kokoro install: creating venv via %s at %s", method, KOKORO_VENV)
 
-            if method == "uv":
-                # uv venv --seed ensures pip is available inside the venv
-                result = subprocess.run(
-                    ["uv", "venv", "--seed", "--python", "3.11", str(KOKORO_VENV)],
-                    capture_output=True, text=True, timeout=120,
-                )
-            else:
-                # direct / pyenv / conda — use the found python to create a standard venv
-                result = subprocess.run(
-                    [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
-                    capture_output=True, text=True, timeout=60,
-                )
+            # All methods provide a real Python binary — create standard venv
+            result = subprocess.run(
+                [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
+                capture_output=True, text=True, timeout=60,
+            )
 
             if result.returncode != 0:
                 _kokoro_install["status"] = "error"
