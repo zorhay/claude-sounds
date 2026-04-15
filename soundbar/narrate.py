@@ -392,14 +392,17 @@ def _ensure_kokoro_daemon():
 
 
 def speak_kokoro(text, voice, volume):
-    """Speak text via Kokoro daemon (auto-starts if needed)."""
+    """Speak text via Kokoro daemon (auto-starts if needed).
+
+    Does NOT fall back to macOS say — if kokoro fails, it fails silently.
+    Callers (play.sh hooks) should not degrade to a different engine
+    without the user knowing. The UI shows engine status so the user
+    can switch manually if kokoro is broken.
+    """
     if not _ensure_kokoro_daemon():
-        speak_say(text, "Tara", volume)
         return
 
-    resp = _kokoro_request("speak", timeout=30, text=text, voice=voice, volume=volume)
-    if not resp or not resp.get("ok"):
-        speak_say(text, "Tara", volume)
+    _kokoro_request("speak", timeout=30, text=text, voice=voice, volume=volume)
 
 
 def _read_integrations():

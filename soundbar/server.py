@@ -974,13 +974,38 @@ class Handler(SimpleHTTPRequestHandler):
             engine = body.get("engine", "say")
             if voice and phrase:
                 if engine == "kokoro":
-                    # Use narrate.py --speak for Kokoro TTS
-                    subprocess.Popen(
-                        [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
+                    # Verify kokoro daemon is reachable before speaking
+                    kokoro_sock = SND / "kokoro.sock"
+                    if kokoro_sock.exists():
+                        subprocess.Popen(
+                            [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
+                            stdin=subprocess.DEVNULL,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                        self.json_response({"ok": True})
+                    else:
+                        # Try to start daemon, but report if kokoro is unavailable
+                        result = subprocess.run(
+                            [get_python3(), str(SND / "narrate.py"), "--check-tts"],
+                            capture_output=True, text=True, timeout=15,
+                        )
+                        tts_ok = False
+                        try:
+                            tts_ok = json.loads(result.stdout).get("ok", False) if result.stdout.strip() else False
+                        except Exception:
+                            pass
+                        if tts_ok:
+                            subprocess.Popen(
+                                [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
+                                stdin=subprocess.DEVNULL,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                            )
+                            self.json_response({"ok": True})
+                        else:
+                            log.warning("kokoro not available for /api/say, engine=%s", engine)
+                            self.json_response({"ok": False, "error": "Kokoro not available", "fallback": "say"})
                 else:
                     subprocess.Popen(
                         ["say", "-v", voice, "-r", str(rate), phrase],
@@ -988,7 +1013,9 @@ class Handler(SimpleHTTPRequestHandler):
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-            self.json_response({"ok": True})
+                    self.json_response({"ok": True})
+            else:
+                self.json_response({"ok": True})
 
         elif path == "/api/tts-check":
             try:

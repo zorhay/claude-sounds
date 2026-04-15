@@ -769,6 +769,13 @@ async function checkTTS() {
   updateKokoroInstallBtn();
 }
 
+function showTTSError(msg) {
+  const dot = document.getElementById('ttsDot');
+  const hint = document.getElementById('ttsHint');
+  if (dot) dot.className = 'tts-dot err';
+  if (hint) hint.textContent = msg;
+}
+
 async function updateKokoroInstallBtn() {
   const btn = document.getElementById('kokoroInstallBtn');
   const msg = document.getElementById('kokoroInstallMsg');
@@ -1013,7 +1020,8 @@ async function previewVoice(which) {
   if (which === 'kokoro') {
     const voice = document.getElementById('kokoroVoice').value;
     const name = (S.kokoro_voices || []).find(v => v.id === voice)?.name || voice;
-    await api('POST', '/api/say', { voice, phrase: `Hello, I am ${name}, your narrator.`, engine: 'kokoro' });
+    const res = await api('POST', '/api/say', { voice, phrase: `Hello, I am ${name}, your narrator.`, engine: 'kokoro' });
+    if (res && !res.ok) showTTSError(res.error || 'Kokoro unavailable');
   } else {
     const voice = which === 'main'
       ? document.getElementById('mainVoice').value
@@ -1226,12 +1234,13 @@ async function testNarrator() {
   btn.textContent = 'Test narration';
 }
 
-function previewNarrVoice() {
+async function previewNarrVoice() {
   const voice = document.getElementById('narrVoice').value;
   const isKok = (S.tts_engine || 'say') === 'kokoro';
   if (isKok) {
     const name = (S.kokoro_voices || []).find(v => v.id === voice)?.name || voice;
-    api('POST', '/api/say', { voice, phrase: `This is ${name}, your narrator.`, engine: 'kokoro' });
+    const res = await api('POST', '/api/say', { voice, phrase: `This is ${name}, your narrator.`, engine: 'kokoro' });
+    if (res && !res.ok) showTTSError(res.error || 'Kokoro unavailable');
   } else {
     api('POST', '/api/say', { voice, phrase: `This is ${voice}, your narrator.`, rate: 190 });
   }
