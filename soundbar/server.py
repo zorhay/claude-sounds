@@ -716,18 +716,35 @@ def _run_kokoro_install():
         method = py_info["method"]
         _dlog.debug("install method: %s python: %s", method, py_info.get("python"))
 
+        # Detect if "direct" python is actually uv-managed (symlink into uv store)
+        py_real = os.path.realpath(py_info["python"])
+        is_uv_python = "/uv/python/" in py_real or (method == "uv")
+        _dlog.debug("python realpath: %s is_uv_python: %s", py_real, is_uv_python)
+
         if not KOKORO_VENV_PY.exists():
             _kokoro_install["message"] = f"Creating venv ({py_info['message']})..."
             log.info("kokoro install: creating venv via %s at %s", method, KOKORO_VENV)
 
-            if method == "uv":
+            if is_uv_python and shutil.which("uv"):
+                # uv-managed Python: use uv venv (handles standalone builds correctly)
                 cmd = ["uv", "venv", "--python", py_info["python"], str(KOKORO_VENV)]
-                _dlog.debug("venv cmd: %s", cmd)
+                _dlog.debug("venv cmd (uv): %s", cmd)
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             else:
                 cmd = [py_info["python"], "-m", "venv", str(KOKORO_VENV)]
                 _dlog.debug("venv cmd: %s", cmd)
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+                # If ensurepip fails, retry without pip — standalone/uv Pythons lack it
+                if result.returncode != 0 and "ensurepip" in result.stderr:
+                    _dlog.debug("ensurepip failed, retrying with --without-pip")
+                    # Clean up partial venv
+                    import shutil as _sh
+                    _sh.rmtree(str(KOKORO_VENV), ignore_errors=True)
+                    cmd = [py_info["python"], "-m", "venv", "--without-pip", str(KOKORO_VENV)]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                    if result.returncode == 0:
+                        is_uv_python = True  # force uv pip path for install step
 
             _dlog.debug("venv creation: rc=%s stdout=%r stderr=%r", result.returncode, result.stdout.strip()[:300], result.stderr.strip()[:300])
 
@@ -820,9 +837,9 @@ def _run_kokoro_install():
                 write_integration("kokoro_python", None)
                 return
 
-        # Install kokoro: uv pip for uv venvs, standard pip otherwise
+        # Install kokoro: uv pip for uv/standalone venvs (no pip inside), standard pip otherwise
         _kokoro_install["message"] = "Installing kokoro + dependencies (this may take a few minutes)..."
-        if method == "uv":
+        if is_uv_python and shutil.which("uv"):
             log.info("kokoro install: uv pip install kokoro + soundfile")
             result = subprocess.run(
                 ["uv", "pip", "install", "--python", str(KOKORO_VENV_PY), "kokoro", "soundfile"],
