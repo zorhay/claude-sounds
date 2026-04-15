@@ -284,8 +284,168 @@
   .speaker-main { background: var(--green-dim); color: var(--green); }
   .speaker-sub { background: var(--accent-dim); color: var(--accent); }
 
+  /* ── TTS engine row ── */
+  .tts-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; margin-top: 4px;
+  }
+  .tts-label { font-size: 10px; color: var(--fg3); font-weight: 600; white-space: nowrap; }
+  .tts-select {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 11px;
+    padding: 3px 20px 3px 6px; cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23606068'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 6px center;
+  }
+  .tts-select:focus { outline: none; border-color: var(--accent); }
+  .tts-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .tts-dot.ok { background: var(--green); }
+  .tts-dot.err { background: var(--red); }
+  .tts-dot.checking { background: var(--accent); animation: pulse 1s infinite; }
+  .tts-hint { font-size: 9px; color: var(--fg3); font-style: italic; }
+
+  /* ── Kokoro info box ── */
+  .kokoro-info {
+    margin: 6px 10px; padding: 8px 10px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 10px; color: var(--fg3); line-height: 1.5;
+  }
+  .kokoro-info summary {
+    cursor: pointer; font-weight: 600; color: var(--fg2); font-size: 11px;
+  }
+  .kokoro-info code {
+    background: var(--bg1); padding: 1px 4px; border-radius: 3px;
+    font-size: 10px;
+  }
+  .kokoro-info .ki-how {
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+    color: var(--fg3);
+  }
+  .kokoro-install-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px;
+  }
+  .kokoro-install-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+    padding: 4px 12px; font-size: 10px; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+  }
+  .kokoro-install-btn:hover { filter: brightness(1.15); }
+  .kokoro-install-btn:disabled { opacity: 0.5; cursor: default; filter: none; }
+  .kokoro-install-msg {
+    font-size: 9px; color: var(--fg3); font-style: italic;
+  }
+
+  /* ── Narrator section ── */
+  .narrator-section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 12px;
+    padding: 14px;
+    display: none;
+  }
+  .narrator-section.visible { display: block; }
+  .narrator-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--fg3); text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .narrator-columns {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: 0 16px;
+  }
+  .narrator-divider {
+    background: var(--border);
+  }
+  .narrator-pane-title {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    color: var(--fg3); text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .narrator-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 10px;
+    align-items: center;
+  }
+  .narrator-label {
+    font-size: 11px; color: var(--fg2); font-weight: 600;
+    white-space: nowrap;
+  }
+  .narrator-input {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 12px;
+    padding: 5px 8px; width: 100%;
+  }
+  .narrator-input:focus { outline: none; border-color: var(--accent); }
+  .narrator-input::placeholder { color: var(--fg3); }
+  .narrator-select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 12px;
+    padding: 5px 24px 5px 8px; cursor: pointer; width: 100%;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23606068'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  .narrator-select:focus { outline: none; border-color: var(--accent); }
+  .narrator-desc {
+    font-size: 10px; color: var(--fg3); font-style: italic;
+    grid-column: 2; margin-top: -4px;
+  }
+  .narrator-key-row {
+    display: flex; gap: 6px; align-items: center;
+  }
+  .narrator-key-row .narrator-input { flex: 1; }
+  .narrator-key-save {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg2); font-size: 11px; padding: 5px 10px; cursor: pointer;
+    white-space: nowrap; transition: 0.15s;
+  }
+  .narrator-key-save:hover { border-color: var(--accent); color: var(--accent); }
+  .narrator-status {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: var(--bg); border-radius: var(--radius);
+    margin-top: 4px;
+  }
+  .narrator-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .narrator-dot.ok { background: var(--green); }
+  .narrator-dot.err { background: var(--red); }
+  .narrator-dot.checking { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .narrator-status-text { font-size: 11px; color: var(--fg2); }
+  .narrator-actions {
+    grid-column: 1 / -1;
+    display: flex; gap: 8px; margin-top: 4px;
+  }
+  .narrator-btn {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg2); font-size: 11px; padding: 6px 14px; cursor: pointer;
+    transition: 0.15s;
+  }
+  .narrator-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .narrator-btn:disabled { opacity: 0.4; cursor: default; }
+  .narrator-test-result {
+    grid-column: 1 / -1;
+    font-size: 11px; color: var(--fg2); font-style: italic;
+    padding: 4px 0;
+    min-height: 0;
+  }
+
   @media (max-width: 700px) {
     .channels { grid-template-columns: 1fr; }
+    .narrator-columns { grid-template-columns: 1fr; gap: 12px 0; }
+    .narrator-divider { display: none; }
   }
 </style>
 </head>
@@ -321,6 +481,16 @@
   <div class="phrases-body" id="phrasesBody"></div>
 </div>
 
+<!-- Narrator settings -->
+<div class="narrator-section" id="narratorSection">
+  <div class="narrator-title">Narrator settings</div>
+  <div class="narrator-columns">
+    <div id="narratorLeft"></div>
+    <div class="narrator-divider"></div>
+    <div id="narratorRight"></div>
+  </div>
+</div>
+
 <script>
 const ORIGIN_ICONS = {
   system:    '&#x1F5A5;',  // 🖥
@@ -354,6 +524,7 @@ function render() {
   renderVoiceChannel();
   renderMixer();
   renderPhrasesVisibility();
+  renderNarratorVisibility();
 }
 
 // ── Helpers ──
@@ -425,22 +596,73 @@ function renderVoiceChannel() {
   const el = document.getElementById('voiceChannel');
   const vnames = S.voice_profile_names || [];
   const opts = vnames.map(n => `<option value="${n}" ${n === S.voice_profile ? 'selected' : ''}>${n}</option>`).join('');
-  const isNarr = S.voice_profile === 'narration';
+  const isNarr = S.voice_profile === 'senior';
+  const usesTTS = isNarr || S.voice_profile === 'narrator';
+  const isKokoro = (S.tts_engine || 'say') === 'kokoro';
   const vvol = S.voice_volume ?? 100;
 
+  // TTS engine selector (for narration + narrator profiles)
+  let ttsHTML = '';
+  if (usesTTS) {
+    const engines = S.tts_engines || {};
+    const engineOpts = Object.entries(engines).map(([k, v]) =>
+      `<option value="${k}" ${k === (S.tts_engine || 'say') ? 'selected' : ''}>${esc(v.name)}</option>`
+    ).join('');
+    ttsHTML = `
+      <div class="tts-row">
+        <span class="tts-label">TTS</span>
+        <select class="tts-select" id="ttsEngine">${engineOpts}</select>
+        <span class="tts-dot checking" id="ttsDot"></span>
+        <span class="tts-hint" id="ttsHint"></span>
+      </div>`;
+    if (isKokoro) {
+      ttsHTML += `
+        <div class="kokoro-info">
+          <div class="kokoro-install-row">
+            <button class="kokoro-install-btn" id="kokoroInstallBtn" onclick="installKokoro()">Install Kokoro</button>
+            <span class="kokoro-install-msg" id="kokoroInstallMsg"></span>
+          </div>
+          <details style="margin-top:6px">
+            <summary>How it works</summary>
+            <div class="ki-how" style="border:none;margin:0;padding:4px 0 0 0">
+              Creates a Python venv (<code>~/.claude/soundbar/.venv</code>, ~1.5 GB with PyTorch).
+              A background daemon loads the Kokoro-82M model once and keeps it warm in memory.
+              Speech requests go through a Unix socket &mdash; ~100&ndash;200ms per phrase instead
+              of 3&ndash;5s cold starts. The daemon auto-starts on first use and shuts down after
+              10 minutes idle.
+            </div>
+          </details>
+        </div>`;
+    }
+  }
+
+  // Voice selectors
   let voiceSettingsHTML = '';
   if (isNarr) {
-    const voices = (S.voices || []).filter(v => v.locale.startsWith('en_'));
-    const voiceOpts = voices.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
-    voiceSettingsHTML = `
-      <div class="voice-settings">
-        <span class="voice-label">Main</span>
-        <select class="voice-select" id="mainVoice">${voiceOpts}</select>
-        <button class="mini-play" onclick="previewVoice('main')">&#9654;</button>
-        <span class="voice-label" style="margin-left:6px">Sub</span>
-        <select class="voice-select" id="subVoice">${voiceOpts}</select>
-        <button class="mini-play" onclick="previewVoice('sub')">&#9654;</button>
-      </div>`;
+    if (isKokoro) {
+      const kVoices = S.kokoro_voices || [];
+      const kOpts = kVoices.map(v =>
+        `<option value="${v.id}" ${v.id === (S.kokoro_voice || 'af_heart') ? 'selected' : ''}>${esc(v.name)} (${v.gender})</option>`
+      ).join('');
+      voiceSettingsHTML = `
+        <div class="voice-settings">
+          <span class="voice-label">Voice</span>
+          <select class="voice-select" id="kokoroVoice">${kOpts}</select>
+          <button class="mini-play" onclick="previewVoice('kokoro')">&#9654;</button>
+        </div>`;
+    } else {
+      const voices = (S.voices || []).filter(v => v.locale.startsWith('en_'));
+      const voiceOpts = voices.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+      voiceSettingsHTML = `
+        <div class="voice-settings">
+          <span class="voice-label">Main</span>
+          <select class="voice-select" id="mainVoice">${voiceOpts}</select>
+          <button class="mini-play" onclick="previewVoice('main')">&#9654;</button>
+          <span class="voice-label" style="margin-left:6px">Sub</span>
+          <select class="voice-select" id="subVoice">${voiceOpts}</select>
+          <button class="mini-play" onclick="previewVoice('sub')">&#9654;</button>
+        </div>`;
+    }
   }
 
   el.innerHTML = `
@@ -454,9 +676,29 @@ function renderVoiceChannel() {
       <input type="range" class="volume-slider" id="voiceVol" min="0" max="100" value="${vvol}">
       <span class="volume-value" id="voiceVolVal">${vvol}%</span>
     </div>
+    ${ttsHTML}
     ${voiceSettingsHTML}`;
 
-  if (isNarr) {
+  // Wire up TTS engine selector
+  const ttsEl = document.getElementById('ttsEngine');
+  if (ttsEl) {
+    ttsEl.onchange = async (e) => {
+      S.tts_engine = e.target.value;
+      await api('POST', '/api/config', { tts_engine: S.tts_engine });
+      render();
+      checkTTS();
+    };
+    checkTTS();
+  }
+
+  // Wire up voice selectors
+  if (isNarr && isKokoro) {
+    const kv = document.getElementById('kokoroVoice');
+    if (kv) kv.onchange = async (e) => {
+      S.kokoro_voice = e.target.value;
+      await api('POST', '/api/config', { kokoro_voice: S.kokoro_voice });
+    };
+  } else if (isNarr) {
     const mv = document.getElementById('mainVoice');
     const sv = document.getElementById('subVoice');
     if (mv) mv.value = S.voice_main || 'Tara';
@@ -485,12 +727,102 @@ function renderVoiceChannel() {
   };
 }
 
+async function checkTTS() {
+  const dot = document.getElementById('ttsDot');
+  const hint = document.getElementById('ttsHint');
+  if (!dot) return;
+  dot.className = 'tts-dot checking';
+  hint.textContent = '';
+  try {
+    const res = await api('POST', '/api/tts-check');
+    dot.className = 'tts-dot ' + (res.ok ? 'ok' : 'err');
+    if (!res.ok) hint.textContent = res.message || 'Not available';
+  } catch (e) {
+    dot.className = 'tts-dot err';
+    hint.textContent = 'Check failed';
+  }
+  // Update install button state
+  updateKokoroInstallBtn();
+}
+
+async function updateKokoroInstallBtn() {
+  const btn = document.getElementById('kokoroInstallBtn');
+  const msg = document.getElementById('kokoroInstallMsg');
+  if (!btn) return;
+  try {
+    const res = await api('POST', '/api/kokoro-status');
+    if (res.installed) {
+      btn.style.display = 'none';
+      msg.textContent = 'Installed';
+    } else if (res.status === 'running') {
+      btn.disabled = true;
+      btn.textContent = 'Installing...';
+      msg.textContent = res.message || '';
+      startInstallPoll();
+    } else if (res.status === 'error') {
+      btn.disabled = false;
+      btn.textContent = 'Retry';
+      msg.textContent = res.message || 'Install failed.';
+    } else {
+      btn.disabled = false;
+      btn.style.display = '';
+      btn.textContent = 'Install';
+      msg.textContent = '~1.5 GB';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    msg.textContent = '';
+  }
+}
+
+let _kokoroInstallPoll = null;
+
+function startInstallPoll() {
+  if (_kokoroInstallPoll) return;
+  _kokoroInstallPoll = setInterval(async () => {
+    try {
+      const res = await api('POST', '/api/kokoro-status');
+      const btn = document.getElementById('kokoroInstallBtn');
+      const msg = document.getElementById('kokoroInstallMsg');
+      if (!btn) { clearInterval(_kokoroInstallPoll); _kokoroInstallPoll = null; return; }
+      msg.textContent = res.message || '';
+      if (res.installed || res.status === 'done') {
+        btn.style.display = 'none';
+        msg.textContent = 'Installed';
+        clearInterval(_kokoroInstallPoll);
+        _kokoroInstallPoll = null;
+        checkTTS();
+      } else if (res.status === 'error') {
+        btn.textContent = 'Retry';
+        btn.disabled = false;
+        clearInterval(_kokoroInstallPoll);
+        _kokoroInstallPoll = null;
+      }
+    } catch (e) {}
+  }, 2000);
+}
+
+async function installKokoro() {
+  const btn = document.getElementById('kokoroInstallBtn');
+  const msg = document.getElementById('kokoroInstallMsg');
+  const res = await api('POST', '/api/kokoro-install');
+  if (res.installed) {
+    btn.style.display = 'none';
+    msg.textContent = 'Installed';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Installing...';
+  msg.textContent = res.message || 'Starting...';
+  startInstallPoll();
+}
+
 // ══════════ MIXER TABLE ══════════
 
 function renderMixer() {
   const tbody = document.getElementById('mixerBody');
   const ep = S.effects_profile || 'default';
-  const vp = S.voice_profile || 'narration';
+  const vp = S.voice_profile || 'senior';
   const eEvents = (S.effects_profiles || {})[ep] || {};
   const vEvents = (S.voice_profiles || {})[vp] || {};
   const eOn = S.effects_on === true;
@@ -528,7 +860,7 @@ function renderMixer() {
 
 function renderPhrasesVisibility() {
   const sec = document.getElementById('phrasesSection');
-  sec.style.display = S.voice_profile === 'narration' ? '' : 'none';
+  sec.style.display = S.voice_profile === 'senior' ? '' : 'none';
   renderPhrases();
 }
 
@@ -548,7 +880,7 @@ function renderPhrases() {
     return `<div class="phrase-event">
       <div class="phrase-header-row">
         <span class="phrase-ev-name">${ev}</span>
-        <button class="play-btn" onclick="playSound('voice','narration','${ev}',this)">&#9654;</button>
+        <button class="play-btn" onclick="playSound('voice','senior','${ev}',this)">&#9654;</button>
       </div>
       ${isDlg ? renderDlg(ev, items) : renderSimple(ev, items)}
     </div>`;
@@ -619,10 +951,231 @@ async function playSound(layer, profile, event, btn) {
 }
 
 async function previewVoice(which) {
-  const voice = which === 'main'
-    ? document.getElementById('mainVoice').value
-    : document.getElementById('subVoice').value;
-  await api('POST', '/api/say', { voice, phrase: `Hello, I am ${voice}`, rate: 200 });
+  if (which === 'kokoro') {
+    const voice = document.getElementById('kokoroVoice').value;
+    const name = (S.kokoro_voices || []).find(v => v.id === voice)?.name || voice;
+    await api('POST', '/api/say', { voice, phrase: `Hello, I am ${name}, your narrator.`, engine: 'kokoro' });
+  } else {
+    const voice = which === 'main'
+      ? document.getElementById('mainVoice').value
+      : document.getElementById('subVoice').value;
+    await api('POST', '/api/say', { voice, phrase: `Hello, I am ${voice}`, rate: 200 });
+  }
+}
+
+// ══════════ NARRATOR ══════════
+
+function renderNarratorVisibility() {
+  const sec = document.getElementById('narratorSection');
+  const show = S.voice_profile === 'narrator';
+  sec.classList.toggle('visible', show);
+  if (show) renderNarrator();
+}
+
+function renderNarrator() {
+  const leftEl = document.getElementById('narratorLeft');
+  const rightEl = document.getElementById('narratorRight');
+  const providers = S.narrator_providers || {};
+  const styles = S.narrator_styles || [];
+  const curProv = S.narrator_provider || 'claude_cli';
+  const provInfo = providers[curProv] || {};
+  const needsKey = provInfo.needs_key || false;
+  const defaultModel = provInfo.default_model || '';
+  const provModels = provInfo.models || [];
+  const curModel = S.narrator_model || '';
+
+  // Provider selector
+  const provOpts = Object.entries(providers).map(([k, v]) =>
+    `<option value="${k}" ${k === curProv ? 'selected' : ''}>${esc(v.name)}</option>`
+  ).join('');
+
+  // Model selector — provider models + custom entry if current isn't in the list
+  let modelOpts = `<option value="" ${!curModel ? 'selected' : ''}>${esc(defaultModel)} (default)</option>`;
+  modelOpts += provModels.filter(m => m !== defaultModel).map(m =>
+    `<option value="${m}" ${m === curModel ? 'selected' : ''}>${esc(m)}</option>`
+  ).join('');
+  if (curModel && !provModels.includes(curModel)) {
+    modelOpts += `<option value="${esc(curModel)}" selected>${esc(curModel)} (custom)</option>`;
+  }
+
+  // Style selector
+  const styleOpts = styles.map(s =>
+    `<option value="${s}" ${s === (S.narrator_style || 'pair_programmer') ? 'selected' : ''}>${s.replace(/_/g, ' ')}</option>`
+  ).join('');
+
+  // Voice selector (depends on TTS engine)
+  const isKokoroNarr = (S.tts_engine || 'say') === 'kokoro';
+  let voiceOpts;
+  if (isKokoroNarr) {
+    const kVoices = S.kokoro_voices || [];
+    voiceOpts = kVoices.map(v =>
+      `<option value="${v.id}" ${v.id === (S.kokoro_voice || 'af_heart') ? 'selected' : ''}>${esc(v.name)} (${v.gender})</option>`
+    ).join('');
+  } else {
+    const voices = (S.voices || []).filter(v => v.locale.startsWith('en_'));
+    voiceOpts = voices.map(v =>
+      `<option value="${esc(v.name)}" ${v.name === (S.voice_main || 'Tara') ? 'selected' : ''}>${esc(v.name)}</option>`
+    ).join('');
+  }
+
+  // ── Left pane: LLM settings ──
+  let left = `
+    <div class="narrator-pane-title">LLM</div>
+    <div class="narrator-grid">
+      <span class="narrator-label">Provider</span>
+      <select class="narrator-select" id="narrProvider">${provOpts}</select>
+      <span class="narrator-desc" id="narrProvDesc">${esc(provInfo.description || '')}</span>
+
+      <span class="narrator-label">Model</span>
+      <select class="narrator-select" id="narrModel">${modelOpts}</select>
+  `;
+
+  if (needsKey) {
+    const hasKey = !!(S.narrator_api_key);
+    left += `
+      <span class="narrator-label">API Key</span>
+      <div class="narrator-key-row">
+        <input class="narrator-input" id="narrApiKey" type="password"
+          placeholder="${hasKey ? 'Key saved \u2014 enter new to replace' : 'Paste your API key'}"
+          autocomplete="off">
+        <button class="narrator-key-save" id="narrKeySave" onclick="saveNarrKey()">Save</button>
+      </div>
+    `;
+  }
+
+  left += `
+      <div class="narrator-status" id="narrStatus">
+        <span class="narrator-dot checking" id="narrDot"></span>
+        <span class="narrator-status-text" id="narrStatusText">Checking connection...</span>
+      </div>
+      <div class="narrator-actions">
+        <button class="narrator-btn" id="narrCheckBtn" onclick="checkNarrator()">Check connection</button>
+      </div>
+    </div>
+  `;
+
+  // ── Right pane: Style & Voice ──
+  let right = `
+    <div class="narrator-pane-title">Style &amp; Voice</div>
+    <div class="narrator-grid">
+      <span class="narrator-label">Style</span>
+      <select class="narrator-select" id="narrStyle">${styleOpts}</select>
+
+      <span class="narrator-label">Voice</span>
+      <div class="narrator-key-row">
+        <select class="narrator-select" id="narrVoice" style="flex:1">${voiceOpts}</select>
+        <button class="narrator-key-save" onclick="previewNarrVoice()">Preview</button>
+      </div>
+
+      <div class="narrator-actions">
+        <button class="narrator-btn" id="narrTestBtn" onclick="testNarrator()">Test narration</button>
+      </div>
+      <div class="narrator-test-result" id="narrTestResult"></div>
+    </div>
+  `;
+
+  leftEl.innerHTML = left;
+  rightEl.innerHTML = right;
+
+  // Wire up event handlers
+  document.getElementById('narrProvider').onchange = async (e) => {
+    S.narrator_provider = e.target.value;
+    S.narrator_model = '';
+    await api('POST', '/api/config', { narrator_provider: S.narrator_provider, narrator_model: '' });
+    renderNarrator();
+    checkNarrator();
+  };
+
+  document.getElementById('narrModel').onchange = async (e) => {
+    S.narrator_model = e.target.value;
+    await api('POST', '/api/config', { narrator_model: S.narrator_model });
+  };
+
+  document.getElementById('narrStyle').onchange = async (e) => {
+    S.narrator_style = e.target.value;
+    await api('POST', '/api/config', { narrator_style: S.narrator_style });
+  };
+
+  document.getElementById('narrVoice').onchange = async (e) => {
+    if (isKokoroNarr) {
+      S.kokoro_voice = e.target.value;
+      await api('POST', '/api/config', { kokoro_voice: S.kokoro_voice });
+    } else {
+      S.voice_main = e.target.value;
+      await api('POST', '/api/config', { voice_main: S.voice_main });
+    }
+  };
+
+  // Auto-check on load
+  checkNarrator();
+}
+
+async function saveNarrKey() {
+  const input = document.getElementById('narrApiKey');
+  const key = input.value.trim();
+  if (!key) return;
+  await api('POST', '/api/config', { narrator_api_key: key });
+  input.value = '';
+  input.placeholder = 'Key saved \u2014 enter new to replace';
+  S.narrator_api_key = '****';  // mark as set
+  checkNarrator();
+}
+
+async function checkNarrator() {
+  // Save unsaved API key before checking
+  const keyInput = document.getElementById('narrApiKey');
+  if (keyInput && keyInput.value.trim()) {
+    const key = keyInput.value.trim();
+    await api('POST', '/api/config', { narrator_api_key: key });
+    keyInput.value = '';
+    keyInput.placeholder = 'Key saved \u2014 enter new to replace';
+    S.narrator_api_key = '****';
+  }
+  const dot = document.getElementById('narrDot');
+  const text = document.getElementById('narrStatusText');
+  dot.className = 'narrator-dot checking';
+  text.textContent = 'Checking...';
+  try {
+    const res = await api('POST', '/api/narrator-check');
+    dot.className = 'narrator-dot ' + (res.ok ? 'ok' : 'err');
+    text.textContent = res.message || (res.ok ? 'Ready' : 'Not configured');
+  } catch (e) {
+    dot.className = 'narrator-dot err';
+    text.textContent = 'Check failed';
+  }
+}
+
+async function testNarrator() {
+  const btn = document.getElementById('narrTestBtn');
+  const result = document.getElementById('narrTestResult');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  result.textContent = '';
+  try {
+    const res = await api('POST', '/api/narrator-test', { event: 'edit' });
+    if (res.ok && res.text) {
+      result.textContent = '\u201c' + res.text + '\u201d';
+    } else {
+      result.textContent = res.error || 'No narration generated';
+      result.style.color = 'var(--red)';
+      setTimeout(() => { result.style.color = ''; }, 3000);
+    }
+  } catch (e) {
+    result.textContent = 'Test failed';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Test narration';
+}
+
+function previewNarrVoice() {
+  const voice = document.getElementById('narrVoice').value;
+  const isKok = (S.tts_engine || 'say') === 'kokoro';
+  if (isKok) {
+    const name = (S.kokoro_voices || []).find(v => v.id === voice)?.name || voice;
+    api('POST', '/api/say', { voice, phrase: `This is ${name}, your narrator.`, engine: 'kokoro' });
+  } else {
+    api('POST', '/api/say', { voice, phrase: `This is ${voice}, your narrator.`, rate: 190 });
+  }
 }
 
 load();

@@ -3,8 +3,14 @@
   "effects_profile": "default",
   "effects_volume": 100,
   "voice_on": false,
-  "voice_profile": "narration",
+  "voice_profile": "senior",
   "voice_volume": 100,
   "voice_main": "Tara",
-  "voice_sub": "Aman"
+  "voice_sub": "Aman",
+  "tts_engine": "say",
+  "kokoro_voice": "af_heart",
+  "narrator_provider": "claude_cli",
+  "narrator_model": "",
+  "narrator_api_key": "",
+  "narrator_style": "pair_programmer"
 }

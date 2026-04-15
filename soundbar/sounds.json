@@ -108,16 +108,68 @@
     "paper": {
       "dir": "sounds/paper",
       "events": {
-        "session_start": {"file": "book_open.mp3"},
-        "edit":          {"file": "pencil_short.mp3"},
-        "bash":          {"file": "typewriter_short.mp3"},
-        "search":        {"files": ["page_flip.mp3", "page_flip2.mp3", "page_flip3.mp3"]},
+        "session_start": {
+          "sequence": [
+            ["book_open.mp3", "page_flip.mp3"],
+            ["book_open.mp3", "page_flip2.mp3"],
+            ["book_open.mp3", "page_flip3.mp3"]
+          ],
+          "gap": 0.2,
+          "rate": [0.97, 1.03]
+        },
+        "edit": {
+          "files": ["pencil_soft1.mp3", "pencil_soft2.mp3", "pencil_soft3.mp3", "pencil_soft4.mp3"],
+          "rate": [0.92, 1.08]
+        },
+        "bash": {
+          "files": ["typewriter_short.mp3", "typewriter.mp3"],
+          "rate": [0.93, 1.07]
+        },
+        "search": {
+          "files": ["page_flip.mp3", "page_flip2.mp3", "page_flip3.mp3", "page_turn_quick.mp3"],
+          "rate": [0.92, 1.08]
+        },
         "permission":    {"file": "bell.mp3"},
-        "error":         {"file": "crumple_short.mp3"},
-        "subagent_start": {"files": ["paper_rip_short.mp3", "paper_rip2_short.mp3"]},
-        "subagent_stop":  {"file": "page_turn_quick.mp3"},
-        "compact":       {"file": "paper_rustle2.mp3"},
-        "stop":          {"file": "book_close.mp3"}
+        "error": {
+          "sequence": [
+            ["crumple_short.mp3"],
+            ["crumple.mp3"],
+            ["paper_rip_short.mp3", "crumple_short.mp3"]
+          ],
+          "gap": 0.15,
+          "rate": [0.95, 1.05]
+        },
+        "subagent_start": {
+          "sequence": [
+            ["paper_rip_short.mp3", "page_flip.mp3"],
+            ["paper_rip2_short.mp3", "page_flip2.mp3"],
+            ["paper_rip_short.mp3", "page_flip3.mp3"],
+            ["paper_rip2_short.mp3", "page_turn_quick.mp3"]
+          ],
+          "gap": 0.1,
+          "rate": [0.95, 1.05]
+        },
+        "subagent_stop": {
+          "files": ["page_turn_quick.mp3", "page_turn_slow.mp3", "page_flip.mp3"],
+          "rate": [0.93, 1.07]
+        },
+        "compact": {
+          "sequence": [
+            ["paper_rustle2.mp3", "page_turn_quick.mp3"],
+            ["paper_rustle2.mp3", "page_flip.mp3"]
+          ],
+          "gap": 0.15,
+          "rate": [0.95, 1.05]
+        },
+        "stop": {
+          "sequence": [
+            ["page_turn_slow.mp3", "book_close.mp3"],
+            ["page_flip.mp3", "book_close.mp3"],
+            ["page_flip2.mp3", "book_close.mp3"]
+          ],
+          "gap": 0.2,
+          "rate": [0.97, 1.03]
+        }
       }
     },
     "sci-fi": {

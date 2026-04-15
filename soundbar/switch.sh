@@ -8,7 +8,7 @@ CFG="$SOUNDBAR/config.json"
 [ ! -f "$CFG" ] && { echo "Soundbar not installed. Run install.sh first."; exit 1; }
 
 EFFECTS_PROFILES="ambient attention chiptune construction default factory minimal organic paper sci-fi submarine silent"
-VOICE_PROFILES="narration generals"
+VOICE_PROFILES="senior narrator generals"
 
 # Read a config value
 cfg_get() { jq -r ".$1 // \"$2\"" "$CFG" 2>/dev/null || echo "$2"; }
@@ -44,7 +44,7 @@ if [ -z "$CMD" ]; then
   EFX_ON=$(cfg_get effects_on true)
   EFX_PROF=$(cfg_get effects_profile default)
   VOX_ON=$(cfg_get voice_on false)
-  VOX_PROF=$(cfg_get voice_profile narration)
+  VOX_PROF=$(cfg_get voice_profile senior)
   VOICE=$(cfg_get voice_main Tara)
   SUBVOICE=$(cfg_get voice_sub Aman)
 
@@ -114,7 +114,7 @@ case "$CMD" in
 
   voice-profile)
     if [ -z "$VALUE" ]; then
-      echo "Current: $(cfg_get voice_profile narration)"
+      echo "Current: $(cfg_get voice_profile senior)"
       echo "Available: $VOICE_PROFILES"
       exit 0
     fi

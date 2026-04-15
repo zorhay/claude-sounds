@@ -3,9 +3,13 @@
 /phrases.json
 /soundbar/config.json
 /soundbar/phrases.json
+/soundbar/integrations.json
 /soundbar/sounds/generals/*.aiff
 *.soundbar-backup
 .manifest
 .soundbar-window
 __pycache__/
+.venv/
+soundbar/.venv/
+soundbar/kokoro.sock
 .DS_Store
