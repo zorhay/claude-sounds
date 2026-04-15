@@ -837,16 +837,16 @@ def _run_kokoro_install():
                 write_integration("kokoro_python", None)
                 return
 
-        # Install kokoro: uv pip for uv/standalone venvs (no pip inside), standard pip otherwise
+        # Install kokoro + deps: spaCy model required for Kokoro's G2P pipeline
         _kokoro_install["message"] = "Installing kokoro + dependencies (this may take a few minutes)..."
+        pkgs = ["kokoro", "soundfile"]
         if is_uv_python and shutil.which("uv"):
-            log.info("kokoro install: uv pip install kokoro + soundfile")
+            log.info("kokoro install: uv pip install %s", pkgs)
             result = subprocess.run(
-                ["uv", "pip", "install", "--python", str(KOKORO_VENV_PY), "kokoro", "soundfile"],
+                ["uv", "pip", "install", "--python", str(KOKORO_VENV_PY)] + pkgs,
                 capture_output=True, text=True, timeout=600,
             )
         else:
-            # Ensure pip is available (ensurepip as fallback for edge cases)
             venv_pip = KOKORO_VENV / "bin" / "pip"
             if not venv_pip.exists():
                 log.info("kokoro install: bootstrapping pip via ensurepip")
@@ -854,9 +854,9 @@ def _run_kokoro_install():
                     [str(KOKORO_VENV_PY), "-m", "ensurepip", "--upgrade"],
                     capture_output=True, timeout=30,
                 )
-            log.info("kokoro install: pip install kokoro + soundfile")
+            log.info("kokoro install: pip install %s", pkgs)
             result = subprocess.run(
-                [str(KOKORO_VENV_PY), "-m", "pip", "install", "-q", "kokoro", "soundfile"],
+                [str(KOKORO_VENV_PY), "-m", "pip", "install", "-q"] + pkgs,
                 capture_output=True, text=True, timeout=600,
             )
         _dlog.debug("pip install: rc=%s stdout=%r stderr=%r", result.returncode, result.stdout.strip()[:500], result.stderr.strip()[:500])
@@ -866,6 +866,27 @@ def _run_kokoro_install():
             log.error("kokoro install: pip install failed: %s", result.stderr.strip()[-200:])
             _elog.error("pip install failed: rc=%s stderr=%s", result.returncode, result.stderr.strip()[:1000])
             return
+
+        # Download spaCy model (required by Kokoro's G2P pipeline)
+        _kokoro_install["message"] = "Downloading language model..."
+        log.info("kokoro install: downloading spacy en_core_web_sm")
+        if is_uv_python and shutil.which("uv"):
+            result = subprocess.run(
+                ["uv", "pip", "install", "--python", str(KOKORO_VENV_PY), "en_core_web_sm@https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"],
+                capture_output=True, text=True, timeout=120,
+            )
+        else:
+            result = subprocess.run(
+                [str(KOKORO_VENV_PY), "-m", "pip", "install", "-q", "en_core_web_sm@https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"],
+                capture_output=True, text=True, timeout=120,
+            )
+        _dlog.debug("spacy model: rc=%s stderr=%r", result.returncode, result.stderr.strip()[:300])
+        if result.returncode != 0:
+            log.warning("kokoro install: spacy model download failed, trying spacy download command")
+            subprocess.run(
+                [str(KOKORO_VENV_PY), "-m", "spacy", "download", "en_core_web_sm"],
+                capture_output=True, text=True, timeout=120,
+            )
 
         log.info("kokoro install: verifying import")
         result = subprocess.run(
