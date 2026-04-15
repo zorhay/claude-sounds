@@ -539,9 +539,9 @@ def _find_kokoro_python():
 
     Returns dict with keys:
       - ok: bool
-      - python: str (path to python binary) — only if ok and method != "uv"
+      - python: str (absolute path to python binary)
       - method: str ("direct", "uv", "pyenv", "conda")
-      - version: str (e.g. "3.11.5") — human-readable
+      - version: str (e.g. "3.11") — human-readable
       - message: str — describes what was found or what failed
     """
     # Fast path: cached in integrations.json
@@ -549,12 +549,7 @@ def _find_kokoro_python():
     cached = data.get("kokoro_python")
     if cached and isinstance(cached, dict) and cached.get("ok"):
         py = cached.get("python", "")
-        method = cached.get("method", "")
-        # For uv, we just need uv in PATH (no python binary to check)
-        if method == "uv":
-            if shutil.which("uv"):
-                return cached
-        elif py and os.path.isfile(py) and os.access(py, os.X_OK):
+        if py and os.path.isfile(py) and os.access(py, os.X_OK):
             ver = _get_python_version(py)
             if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
                 return cached
@@ -593,7 +588,7 @@ def _find_kokoro_python():
             if r.returncode == 0:
                 py_path = r.stdout.strip()
                 ver = _get_python_version(py_path)
-                if ver and 9 <= ver[1] <= 11:
+                if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
                     result = {
                         "ok": True, "python": py_path, "method": "uv",
                         "version": f"{ver[0]}.{ver[1]}",
@@ -700,16 +695,24 @@ def _run_kokoro_install():
             log.error("kokoro install: no compatible Python found")
             return
 
+        method = py_info["method"]
+
         if not KOKORO_VENV_PY.exists():
-            method = py_info["method"]
             _kokoro_install["message"] = f"Creating venv ({py_info['message']})..."
             log.info("kokoro install: creating venv via %s at %s", method, KOKORO_VENV)
 
-            # All methods provide a real Python binary — create standard venv
-            result = subprocess.run(
-                [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
-                capture_output=True, text=True, timeout=60,
-            )
+            if method == "uv":
+                # uv venv handles uv-managed Pythons correctly
+                result = subprocess.run(
+                    ["uv", "venv", "--python", py_info["python"], str(KOKORO_VENV)],
+                    capture_output=True, text=True, timeout=120,
+                )
+            else:
+                # direct / pyenv / conda — standard python -m venv (includes pip)
+                result = subprocess.run(
+                    [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
+                    capture_output=True, text=True, timeout=60,
+                )
 
             if result.returncode != 0:
                 _kokoro_install["status"] = "error"
@@ -718,7 +721,6 @@ def _run_kokoro_install():
                 write_integration("kokoro_python", None)
                 return
 
-            # Verify the venv python exists
             if not KOKORO_VENV_PY.exists():
                 _kokoro_install["status"] = "error"
                 _kokoro_install["message"] = "venv created but bin/python3 not found."
@@ -726,21 +728,28 @@ def _run_kokoro_install():
                 write_integration("kokoro_python", None)
                 return
 
-            # Ensure pip is available (ensurepip as fallback)
+        # Install kokoro: uv pip for uv venvs, standard pip otherwise
+        _kokoro_install["message"] = "Installing kokoro + dependencies (this may take a few minutes)..."
+        if method == "uv":
+            log.info("kokoro install: uv pip install kokoro + soundfile")
+            result = subprocess.run(
+                ["uv", "pip", "install", "--python", str(KOKORO_VENV_PY), "kokoro", "soundfile"],
+                capture_output=True, text=True, timeout=600,
+            )
+        else:
+            # Ensure pip is available (ensurepip as fallback for edge cases)
             venv_pip = KOKORO_VENV / "bin" / "pip"
             if not venv_pip.exists():
-                log.info("kokoro install: pip not found in venv, running ensurepip")
+                log.info("kokoro install: bootstrapping pip via ensurepip")
                 subprocess.run(
                     [str(KOKORO_VENV_PY), "-m", "ensurepip", "--upgrade"],
                     capture_output=True, timeout=30,
                 )
-
-        log.info("kokoro install: pip install kokoro + soundfile")
-        _kokoro_install["message"] = "Installing kokoro + dependencies (this may take a few minutes)..."
-        result = subprocess.run(
-            [str(KOKORO_VENV_PY), "-m", "pip", "install", "-q", "kokoro", "soundfile"],
-            capture_output=True, text=True, timeout=600,
-        )
+            log.info("kokoro install: pip install kokoro + soundfile")
+            result = subprocess.run(
+                [str(KOKORO_VENV_PY), "-m", "pip", "install", "-q", "kokoro", "soundfile"],
+                capture_output=True, text=True, timeout=600,
+            )
         if result.returncode != 0:
             _kokoro_install["status"] = "error"
             _kokoro_install["message"] = f"pip install failed: {result.stderr.strip()[-200:]}"
