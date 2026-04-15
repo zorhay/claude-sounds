@@ -39,7 +39,7 @@ PHRASES_FILE = SND / "phrases.json"
 PHRASES_DEFAULTS = SND / "phrases.defaults.json"
 SOUNDS_FILE = SND / "sounds.json"
 KOKORO_VENV = SND / ".venv"
-KOKORO_VENV_PY = KOKORO_VENV / "bin" / "python3"
+KOKORO_VENV_PY = KOKORO_VENV / "bin" / "python"
 
 EVENTS = [
     "session_start", "edit", "bash", "search",
@@ -502,7 +502,7 @@ def check_kokoro_installed():
     try:
         r = subprocess.run(
             [str(KOKORO_VENV_PY), "-c", "import kokoro"],
-            capture_output=True, timeout=10,
+            capture_output=True, timeout=120,
         )
         if r.returncode == 0:
             write_integration("kokoro_installed", True)
@@ -758,7 +758,7 @@ def _run_kokoro_install():
 
             if not KOKORO_VENV_PY.exists():
                 _kokoro_install["status"] = "error"
-                _kokoro_install["message"] = "venv created but bin/python3 not found."
+                _kokoro_install["message"] = "venv created but bin/python not found."
                 log.error("kokoro install: venv python missing after creation")
                 # Dump venv directory contents for debugging
                 try:
@@ -870,7 +870,7 @@ def _run_kokoro_install():
         log.info("kokoro install: verifying import")
         result = subprocess.run(
             [str(KOKORO_VENV_PY), "-c", "import kokoro; print('kokoro ok')"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=120,
         )
         _dlog.debug("import verify: rc=%s stdout=%r stderr=%r", result.returncode, result.stdout.strip(), result.stderr.strip()[:500])
         if result.returncode != 0:
@@ -1011,13 +1011,15 @@ class Handler(SimpleHTTPRequestHandler):
                 self.json_response({"ok": True, "status": "running", "message": "Starting install..."})
 
         elif path == "/api/kokoro-status":
-            py_info = _find_kokoro_python()
             if _kokoro_install["status"] == "running":
-                self.json_response({"ok": True, "status": "running", "message": _kokoro_install["message"], "installed": False, "python_info": py_info})
+                # Install in progress — return progress immediately, no re-detection
+                self.json_response({"ok": True, "status": "running", "message": _kokoro_install["message"], "installed": False})
             elif _kokoro_install["status"] == "error":
+                py_info = _find_kokoro_python()
                 self.json_response({"ok": False, "status": "error", "message": _kokoro_install["message"], "installed": False, "python_info": py_info})
             else:
                 installed = check_kokoro_installed()
+                py_info = _find_kokoro_python()
                 self.json_response({"ok": installed, "status": "done" if installed else "idle", "installed": installed, "python_info": py_info})
 
         elif path == "/api/narrator-check":

@@ -335,7 +335,7 @@ def speak_say(text, voice, volume):
 
 
 KOKORO_SOCK = SND / "kokoro.sock"
-KOKORO_VENV = SND / ".venv" / "bin" / "python3"
+KOKORO_VENV = SND / ".venv" / "bin" / "python"
 KOKORO_DAEMON = SND / "kokoro_server.py"
 
 
@@ -436,7 +436,7 @@ def check_kokoro():
     try:
         result = subprocess.run(
             [str(KOKORO_VENV), "-c", "import kokoro"],
-            capture_output=True, timeout=10,
+            capture_output=True, timeout=120,
         )
         if result.returncode == 0:
             return {"ok": True, "message": "Kokoro installed. Daemon will auto-start on first use."}

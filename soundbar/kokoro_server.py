@@ -21,7 +21,7 @@ Setup:
   ~/.claude/soundbar/.venv/bin/pip install kokoro soundfile
 
 Run:
-  ~/.claude/soundbar/.venv/bin/python3 kokoro_server.py
+  ~/.claude/soundbar/.venv/bin/python kokoro_server.py
 """
 
 import json
