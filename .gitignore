@@ -12,4 +12,6 @@ __pycache__/
 .venv/
 soundbar/.venv/
 soundbar/kokoro.sock
+soundbar/debug.log
+soundbar/error.log
 .DS_Store

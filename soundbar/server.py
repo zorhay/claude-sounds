@@ -27,6 +27,10 @@ from urllib.parse import urlparse
 
 log = logging.getLogger("soundbar")
 
+# Debug/error file loggers for Kokoro install diagnostics
+_dlog = logging.getLogger("soundbar.debug")
+_elog = logging.getLogger("soundbar.errors")
+
 SND = Path(__file__).parent
 UI_FILE = SND / "ui.html"
 CONFIG_FILE = SND / "config.json"
@@ -520,11 +524,12 @@ def _get_python_version(python_path):
             [python_path, "-c", "import sys; print(sys.version_info.major, sys.version_info.minor)"],
             capture_output=True, text=True, timeout=5,
         )
+        _dlog.debug("version check %s: rc=%s stdout=%r stderr=%r", python_path, r.returncode, r.stdout.strip(), r.stderr.strip()[:200])
         if r.returncode == 0:
             parts = r.stdout.strip().split()
             return (int(parts[0]), int(parts[1]))
-    except Exception:
-        pass
+    except Exception as e:
+        _dlog.debug("version check %s: exception %s", python_path, e)
     return None
 
 
@@ -544,14 +549,19 @@ def _find_kokoro_python():
       - version: str (e.g. "3.11") — human-readable
       - message: str — describes what was found or what failed
     """
+    _dlog.debug("=== _find_kokoro_python start ===")
+
     # Fast path: cached in integrations.json
     data = read_integrations()
     cached = data.get("kokoro_python")
+    _dlog.debug("cached kokoro_python: %s", cached)
     if cached and isinstance(cached, dict) and cached.get("ok"):
         py = cached.get("python", "")
+        _dlog.debug("cached python: %s exists=%s executable=%s", py, os.path.isfile(py) if py else False, os.access(py, os.X_OK) if py else False)
         if py and os.path.isfile(py) and os.access(py, os.X_OK):
             ver = _get_python_version(py)
             if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
+                _dlog.debug("using cached python: %s (%s)", py, ver)
                 return cached
 
     tried = []
@@ -574,25 +584,25 @@ def _find_kokoro_python():
 
     # 2. uv — install + find a compatible Python binary
     uv_bin = shutil.which("uv")
+    _dlog.debug("uv binary: %s", uv_bin)
     if uv_bin:
         try:
-            # Request 3.11.14+ — earlier standalone builds have a broken getpath.py
-            # that produces venvs with sys.base_prefix='/install' when accessed
-            # via symlinks (astral-sh/python-build-standalone#380, fixed in PR#896).
-            subprocess.run(
+            _dlog.debug("running: uv python install 3.11")
+            r_install = subprocess.run(
                 [uv_bin, "python", "install", "3.11"],
                 capture_output=True, text=True, timeout=120,
             )
+            _dlog.debug("uv python install: rc=%s stdout=%r stderr=%r", r_install.returncode, r_install.stdout.strip()[:200], r_install.stderr.strip()[:200])
             r = subprocess.run(
                 [uv_bin, "python", "find", "3.11"],
                 capture_output=True, text=True, timeout=10,
             )
+            _dlog.debug("uv python find: rc=%s stdout=%r stderr=%r", r.returncode, r.stdout.strip(), r.stderr.strip()[:200])
             if r.returncode == 0:
-                # Always resolve symlinks — uv may return a ~/.local/bin symlink
-                # that points into the uv python store. If that symlink is used
-                # to create a venv, pyvenv.cfg home will be wrong on pre-3.11.14
-                # standalone builds, causing 'No module named encodings'.
-                py_path = os.path.realpath(r.stdout.strip())
+                raw_path = r.stdout.strip()
+                py_path = os.path.realpath(raw_path)
+                _dlog.debug("uv python path: raw=%s resolved=%s", raw_path, py_path)
+                _dlog.debug("uv python exists=%s executable=%s", os.path.isfile(py_path), os.access(py_path, os.X_OK))
                 ver = _get_python_version(py_path)
                 if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
                     result = {
@@ -690,11 +700,13 @@ def _find_kokoro_python():
 
 def _run_kokoro_install():
     """Background thread: create venv + pip install kokoro soundfile."""
+    _dlog.debug("=== _run_kokoro_install start ===")
     log.info("kokoro install started")
     _kokoro_install["status"] = "running"
     _kokoro_install["message"] = "Finding compatible Python (3.9-3.11)..."
     try:
         py_info = _find_kokoro_python()
+        _dlog.debug("python detection result: %s", py_info)
         if not py_info["ok"]:
             _kokoro_install["status"] = "error"
             _kokoro_install["message"] = py_info["message"]
@@ -702,28 +714,28 @@ def _run_kokoro_install():
             return
 
         method = py_info["method"]
+        _dlog.debug("install method: %s python: %s", method, py_info.get("python"))
 
         if not KOKORO_VENV_PY.exists():
             _kokoro_install["message"] = f"Creating venv ({py_info['message']})..."
             log.info("kokoro install: creating venv via %s at %s", method, KOKORO_VENV)
 
             if method == "uv":
-                # uv venv handles uv-managed Pythons correctly
-                result = subprocess.run(
-                    ["uv", "venv", "--python", py_info["python"], str(KOKORO_VENV)],
-                    capture_output=True, text=True, timeout=120,
-                )
+                cmd = ["uv", "venv", "--python", py_info["python"], str(KOKORO_VENV)]
+                _dlog.debug("venv cmd: %s", cmd)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             else:
-                # direct / pyenv / conda — standard python -m venv (includes pip)
-                result = subprocess.run(
-                    [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
-                    capture_output=True, text=True, timeout=60,
-                )
+                cmd = [py_info["python"], "-m", "venv", str(KOKORO_VENV)]
+                _dlog.debug("venv cmd: %s", cmd)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+            _dlog.debug("venv creation: rc=%s stdout=%r stderr=%r", result.returncode, result.stdout.strip()[:300], result.stderr.strip()[:300])
 
             if result.returncode != 0:
                 _kokoro_install["status"] = "error"
                 _kokoro_install["message"] = f"venv creation failed: {result.stderr.strip()[-200:]}"
                 log.error("kokoro install: venv creation failed: %s", result.stderr.strip())
+                _elog.error("venv creation failed: cmd=%s stderr=%s", cmd, result.stderr.strip())
                 write_integration("kokoro_python", None)
                 return
 
@@ -731,40 +743,65 @@ def _run_kokoro_install():
                 _kokoro_install["status"] = "error"
                 _kokoro_install["message"] = "venv created but bin/python3 not found."
                 log.error("kokoro install: venv python missing after creation")
+                # Dump venv directory contents for debugging
+                try:
+                    venv_bin = KOKORO_VENV / "bin"
+                    if venv_bin.exists():
+                        _dlog.debug("venv bin contents: %s", list(venv_bin.iterdir()))
+                    else:
+                        _dlog.debug("venv bin dir missing. venv contents: %s", list(KOKORO_VENV.iterdir()) if KOKORO_VENV.exists() else "venv dir missing")
+                except Exception:
+                    pass
                 write_integration("kokoro_python", None)
                 return
 
+        # Dump pyvenv.cfg and venv python details for debugging
+        pyvenv_cfg = KOKORO_VENV / "pyvenv.cfg"
+        if pyvenv_cfg.exists():
+            _dlog.debug("pyvenv.cfg contents:\n%s", pyvenv_cfg.read_text())
+        else:
+            _dlog.debug("pyvenv.cfg MISSING at %s", pyvenv_cfg)
+
+        venv_py_real = os.path.realpath(str(KOKORO_VENV_PY))
+        _dlog.debug("venv python: %s -> realpath: %s", KOKORO_VENV_PY, venv_py_real)
+
         # Verify venv python can start (catches broken pyvenv.cfg / standalone builds)
         verify = subprocess.run(
-            [str(KOKORO_VENV_PY), "-c", "import sys; print(sys.base_prefix)"],
+            [str(KOKORO_VENV_PY), "-c", "import sys; print('prefix:', sys.prefix, 'base:', sys.base_prefix, 'exec_prefix:', sys.exec_prefix)"],
             capture_output=True, text=True, timeout=10,
         )
+        _dlog.debug("venv verify: rc=%s stdout=%r stderr=%r", verify.returncode, verify.stdout.strip()[:300], verify.stderr.strip()[:500])
+
         if verify.returncode != 0:
+            _elog.error("venv python broken: stderr=%s", verify.stderr.strip()[:500])
             log.warning("kokoro install: venv python broken, attempting pyvenv.cfg repair")
-            # Broken venv — likely pyvenv.cfg has wrong 'home' due to
-            # python-build-standalone symlink bug (astral-sh/python-build-standalone#380).
-            # Fix: rewrite home to the real python bin directory.
-            pyvenv_cfg = KOKORO_VENV / "pyvenv.cfg"
             real_bin = os.path.dirname(os.path.realpath(py_info["python"]))
+            _dlog.debug("repair target: home = %s (from python %s)", real_bin, py_info["python"])
+
             if pyvenv_cfg.exists():
                 try:
-                    lines = pyvenv_cfg.read_text().splitlines()
+                    original = pyvenv_cfg.read_text()
+                    _dlog.debug("pyvenv.cfg BEFORE repair:\n%s", original)
+                    lines = original.splitlines()
                     new_lines = []
                     for line in lines:
                         if line.startswith("home"):
                             new_lines.append(f"home = {real_bin}")
-                            log.info("kokoro install: pyvenv.cfg home rewritten to %s", real_bin)
                         else:
                             new_lines.append(line)
                     pyvenv_cfg.write_text("\n".join(new_lines) + "\n")
+                    _dlog.debug("pyvenv.cfg AFTER repair:\n%s", pyvenv_cfg.read_text())
+                    log.info("kokoro install: pyvenv.cfg home rewritten to %s", real_bin)
                 except Exception as e:
                     log.error("kokoro install: pyvenv.cfg repair failed: %s", e)
+                    _elog.error("pyvenv.cfg repair failed: %s", e)
 
                 # Re-verify after repair
                 verify2 = subprocess.run(
-                    [str(KOKORO_VENV_PY), "-c", "import sys; print(sys.base_prefix)"],
+                    [str(KOKORO_VENV_PY), "-c", "import sys; print('prefix:', sys.prefix, 'base:', sys.base_prefix)"],
                     capture_output=True, text=True, timeout=10,
                 )
+                _dlog.debug("venv re-verify: rc=%s stdout=%r stderr=%r", verify2.returncode, verify2.stdout.strip()[:300], verify2.stderr.strip()[:500])
                 if verify2.returncode != 0:
                     _kokoro_install["status"] = "error"
                     _kokoro_install["message"] = (
@@ -772,12 +809,14 @@ def _run_kokoro_install():
                         "Try: uv python upgrade --reinstall"
                     )
                     log.error("kokoro install: venv python still broken after repair")
+                    _elog.error("venv still broken after repair: stderr=%s", verify2.stderr.strip()[:500])
                     write_integration("kokoro_python", None)
                     return
             else:
                 _kokoro_install["status"] = "error"
                 _kokoro_install["message"] = "venv python is broken and pyvenv.cfg not found."
                 log.error("kokoro install: pyvenv.cfg missing")
+                _elog.error("pyvenv.cfg missing at %s", pyvenv_cfg)
                 write_integration("kokoro_python", None)
                 return
 
@@ -803,36 +842,43 @@ def _run_kokoro_install():
                 [str(KOKORO_VENV_PY), "-m", "pip", "install", "-q", "kokoro", "soundfile"],
                 capture_output=True, text=True, timeout=600,
             )
+        _dlog.debug("pip install: rc=%s stdout=%r stderr=%r", result.returncode, result.stdout.strip()[:500], result.stderr.strip()[:500])
         if result.returncode != 0:
             _kokoro_install["status"] = "error"
             _kokoro_install["message"] = f"pip install failed: {result.stderr.strip()[-200:]}"
             log.error("kokoro install: pip install failed: %s", result.stderr.strip()[-200:])
+            _elog.error("pip install failed: rc=%s stderr=%s", result.returncode, result.stderr.strip()[:1000])
             return
 
         log.info("kokoro install: verifying import")
         result = subprocess.run(
-            [str(KOKORO_VENV_PY), "-c", "import kokoro"],
-            capture_output=True, timeout=10,
+            [str(KOKORO_VENV_PY), "-c", "import kokoro; print('kokoro ok')"],
+            capture_output=True, text=True, timeout=10,
         )
+        _dlog.debug("import verify: rc=%s stdout=%r stderr=%r", result.returncode, result.stdout.strip(), result.stderr.strip()[:500])
         if result.returncode != 0:
             _kokoro_install["status"] = "error"
             _kokoro_install["message"] = "Install succeeded but import failed."
             log.error("kokoro install: import verification failed")
+            _elog.error("import verification failed: stderr=%s", result.stderr.strip()[:500])
             return
 
         write_integration("kokoro_installed", True)
         _kokoro_install["status"] = "done"
         _kokoro_install["message"] = "Installed. Daemon will auto-start on first use."
         log.info("kokoro install completed successfully")
+        _dlog.debug("=== _run_kokoro_install success ===")
 
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
         _kokoro_install["status"] = "error"
         _kokoro_install["message"] = "Install timed out."
+        _elog.error("install timed out: %s", e)
         log.error("kokoro install timed out")
     except Exception as e:
         _kokoro_install["status"] = "error"
         _kokoro_install["message"] = str(e)
         log.error("kokoro install failed: %s", e)
+        _elog.error("install exception: %s", e, exc_info=True)
 
 
 # ── HTTP Server ──
@@ -1030,8 +1076,26 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
 
+def _setup_file_loggers():
+    """Set up debug.log and error.log in the soundbar directory."""
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
+    # debug.log — everything (DEBUG+)
+    dh = logging.FileHandler(SND / "debug.log", mode="a")
+    dh.setLevel(logging.DEBUG)
+    dh.setFormatter(fmt)
+    _dlog.addHandler(dh)
+    _dlog.setLevel(logging.DEBUG)
+    # error.log — errors only
+    eh = logging.FileHandler(SND / "error.log", mode="a")
+    eh.setLevel(logging.ERROR)
+    eh.setFormatter(fmt)
+    _elog.addHandler(eh)
+    _elog.setLevel(logging.ERROR)
+
+
 def main():
     logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
+    _setup_file_loggers()
     port = int(os.environ.get("PORT", 8111))
     server = ReuseHTTPServer(("127.0.0.1", port), Handler)
     print(f"Soundbar: http://localhost:{port}")
