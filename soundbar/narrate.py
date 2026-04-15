@@ -7,6 +7,7 @@ Supports five providers: claude_cli, anthropic, gemini, openai, ollama.
 """
 
 import json
+import logging
 import os
 import shutil
 import signal
@@ -21,6 +22,19 @@ from pathlib import Path
 
 LOCK_FILE = "/tmp/soundbar_narrator.lock"
 SND = Path.home() / ".claude" / "soundbar"
+
+# File logger — narrate.py runs as subprocess with stdout/stderr suppressed,
+# so file logging is the only way to trace issues.
+_log = logging.getLogger("narrate")
+_log.setLevel(logging.DEBUG)
+_fh = logging.FileHandler(SND / "debug.log", mode="a")
+_fh.setFormatter(logging.Formatter("%(asctime)s NARRATE %(levelname)s %(message)s", datefmt="%H:%M:%S"))
+_fh.setLevel(logging.DEBUG)
+_log.addHandler(_fh)
+_eh = logging.FileHandler(SND / "error.log", mode="a")
+_eh.setFormatter(logging.Formatter("%(asctime)s NARRATE %(levelname)s %(message)s", datefmt="%H:%M:%S"))
+_eh.setLevel(logging.ERROR)
+_log.addHandler(_eh)
 CONFIG_FILE = SND / "config.json"
 CONFIG_DEFAULTS = SND / "config.defaults.json"
 
@@ -301,6 +315,7 @@ def check_provider(provider, model, api_key):
 
 def speak(text, engine, voice, volume):
     """Speak text via configured TTS engine."""
+    _log.info("speak: engine=%s voice=%s volume=%s", engine, voice, volume)
     if engine == "kokoro":
         speak_kokoro(text, voice, volume)
     else:
@@ -341,6 +356,7 @@ KOKORO_DAEMON = SND / "kokoro_server.py"
 
 def _kokoro_request(cmd, timeout=30, **kwargs):
     """Send a request to the Kokoro daemon. Returns response dict or None."""
+    _log.debug("kokoro request: cmd=%s timeout=%s", cmd, timeout)
     s = sock_mod.socket(sock_mod.AF_UNIX, sock_mod.SOCK_STREAM)
     try:
         s.connect(str(KOKORO_SOCK))
@@ -348,8 +364,11 @@ def _kokoro_request(cmd, timeout=30, **kwargs):
         req = json.dumps({"cmd": cmd, **kwargs})
         s.sendall(req.encode() + b"\n")
         resp = s.makefile().readline()
-        return json.loads(resp) if resp else None
-    except Exception:
+        result = json.loads(resp) if resp else None
+        _log.debug("kokoro response: %s", result)
+        return result
+    except Exception as e:
+        _log.error("kokoro request failed: cmd=%s err=%s", cmd, e)
         return None
     finally:
         s.close()
@@ -357,12 +376,16 @@ def _kokoro_request(cmd, timeout=30, **kwargs):
 
 def _ensure_kokoro_daemon():
     """Start Kokoro daemon if not running. Returns True if daemon is available."""
+    _log.debug("ensure_kokoro_daemon: sock=%s exists=%s", KOKORO_SOCK, KOKORO_SOCK.exists())
+
     # Already running?
     if KOKORO_SOCK.exists():
         resp = _kokoro_request("health", timeout=3)
         if resp and resp.get("ok"):
+            _log.debug("daemon already running")
             return True
         # Stale socket
+        _log.debug("stale socket, removing")
         try:
             KOKORO_SOCK.unlink()
         except OSError:
@@ -370,24 +393,37 @@ def _ensure_kokoro_daemon():
 
     # Venv must exist
     if not KOKORO_VENV.exists():
+        _log.error("venv python missing: %s", KOKORO_VENV)
         return False
 
     # Start daemon (detached)
+    daemon_cmd = [str(KOKORO_VENV), str(KOKORO_DAEMON)]
+    _log.info("starting kokoro daemon: %s", daemon_cmd)
+
+    # Capture daemon stderr to a log file for debugging
+    daemon_log = SND / "kokoro_daemon.log"
+    try:
+        daemon_err = open(daemon_log, "a")
+    except Exception:
+        daemon_err = subprocess.DEVNULL
+
     subprocess.Popen(
-        [str(KOKORO_VENV), str(KOKORO_DAEMON)],
+        daemon_cmd,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=daemon_err,
         start_new_session=True,
     )
 
     # Wait for socket — daemon creates it before model finishes loading
-    for _ in range(50):
+    for i in range(50):
         time.sleep(0.1)
         if KOKORO_SOCK.exists():
             resp = _kokoro_request("health", timeout=3)
             if resp and resp.get("ok"):
+                _log.info("daemon started after %.1fs", (i + 1) * 0.1)
                 return True
+    _log.error("daemon failed to start within 5s. Check %s", daemon_log)
     return False
 
 
@@ -399,10 +435,14 @@ def speak_kokoro(text, voice, volume):
     without the user knowing. The UI shows engine status so the user
     can switch manually if kokoro is broken.
     """
+    _log.info("speak_kokoro: voice=%s volume=%s text=%r", voice, volume, text[:60])
     if not _ensure_kokoro_daemon():
+        _log.error("speak_kokoro: daemon unavailable, skipping")
         return
 
-    _kokoro_request("speak", timeout=30, text=text, voice=voice, volume=volume)
+    resp = _kokoro_request("speak", timeout=30, text=text, voice=voice, volume=volume)
+    if not resp or not resp.get("ok"):
+        _log.error("speak_kokoro: speak failed: %s", resp)
 
 
 def _read_integrations():

@@ -1140,7 +1140,13 @@ def _setup_file_loggers():
 
 
 def main():
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
+    # Console: INFO only (no DEBUG spam in terminal)
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    logging.root.addHandler(console)
+    logging.root.setLevel(logging.DEBUG)
+    # File loggers
     _setup_file_loggers()
     port = int(os.environ.get("PORT", 8111))
     server = ReuseHTTPServer(("127.0.0.1", port), Handler)
