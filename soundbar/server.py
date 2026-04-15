@@ -17,6 +17,7 @@ import logging
 import os
 import random
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -45,12 +46,13 @@ EVENTS = [
 DIALOGUE_EVENTS = {"subagent_start", "subagent_stop"}
 VOICE_PROFILES = ["senior", "narrator", "generals"]
 
-CONFIG_KEYS = {"effects_on", "effects_profile", "effects_volume", "voice_on", "voice_profile", "voice_volume", "voice_main", "voice_sub", "tts_engine", "kokoro_voice", "narrator_provider", "narrator_model", "narrator_api_key", "narrator_style"}
+CONFIG_KEYS = {"python3_path", "effects_on", "effects_profile", "effects_volume", "voice_on", "voice_profile", "voice_volume", "voice_main", "voice_sub", "tts_engine", "kokoro_voice", "narrator_provider", "narrator_model", "narrator_api_key", "narrator_style"}
 
 
 # ── Config ──
 
 DEFAULTS = {
+    "python3_path": "/usr/bin/python3",
     "effects_on": True, "effects_profile": "default", "effects_volume": 100,
     "voice_on": False, "voice_profile": "senior", "voice_volume": 100,
     "voice_main": "Tara", "voice_sub": "Aman",
@@ -160,6 +162,16 @@ def read_config():
 def write_config(data):
     CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     log.info("wrote %s", CONFIG_FILE.name)
+
+
+def get_python3():
+    """Resolve the absolute path to python3 from config, with fallback."""
+    config = read_config()
+    p = config.get("python3_path", "")
+    if p and os.path.isfile(p) and os.access(p, os.X_OK):
+        return p
+    found = shutil.which("python3")
+    return found or "/usr/bin/python3"
 
 
 def read_phrases():
@@ -349,7 +361,8 @@ def _say_vol_cmd(voice, rate, phrase, vol):
 def _narrate_speak_cmd(phrase):
     """Build a shell command to speak a phrase via narrate.py --speak (Kokoro-aware)."""
     safe = subprocess.list2cmdline([phrase])
-    return f'python3 {subprocess.list2cmdline([str(SND / "narrate.py")])} --speak {safe}'
+    py3 = subprocess.list2cmdline([get_python3()])
+    return f'{py3} {subprocess.list2cmdline([str(SND / "narrate.py")])} --speak {safe}'
 
 
 def _play_narration(event, config, vol):
@@ -383,7 +396,7 @@ def _play_narration(event, config, vol):
         phrase = items[idx] if not isinstance(items[idx], list) else items[idx][0]
         if tts_engine == "kokoro":
             subprocess.Popen(
-                ["python3", str(SND / "narrate.py"), "--speak", phrase],
+                [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL)
         else:
@@ -495,22 +508,213 @@ def check_kokoro_installed():
     return False
 
 
+# Kokoro requires Python >=3.9, <3.12 (PyTorch constraint).
+KOKORO_PY_MIN = (3, 9)
+KOKORO_PY_MAX = (3, 12)  # exclusive
+
+
+def _get_python_version(python_path):
+    """Get (major, minor) tuple for a Python binary, or None."""
+    try:
+        r = subprocess.run(
+            [python_path, "-c", "import sys; print(sys.version_info.major, sys.version_info.minor)"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0:
+            parts = r.stdout.strip().split()
+            return (int(parts[0]), int(parts[1]))
+    except Exception:
+        pass
+    return None
+
+
+def _find_kokoro_python():
+    """Find a Python >=3.9, <3.12 for Kokoro venv creation.
+
+    Detection order:
+    1. Direct binaries: python3.11, python3.10, python3.9 in PATH
+    2. uv: can create venvs with specific Python versions
+    3. pyenv: check installed versions
+    4. conda: check for compatible environments
+
+    Returns dict with keys:
+      - ok: bool
+      - python: str (path to python binary) — only if ok and method != "uv"
+      - method: str ("direct", "uv", "pyenv", "conda")
+      - version: str (e.g. "3.11.5") — human-readable
+      - message: str — describes what was found or what failed
+    """
+    # Fast path: cached in integrations.json
+    data = read_integrations()
+    cached = data.get("kokoro_python")
+    if cached and isinstance(cached, dict) and cached.get("ok"):
+        py = cached.get("python", "")
+        method = cached.get("method", "")
+        # For uv, we just need uv in PATH (no python binary to check)
+        if method == "uv":
+            if shutil.which("uv"):
+                return cached
+        elif py and os.path.isfile(py) and os.access(py, os.X_OK):
+            ver = _get_python_version(py)
+            if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
+                return cached
+
+    tried = []
+
+    # 1. Direct binaries in PATH
+    for minor in (11, 10, 9):
+        name = f"python3.{minor}"
+        path = shutil.which(name)
+        if path:
+            ver = _get_python_version(path)
+            if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
+                result = {
+                    "ok": True, "python": path, "method": "direct",
+                    "version": f"{ver[0]}.{ver[1]}",
+                    "message": f"Using {name} from PATH",
+                }
+                write_integration("kokoro_python", result)
+                return result
+        tried.append(name)
+
+    # 2. uv — can download + manage Python versions itself
+    if shutil.which("uv"):
+        result = {
+            "ok": True, "python": "", "method": "uv",
+            "version": "3.11 (managed by uv)",
+            "message": "Using uv to create venv with Python 3.11",
+        }
+        write_integration("kokoro_python", result)
+        return result
+    tried.append("uv")
+
+    # 3. pyenv — check installed versions
+    pyenv_bin = shutil.which("pyenv")
+    if pyenv_bin:
+        try:
+            r = subprocess.run(
+                [pyenv_bin, "versions", "--bare"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if r.returncode == 0:
+                for line in r.stdout.strip().split("\n"):
+                    ver_str = line.strip()
+                    if not ver_str:
+                        continue
+                    parts = ver_str.split(".")
+                    if len(parts) >= 2:
+                        try:
+                            ver = (int(parts[0]), int(parts[1]))
+                        except ValueError:
+                            continue
+                        if KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
+                            # Find the actual binary
+                            r2 = subprocess.run(
+                                [pyenv_bin, "root"],
+                                capture_output=True, text=True, timeout=5,
+                            )
+                            if r2.returncode == 0:
+                                pyenv_root = r2.stdout.strip()
+                                py_path = os.path.join(pyenv_root, "versions", ver_str, "bin", "python3")
+                                if os.path.isfile(py_path):
+                                    result = {
+                                        "ok": True, "python": py_path, "method": "pyenv",
+                                        "version": ver_str,
+                                        "message": f"Using Python {ver_str} from pyenv",
+                                    }
+                                    write_integration("kokoro_python", result)
+                                    return result
+        except Exception:
+            pass
+    tried.append("pyenv")
+
+    # 4. conda — check for compatible environments
+    conda_bin = shutil.which("conda")
+    if conda_bin:
+        try:
+            r = subprocess.run(
+                [conda_bin, "info", "--envs", "--json"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if r.returncode == 0:
+                info = json.loads(r.stdout)
+                for env_path in info.get("envs", []):
+                    py_path = os.path.join(env_path, "bin", "python3")
+                    if os.path.isfile(py_path):
+                        ver = _get_python_version(py_path)
+                        if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
+                            result = {
+                                "ok": True, "python": py_path, "method": "conda",
+                                "version": f"{ver[0]}.{ver[1]}",
+                                "message": f"Using Python {ver[0]}.{ver[1]} from conda env",
+                            }
+                            write_integration("kokoro_python", result)
+                            return result
+        except Exception:
+            pass
+    tried.append("conda")
+
+    # 5. Nothing found
+    result = {
+        "ok": False, "python": "", "method": "", "version": "",
+        "message": (
+            f"No compatible Python (3.9-3.11) found. "
+            f"Checked: {', '.join(tried)}.\n"
+            "Install one via:\n"
+            "  brew install python@3.11\n"
+            "  uv python install 3.11\n"
+            "  pyenv install 3.11"
+        ),
+    }
+    write_integration("kokoro_python", result)
+    return result
+
+
 def _run_kokoro_install():
     """Background thread: create venv + pip install kokoro soundfile."""
     log.info("kokoro install started")
     _kokoro_install["status"] = "running"
-    _kokoro_install["message"] = "Creating venv..."
+    _kokoro_install["message"] = "Finding compatible Python (3.9-3.11)..."
     try:
+        py_info = _find_kokoro_python()
+        if not py_info["ok"]:
+            _kokoro_install["status"] = "error"
+            _kokoro_install["message"] = py_info["message"]
+            log.error("kokoro install: no compatible Python found")
+            return
+
         if not KOKORO_VENV_PY.exists():
-            log.info("kokoro install: creating venv at %s", KOKORO_VENV)
-            result = subprocess.run(
-                ["python3", "-m", "venv", str(KOKORO_VENV)],
-                capture_output=True, text=True, timeout=60,
-            )
+            method = py_info["method"]
+            _kokoro_install["message"] = f"Creating venv ({py_info['message']})..."
+            log.info("kokoro install: creating venv via %s at %s", method, KOKORO_VENV)
+
+            if method == "uv":
+                # uv creates the venv and downloads Python 3.11 if needed
+                result = subprocess.run(
+                    ["uv", "venv", "--python", "3.11", str(KOKORO_VENV)],
+                    capture_output=True, text=True, timeout=120,
+                )
+            else:
+                # direct / pyenv / conda — use the found python binary
+                result = subprocess.run(
+                    [py_info["python"], "-m", "venv", str(KOKORO_VENV)],
+                    capture_output=True, text=True, timeout=60,
+                )
+
             if result.returncode != 0:
                 _kokoro_install["status"] = "error"
-                _kokoro_install["message"] = f"venv creation failed: {result.stderr.strip()}"
+                _kokoro_install["message"] = f"venv creation failed: {result.stderr.strip()[-200:]}"
                 log.error("kokoro install: venv creation failed: %s", result.stderr.strip())
+                # Clear cached python info so next attempt re-detects
+                write_integration("kokoro_python", None)
+                return
+
+            # Verify the venv python exists
+            if not KOKORO_VENV_PY.exists():
+                _kokoro_install["status"] = "error"
+                _kokoro_install["message"] = "venv created but bin/python3 not found."
+                log.error("kokoro install: venv python missing after creation")
+                write_integration("kokoro_python", None)
                 return
 
         log.info("kokoro install: pip install kokoro + soundfile")
@@ -629,7 +833,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if engine == "kokoro":
                     # Use narrate.py --speak for Kokoro TTS
                     subprocess.Popen(
-                        ["python3", str(SND / "narrate.py"), "--speak", phrase],
+                        [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
                         stdin=subprocess.DEVNULL,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
@@ -646,7 +850,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/tts-check":
             try:
                 result = subprocess.run(
-                    ["python3", str(SND / "narrate.py"), "--check-tts"],
+                    [get_python3(), str(SND / "narrate.py"), "--check-tts"],
                     capture_output=True, text=True, timeout=10,
                 )
                 self.json_response(json.loads(result.stdout) if result.stdout.strip() else {"ok": False, "message": "No output"})
@@ -664,18 +868,19 @@ class Handler(SimpleHTTPRequestHandler):
                 self.json_response({"ok": True, "status": "running", "message": "Starting install..."})
 
         elif path == "/api/kokoro-status":
+            py_info = _find_kokoro_python()
             if _kokoro_install["status"] == "running":
-                self.json_response({"ok": True, "status": "running", "message": _kokoro_install["message"], "installed": False})
+                self.json_response({"ok": True, "status": "running", "message": _kokoro_install["message"], "installed": False, "python_info": py_info})
             elif _kokoro_install["status"] == "error":
-                self.json_response({"ok": False, "status": "error", "message": _kokoro_install["message"], "installed": False})
+                self.json_response({"ok": False, "status": "error", "message": _kokoro_install["message"], "installed": False, "python_info": py_info})
             else:
                 installed = check_kokoro_installed()
-                self.json_response({"ok": installed, "status": "done" if installed else "idle", "installed": installed})
+                self.json_response({"ok": installed, "status": "done" if installed else "idle", "installed": installed, "python_info": py_info})
 
         elif path == "/api/narrator-check":
             try:
                 result = subprocess.run(
-                    ["python3", str(SND / "narrate.py"), "--check"],
+                    [get_python3(), str(SND / "narrate.py"), "--check"],
                     capture_output=True, text=True, timeout=15,
                 )
                 self.json_response(json.loads(result.stdout) if result.stdout.strip() else {"ok": False, "message": "No output"})
@@ -699,14 +904,14 @@ class Handler(SimpleHTTPRequestHandler):
             })
             try:
                 result = subprocess.run(
-                    ["python3", str(SND / "narrate.py"), "--dry-run"],
+                    [get_python3(), str(SND / "narrate.py"), "--dry-run"],
                     input=test_context, capture_output=True, text=True, timeout=15,
                 )
                 text = result.stdout.strip()
                 if text:
                     # Speak using narrate.py --speak (respects tts_engine config)
                     subprocess.Popen(
-                        ["python3", str(SND / "narrate.py"), "--speak", text],
+                        [get_python3(), str(SND / "narrate.py"), "--speak", text],
                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
                     self.json_response({"ok": True, "text": text})

@@ -68,7 +68,8 @@ else
   OPS+=("migrate_config|Migrate voice_profile narration → senior|$DEST/config.json|voice_profile")
 fi
 
-# Phase 5: Inject hooks into settings.json
+# Phase 5: Migrate old hooks, then inject current hooks
+OPS+=("migrate_hooks|Remove deprecated/outdated soundbar hooks|$SETTINGS|$BACKUP")
 OPS+=("inject_hooks|Inject hooks into settings.json|$SETTINGS|$BACKUP")
 
 # Phase 6: Verify
@@ -80,18 +81,18 @@ OPS+=("verify|Verify installation|$DEST|")
 
 HOOKS_JSON=$(cat <<'EOF'
 {
-  "Stop": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh stop &", "timeout": 5}]}],
-  "StopFailure": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh error &", "timeout": 5}]}],
-  "PermissionRequest": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh permission &", "timeout": 5}]}],
-  "SessionStart": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh session_start &", "timeout": 5}]}],
-  "PostCompact": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh compact &", "timeout": 5}]}],
-  "SubagentStart": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh subagent_start &", "timeout": 5}]}],
-  "SubagentStop": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh subagent_stop &", "timeout": 5}]}],
-  "PostToolUseFailure": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh error &", "timeout": 5}]}],
+  "Stop": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh stop", "timeout": 5}]}],
+  "StopFailure": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh error", "timeout": 5}]}],
+  "PermissionRequest": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh permission", "timeout": 5}]}],
+  "SessionStart": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh session_start", "timeout": 5}]}],
+  "PostCompact": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh compact", "timeout": 5}]}],
+  "SubagentStart": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh subagent_start", "timeout": 5}]}],
+  "SubagentStop": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh subagent_stop", "timeout": 5}]}],
+  "PostToolUseFailure": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh error", "timeout": 5}]}],
   "PreToolUse": [
-    {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh edit &", "timeout": 5}]},
-    {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh bash &", "timeout": 5}]},
-    {"matcher": "Grep|Glob", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh search &", "timeout": 5}]}
+    {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh edit", "timeout": 5}]},
+    {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh bash", "timeout": 5}]},
+    {"matcher": "Grep|Glob", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh search", "timeout": 5}]}
   ]
 }
 EOF
@@ -167,6 +168,17 @@ run_op() {
       if [ ! -L "$link" ]; then
         ln -sf "../$fname" "$link"
       fi
+      # Stamp python3_path into config.json (detects actual interpreter)
+      if [ -f "$arg1" ] && [[ "$fname" == "config.json" ]]; then
+        local py3_path
+        py3_path="$(command -v python3 2>/dev/null || echo "/usr/bin/python3")"
+        if [ -x "$py3_path" ]; then
+          local tmp
+          tmp=$(jq --arg p "$py3_path" '.python3_path = $p' "$arg1")
+          echo "$tmp" > "$arg1"
+          green "Detected python3: $py3_path"
+        fi
+      fi
       green "$desc"
       ;;
 
@@ -176,6 +188,17 @@ run_op() {
       else
         cp "$arg1" "$arg2"
         green "$desc"
+      fi
+      # Stamp python3_path into config.json (detects actual interpreter)
+      if [ -f "$arg2" ] && [[ "$(basename "$arg2")" == "config.json" ]]; then
+        local py3_path
+        py3_path="$(command -v python3 2>/dev/null || echo "/usr/bin/python3")"
+        if [ -x "$py3_path" ]; then
+          local tmp
+          tmp=$(jq --arg p "$py3_path" '.python3_path = $p' "$arg2")
+          echo "$tmp" > "$arg2"
+          green "Detected python3: $py3_path"
+        fi
       fi
       ;;
 
@@ -190,6 +213,57 @@ run_op() {
       fi
       ;;
 
+    migrate_hooks)
+      if [ ! -f "$arg1" ]; then
+        green "$desc — no settings.json yet"
+        return 0
+      fi
+      if ! jq . "$arg1" > /dev/null 2>&1; then
+        red "$desc — settings.json is invalid JSON, skipping"; return 1
+      fi
+      # Check for deprecated play-sound.sh hooks OR existing soundbar/play.sh hooks
+      local has_deprecated has_current
+      if jq -e '.. | strings | select(contains("play-sound.sh"))' "$arg1" > /dev/null 2>&1; then
+        has_deprecated=1
+      else
+        has_deprecated=0
+      fi
+      if jq -e '.. | strings | select(contains("soundbar/play.sh"))' "$arg1" > /dev/null 2>&1; then
+        has_current=1
+      else
+        has_current=0
+      fi
+      if [ "$has_deprecated" = "0" ] && [ "$has_current" = "0" ]; then
+        green "$desc — no old hooks to migrate"
+        return 0
+      fi
+      cp "$arg1" "$arg2"
+      green "Backed up settings.json → $(basename "$arg2")"
+      # Remove any hook entries containing play-sound.sh or soundbar/play.sh
+      local cleaned
+      cleaned=$(jq '
+        .hooks = (
+          (.hooks // {}) | to_entries | map(
+            .value = [.value[] | select(
+              ([.. | strings | select(contains("play-sound.sh") or contains("soundbar/play.sh"))] | length) == 0
+            )]
+          ) | map(select(.value | length > 0)) | from_entries
+        ) | if .hooks == {} then del(.hooks) else . end
+      ' "$arg1")
+      if echo "$cleaned" | jq . > /dev/null 2>&1; then
+        echo "$cleaned" | jq . > "$arg1"
+        if [ "$has_deprecated" != "0" ]; then
+          green "$desc — removed deprecated play-sound.sh hooks"
+        else
+          green "$desc — cleared old hooks for re-injection"
+        fi
+      else
+        red "$desc — produced invalid JSON, restoring backup"
+        cp "$arg2" "$arg1"
+        return 1
+      fi
+      ;;
+
     inject_hooks)
       if [ -f "$arg1" ]; then
         if ! jq . "$arg1" > /dev/null 2>&1; then
@@ -199,8 +273,11 @@ run_op() {
           green "$desc — hooks already present"
           return 0
         fi
-        cp "$arg1" "$arg2"
-        green "Backed up settings.json → $(basename "$arg2")"
+        if [ ! -f "$arg2" ]; then
+          # Only backup if migrate_hooks didn't already
+          cp "$arg1" "$arg2"
+          green "Backed up settings.json → $(basename "$arg2")"
+        fi
       else
         echo '{}' > "$arg1"
       fi
@@ -254,13 +331,23 @@ preview_op() {
         echo "  ○ $desc — not needed"
       fi
       ;;
-    inject_hooks)
-      if [ -f "$arg1" ] && jq -e '.. | strings | select(contains("soundbar/play.sh"))' "$arg1" > /dev/null 2>&1; then
-        echo "  ○ $desc — hooks already present, will skip"
+    migrate_hooks)
+      if [ -f "$arg1" ]; then
+        local has_deprecated=0 has_current=0
+        jq -e '.. | strings | select(contains("play-sound.sh"))' "$arg1" > /dev/null 2>&1 && has_deprecated=1
+        jq -e '.. | strings | select(contains("soundbar/play.sh"))' "$arg1" > /dev/null 2>&1 && has_current=1
+        if [ "$has_deprecated" != "0" ]; then
+          echo "  ○ $desc — will remove deprecated play-sound.sh hooks"
+        elif [ "$has_current" != "0" ]; then
+          echo "  ○ $desc — will update existing hooks to current format"
+        else
+          echo "  ○ $desc — not needed"
+        fi
       else
-        echo "  ○ $desc"
+        echo "  ○ $desc — not needed"
       fi
       ;;
+    inject_hooks) echo "  ○ $desc" ;;
     verify)       echo "  ○ $desc" ;;
   esac
 }
@@ -303,7 +390,7 @@ if [ "$DRY_RUN" = "1" ]; then
   phase "5/6" "Hook injection"
   for op in "${OPS[@]}"; do
     IFS='|' read -r action desc arg1 arg2 <<< "$op"
-    case "$action" in inject_hooks) preview_op "$action" "$desc" "$arg1" "$arg2" ;; esac
+    case "$action" in migrate_hooks|inject_hooks) preview_op "$action" "$desc" "$arg1" "$arg2" ;; esac
   done
   phase "6/6" "Verify"
   for op in "${OPS[@]}"; do
@@ -342,7 +429,7 @@ done
 phase "5/6" "Hook injection"
 for op in "${OPS[@]}"; do
   IFS='|' read -r action desc arg1 arg2 <<< "$op"
-  case "$action" in inject_hooks) run_op "$action" "$desc" "$arg1" "$arg2" ;; esac
+  case "$action" in migrate_hooks|inject_hooks) run_op "$action" "$desc" "$arg1" "$arg2" ;; esac
 done
 
 phase "6/6" "Verify"

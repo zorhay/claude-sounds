@@ -350,6 +350,15 @@
   .kokoro-install-msg {
     font-size: 9px; color: var(--fg3); font-style: italic;
   }
+  .kokoro-py-info {
+    font-size: 9px; color: var(--fg3); margin-top: 4px; line-height: 1.5;
+  }
+  .kokoro-py-info.py-ok { color: var(--green); }
+  .kokoro-py-info.py-err { color: var(--red); }
+  .kokoro-py-info pre {
+    margin: 4px 0 0 0; padding: 4px 6px; background: var(--bg1); border-radius: 3px;
+    font-size: 9px; white-space: pre-wrap; line-height: 1.4;
+  }
 
   /* ── Narrator section ── */
   .narrator-section {
@@ -635,10 +644,12 @@ function renderVoiceChannel() {
             <button class="kokoro-install-btn" id="kokoroInstallBtn" onclick="installKokoro()">Install Kokoro</button>
             <span class="kokoro-install-msg" id="kokoroInstallMsg"></span>
           </div>
+          <div class="kokoro-py-info" id="kokoroPyInfo"></div>
           <details style="margin-top:6px">
             <summary>How it works</summary>
             <div class="ki-how" style="border:none;margin:0;padding:4px 0 0 0">
               Creates a Python venv (<code>~/.claude/soundbar/.venv</code>, ~1.5 GB with PyTorch).
+              Requires Python 3.9&ndash;3.11 (PyTorch constraint).
               A background daemon loads the Kokoro-82M model once and keeps it warm in memory.
               Speech requests go through a Unix socket &mdash; ~100&ndash;200ms per phrase instead
               of 3&ndash;5s cold starts. The daemon auto-starts on first use and shuts down after
@@ -761,9 +772,33 @@ async function checkTTS() {
 async function updateKokoroInstallBtn() {
   const btn = document.getElementById('kokoroInstallBtn');
   const msg = document.getElementById('kokoroInstallMsg');
+  const pyEl = document.getElementById('kokoroPyInfo');
   if (!btn) return;
   try {
     const res = await api('POST', '/api/kokoro-status');
+    // Show Python detection info
+    if (pyEl && res.python_info) {
+      const pi = res.python_info;
+      if (res.installed) {
+        pyEl.className = 'kokoro-py-info py-ok';
+        pyEl.textContent = pi.message || `Python ${pi.version}`;
+      } else if (pi.ok) {
+        pyEl.className = 'kokoro-py-info py-ok';
+        pyEl.textContent = pi.message || `Found Python ${pi.version}`;
+      } else {
+        pyEl.className = 'kokoro-py-info py-err';
+        pyEl.innerHTML = '';
+        const lines = (pi.message || 'No compatible Python found.').split('\n');
+        pyEl.appendChild(document.createTextNode(lines[0]));
+        if (lines.length > 1) {
+          const pre = document.createElement('pre');
+          pre.textContent = lines.slice(1).join('\n');
+          pyEl.appendChild(pre);
+        }
+      }
+    } else if (pyEl) {
+      pyEl.textContent = '';
+    }
     if (res.installed) {
       btn.style.display = 'none';
       msg.textContent = 'Installed';
@@ -776,6 +811,11 @@ async function updateKokoroInstallBtn() {
       btn.disabled = false;
       btn.textContent = 'Retry';
       msg.textContent = res.message || 'Install failed.';
+    } else if (res.python_info && !res.python_info.ok) {
+      // No compatible Python — disable install button
+      btn.disabled = true;
+      btn.textContent = 'Install';
+      msg.textContent = 'Requires Python 3.9-3.11';
     } else {
       btn.disabled = false;
       btn.style.display = '';
@@ -797,8 +837,14 @@ function startInstallPoll() {
       const res = await api('POST', '/api/kokoro-status');
       const btn = document.getElementById('kokoroInstallBtn');
       const msg = document.getElementById('kokoroInstallMsg');
+      const pyEl = document.getElementById('kokoroPyInfo');
       if (!btn) { clearInterval(_kokoroInstallPoll); _kokoroInstallPoll = null; return; }
       msg.textContent = res.message || '';
+      // Update Python info during install
+      if (pyEl && res.python_info && res.python_info.ok) {
+        pyEl.className = 'kokoro-py-info py-ok';
+        pyEl.textContent = res.python_info.message || '';
+      }
       if (res.installed || res.status === 'done') {
         btn.style.display = 'none';
         msg.textContent = 'Installed';

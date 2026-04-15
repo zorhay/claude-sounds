@@ -46,7 +46,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 **Kokoro daemon:** `kokoro_server.py` runs from `.venv/bin/python3`, listens on Unix socket (`kokoro.sock`). Loads `hexgrad/Kokoro-82M` once on startup (~3-5s), then serves TTS in ~100-200ms. Auto-starts on first speak request (via `narrate.py`), auto-shuts down after 10 minutes idle. Protocol: newline-delimited JSON over Unix stream socket (`health`, `speak` commands). Setup: `python3 -m venv .venv && .venv/bin/pip install kokoro soundfile`.
 
-**Config:** Single `config.json` (booleans + strings) read by one `jq` call in `play.sh`, or `json.load` in `narrate.py`/`server.py`.
+**Config:** Single `config.json` (booleans + strings) read by one `jq` call in `play.sh`, or `json.load` in `narrate.py`/`server.py`. Key `python3_path` stores the absolute path to python3 (detected at install time); all scripts use it instead of bare `python3` to avoid PATH issues in hook environments.
 
 **Panel:** `server.py` plays sounds directly (no shell script) — resolves manifest specs and runs `afplay`/`play`/`say` via subprocess. Volume is locale-safe (pure integer math). Narrator settings panel shows provider/model/key/style configuration with live connection status.
 
@@ -69,6 +69,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 - `/api/narrator-check` tests provider connectivity, `/api/narrator-test` generates and speaks a test narration.
 - Volume: `afplay -v` for file-based, `vol` effect for sox, render-to-temp for TTS.
 - Rate variation: `"rate": [0.92, 1.08]` on file-based specs randomizes `afplay -r` per play. Wider range = more variety. Not applied to sox specs.
+- Python path: `python3_path` stores the absolute path to python3 (detected at install). All scripts resolve it with fallback chain: config value → `which python3` → `/usr/bin/python3`.
 - TTS config keys: `tts_engine` ("say" or "kokoro"), `kokoro_voice` (voice ID like "af_heart").
 - Narrator config keys: `narrator_provider`, `narrator_model`, `narrator_api_key`, `narrator_style`.
 - API key is stored in `config.json`, masked in status API responses.

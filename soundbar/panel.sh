@@ -6,6 +6,17 @@ PORT=8111
 SND="$(cd "$(dirname "$0")" && pwd)"
 SERVER="$SND/server.py"
 
+# Resolve python3: config → which → fallback
+CFG="$SND/config.json"
+[ ! -f "$CFG" ] && CFG="$SND/config.defaults.json"
+PYTHON3=""
+if [ -f "$CFG" ] && command -v jq &>/dev/null; then
+  PYTHON3=$(jq -r '.python3_path // ""' "$CFG" 2>/dev/null)
+fi
+if [ -z "$PYTHON3" ] || [ ! -x "$PYTHON3" ]; then
+  PYTHON3="$(command -v python3 2>/dev/null || echo /usr/bin/python3)"
+fi
+
 # Already running?
 if curl -s "http://localhost:$PORT/api/status" >/dev/null 2>&1; then
   echo "Soundbar is already running on port $PORT."
@@ -29,4 +40,4 @@ echo ""
 ) &
 
 # Run server in foreground — Ctrl+C kills it
-exec python3 "$SERVER"
+exec "$PYTHON3" "$SERVER"

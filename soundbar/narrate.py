@@ -402,14 +402,26 @@ def speak_kokoro(text, voice, volume):
         speak_say(text, "Tara", volume)
 
 
+def _read_integrations():
+    """Read integrations.json for cached state."""
+    try:
+        return json.loads((SND / "integrations.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
 def check_kokoro():
     """Check if Kokoro TTS is available."""
     if not KOKORO_VENV.exists():
+        # Check integrations for python detection info
+        data = _read_integrations()
+        py_info = data.get("kokoro_python")
+        if py_info and not py_info.get("ok"):
+            return {"ok": False, "message": py_info.get("message", "No compatible Python found.")}
         return {
             "ok": False,
-            "message": "Kokoro venv not set up. Run:\n"
-            "  python3 -m venv ~/.claude/soundbar/.venv\n"
-            "  ~/.claude/soundbar/.venv/bin/pip install kokoro soundfile",
+            "message": "Kokoro not installed. Use the control panel to install, "
+            "or set up manually with a compatible Python (3.9-3.11).",
         }
 
     if KOKORO_SOCK.exists():
@@ -430,8 +442,7 @@ def check_kokoro():
             return {"ok": True, "message": "Kokoro installed. Daemon will auto-start on first use."}
         return {
             "ok": False,
-            "message": "Kokoro not installed in venv. Run:\n"
-            "  ~/.claude/soundbar/.venv/bin/pip install kokoro soundfile",
+            "message": "Kokoro not installed in venv. Use the control panel to reinstall.",
         }
     except Exception as e:
         return {"ok": False, "message": f"Error checking venv: {e}"}

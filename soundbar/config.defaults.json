@@ -1,4 +1,5 @@
 {
+  "python3_path": "/usr/bin/python3",
   "effects_on": true,
   "effects_profile": "default",
   "effects_volume": 100,

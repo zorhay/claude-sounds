@@ -21,7 +21,7 @@ CFG="$SND/config.json"
 [ ! -f "$CFG" ] && exit 0
 
 # Read config (single jq call for speed)
-IFS=$'\t' read -r EFFECTS_ON EFFECTS_PROFILE EFFECTS_VOL VOICE_ON VOICE_PROFILE VOICE_VOL VOICE SUBVOICE TTS_ENGINE KOKORO_VOICE < <(
+IFS=$'\t' read -r EFFECTS_ON EFFECTS_PROFILE EFFECTS_VOL VOICE_ON VOICE_PROFILE VOICE_VOL VOICE SUBVOICE TTS_ENGINE KOKORO_VOICE PYTHON3 < <(
   jq -r '[
     (if .effects_on == true then "on" else "off" end),
     (.effects_profile // "default"),
@@ -32,9 +32,15 @@ IFS=$'\t' read -r EFFECTS_ON EFFECTS_PROFILE EFFECTS_VOL VOICE_ON VOICE_PROFILE 
     (.voice_main // "Tara"),
     (.voice_sub // "Aman"),
     (.tts_engine // "say"),
-    (.kokoro_voice // "af_heart")
-  ] | @tsv' "$CFG" 2>/dev/null || printf 'on\tdefault\t100\toff\tsenior\t100\tTara\tAman\tsay\taf_heart'
+    (.kokoro_voice // "af_heart"),
+    (.python3_path // "")
+  ] | @tsv' "$CFG" 2>/dev/null || printf 'on\tdefault\t100\toff\tsenior\t100\tTara\tAman\tsay\taf_heart\t'
 )
+
+# Resolve python3: config path → which → fallback
+if [ -z "$PYTHON3" ] || [ ! -x "$PYTHON3" ]; then
+  PYTHON3="$(command -v python3 2>/dev/null || echo /usr/bin/python3)"
+fi
 
 # Convert volume 0-100 to afplay scale 0-1 (pure bash, locale-safe)
 printf -v EFX_VOL '%d.%02d' "$((EFFECTS_VOL / 100))" "$((EFFECTS_VOL % 100))"
@@ -136,7 +142,7 @@ play_sound() {
 if [ "$VOICE_ON" = "on" ]; then
   if [ "$VOICE_PROFILE" = "narrator" ]; then
     # Narrator: LLM-powered commentary via narrate.py
-    echo "$STDIN_DATA" | python3 "$SND/narrate.py" &
+    echo "$STDIN_DATA" | "$PYTHON3" "$SND/narrate.py" &
   elif [ "$VOICE_PROFILE" = "senior" ]; then
     # Narration reads phrases.json (TTS, not in manifest)
     if [ -f "$PHRASES" ] && command -v jq &>/dev/null; then
@@ -149,16 +155,16 @@ if [ "$VOICE_ON" = "on" ]; then
             subagent_start)
               MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$PHRASES")
               SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$PHRASES")
-              (python3 "$SND/narrate.py" --speak "$MAIN_P" && python3 "$SND/narrate.py" --speak "$SUB_P") &
+              ("$PYTHON3" "$SND/narrate.py" --speak "$MAIN_P" && "$PYTHON3" "$SND/narrate.py" --speak "$SUB_P") &
               ;;
             subagent_stop)
               SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$PHRASES")
               MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$PHRASES")
-              (python3 "$SND/narrate.py" --speak "$SUB_P" && python3 "$SND/narrate.py" --speak "$MAIN_P") &
+              ("$PYTHON3" "$SND/narrate.py" --speak "$SUB_P" && "$PYTHON3" "$SND/narrate.py" --speak "$MAIN_P") &
               ;;
             *)
               PHRASE=$(jq -r ".[\"$EVENT\"][$IDX]" "$PHRASES")
-              python3 "$SND/narrate.py" --speak "$PHRASE" &
+              "$PYTHON3" "$SND/narrate.py" --speak "$PHRASE" &
               ;;
           esac
         else
