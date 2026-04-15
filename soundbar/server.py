@@ -576,7 +576,9 @@ def _find_kokoro_python():
     uv_bin = shutil.which("uv")
     if uv_bin:
         try:
-            # Ensure Python 3.11 is available via uv
+            # Request 3.11.14+ — earlier standalone builds have a broken getpath.py
+            # that produces venvs with sys.base_prefix='/install' when accessed
+            # via symlinks (astral-sh/python-build-standalone#380, fixed in PR#896).
             subprocess.run(
                 [uv_bin, "python", "install", "3.11"],
                 capture_output=True, text=True, timeout=120,
@@ -586,7 +588,11 @@ def _find_kokoro_python():
                 capture_output=True, text=True, timeout=10,
             )
             if r.returncode == 0:
-                py_path = r.stdout.strip()
+                # Always resolve symlinks — uv may return a ~/.local/bin symlink
+                # that points into the uv python store. If that symlink is used
+                # to create a venv, pyvenv.cfg home will be wrong on pre-3.11.14
+                # standalone builds, causing 'No module named encodings'.
+                py_path = os.path.realpath(r.stdout.strip())
                 ver = _get_python_version(py_path)
                 if ver and KOKORO_PY_MIN <= ver < KOKORO_PY_MAX:
                     result = {
@@ -725,6 +731,53 @@ def _run_kokoro_install():
                 _kokoro_install["status"] = "error"
                 _kokoro_install["message"] = "venv created but bin/python3 not found."
                 log.error("kokoro install: venv python missing after creation")
+                write_integration("kokoro_python", None)
+                return
+
+        # Verify venv python can start (catches broken pyvenv.cfg / standalone builds)
+        verify = subprocess.run(
+            [str(KOKORO_VENV_PY), "-c", "import sys; print(sys.base_prefix)"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if verify.returncode != 0:
+            log.warning("kokoro install: venv python broken, attempting pyvenv.cfg repair")
+            # Broken venv — likely pyvenv.cfg has wrong 'home' due to
+            # python-build-standalone symlink bug (astral-sh/python-build-standalone#380).
+            # Fix: rewrite home to the real python bin directory.
+            pyvenv_cfg = KOKORO_VENV / "pyvenv.cfg"
+            real_bin = os.path.dirname(os.path.realpath(py_info["python"]))
+            if pyvenv_cfg.exists():
+                try:
+                    lines = pyvenv_cfg.read_text().splitlines()
+                    new_lines = []
+                    for line in lines:
+                        if line.startswith("home"):
+                            new_lines.append(f"home = {real_bin}")
+                            log.info("kokoro install: pyvenv.cfg home rewritten to %s", real_bin)
+                        else:
+                            new_lines.append(line)
+                    pyvenv_cfg.write_text("\n".join(new_lines) + "\n")
+                except Exception as e:
+                    log.error("kokoro install: pyvenv.cfg repair failed: %s", e)
+
+                # Re-verify after repair
+                verify2 = subprocess.run(
+                    [str(KOKORO_VENV_PY), "-c", "import sys; print(sys.base_prefix)"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if verify2.returncode != 0:
+                    _kokoro_install["status"] = "error"
+                    _kokoro_install["message"] = (
+                        "venv python is broken (can't import stdlib). "
+                        "Try: uv python upgrade --reinstall"
+                    )
+                    log.error("kokoro install: venv python still broken after repair")
+                    write_integration("kokoro_python", None)
+                    return
+            else:
+                _kokoro_install["status"] = "error"
+                _kokoro_install["message"] = "venv python is broken and pyvenv.cfg not found."
+                log.error("kokoro install: pyvenv.cfg missing")
                 write_integration("kokoro_python", None)
                 return
 
