@@ -56,9 +56,11 @@ OPS+=("generate_voices|Generate generals voice lines (macOS TTS)|$DEST/sounds/ge
 if [ "$DEV" = "1" ]; then
   OPS+=("dev_config|Create config.json at repo root + symlink|$SCRIPT_DIR/config.json|$SRC/config.defaults.json")
   OPS+=("dev_config|Create phrases.json at repo root + symlink|$SCRIPT_DIR/phrases.json|$SRC/phrases.defaults.json")
+  OPS+=("dev_config|Create narrator_styles.json at repo root + symlink|$SCRIPT_DIR/narrator_styles.json|$SRC/narrator_styles.defaults.json")
 else
   OPS+=("create_config|Create config.json from defaults|$DEST/config.defaults.json|$DEST/config.json")
   OPS+=("create_config|Create phrases.json from defaults|$DEST/phrases.defaults.json|$DEST/phrases.json")
+  OPS+=("create_config|Create narrator_styles.json from defaults|$DEST/narrator_styles.defaults.json|$DEST/narrator_styles.json")
 fi
 
 # Phase 4b: Migrate renamed config values
@@ -298,7 +300,7 @@ run_op() {
 
     verify)
       local ok=1
-      for f in play.sh switch.sh panel.sh server.py integrations.py narrate.py kokoro_server.py ui.html config.json phrases.json sounds.json; do
+      for f in play.sh switch.sh panel.sh server.py integrations.py narrate.py kokoro_server.py ui.html config.json phrases.json narrator_styles.json sounds.json; do
         [ ! -f "$arg1/$f" ] && { red "Missing: $f"; ok=0; }
       done
       [ "$ok" = "1" ] && green "$desc"

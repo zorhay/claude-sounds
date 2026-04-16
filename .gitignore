@@ -1,8 +1,10 @@
 .server.pid
 /config.json
 /phrases.json
+/narrator_styles.json
 /soundbar/config.json
 /soundbar/phrases.json
+/soundbar/narrator_styles.json
 /soundbar/integrations.json
 /soundbar/sounds/generals/*.aiff
 *.soundbar-backup

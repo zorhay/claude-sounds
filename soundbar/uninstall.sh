@@ -144,12 +144,13 @@ run_op() {
         find "$arg1" \( -type f -o -type s \) \
           ! -name 'config.json' \
           ! -name 'phrases.json' \
+          ! -name 'narrator_styles.json' \
           -delete 2>/dev/null || true
         # Remove empty directories
         find "$arg1" -type d -empty -delete 2>/dev/null || true
         # If only config files remain, tell the user
         if [ -d "$arg1" ]; then
-          yellow "$desc — kept config.json and phrases.json"
+          yellow "$desc — kept config.json, phrases.json, narrator_styles.json"
           yellow "Use --purge to remove everything"
         else
           green "$desc"

@@ -22,7 +22,8 @@ class TestNarrateImport:
         import narrate
         assert hasattr(narrate, "build_context")
         assert hasattr(narrate, "PROVIDERS")
-        assert hasattr(narrate, "NARRATOR_STYLES")
+        assert hasattr(narrate, "read_styles")
+        assert hasattr(narrate, "style_prompt")
 
 
 class TestProviders:
@@ -51,19 +52,35 @@ class TestProviders:
 
 
 class TestNarratorStyles:
-    """NARRATOR_STYLES completeness."""
+    """Narrator styles are loaded from narrator_styles.defaults.json."""
 
-    def test_has_all_five_styles(self):
-        from narrate import NARRATOR_STYLES
+    def test_includes_original_five_styles(self):
+        from narrate import read_styles
+        styles = read_styles()
         expected = {"pair_programmer", "sports", "documentary", "noir", "haiku_poet"}
-        assert set(NARRATOR_STYLES.keys()) == expected
+        assert expected.issubset(set(styles.keys()))
 
-    def test_styles_are_nonempty_strings(self):
-        from narrate import NARRATOR_STYLES
-        for name, prompt in NARRATOR_STYLES.items():
-            assert isinstance(prompt, str) and len(prompt) > 10, (
-                f"Style '{name}' should be a non-trivial prompt string"
+    def test_styles_have_label_and_prompt(self):
+        from narrate import read_styles
+        styles = read_styles()
+        for name, entry in styles.items():
+            assert isinstance(entry, dict), f"Style '{name}' should be a dict"
+            assert isinstance(entry.get("label"), str) and entry["label"], (
+                f"Style '{name}' missing label"
             )
+            assert isinstance(entry.get("prompt"), str) and len(entry["prompt"]) > 10, (
+                f"Style '{name}' should have a non-trivial prompt"
+            )
+
+    def test_style_prompt_resolves_known_style(self):
+        from narrate import style_prompt
+        prompt = style_prompt("pair_programmer")
+        assert isinstance(prompt, str) and len(prompt) > 10
+
+    def test_style_prompt_falls_back_for_unknown(self):
+        from narrate import style_prompt
+        prompt = style_prompt("__definitely_not_a_real_style__")
+        assert isinstance(prompt, str) and len(prompt) > 10
 
 
 class TestBuildContext:

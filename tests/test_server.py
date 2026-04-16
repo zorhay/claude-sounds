@@ -159,10 +159,21 @@ class TestGetStatus:
             "effects_profiles", "voice_profiles", "voice_profile_names",
             "phrases", "events", "dialogue_events", "voices",
             "tts_engines", "kokoro_voices",
-            "narrator_providers", "narrator_styles",
+            "narrator_providers", "narrator_styles", "narrator_styles_defaults",
         }
         missing = required - set(status.keys())
         assert not missing, f"get_status() missing keys: {missing}"
+
+    def test_narrator_styles_shape(self):
+        from server import get_status
+        status = get_status()
+        styles = status["narrator_styles"]
+        assert isinstance(styles, dict) and styles
+        for name, entry in styles.items():
+            assert isinstance(entry, dict), f"style '{name}' not a dict"
+            assert "label" in entry and "prompt" in entry, (
+                f"style '{name}' missing label/prompt"
+            )
 
     def test_events_list_has_10_events(self):
         from server import get_status

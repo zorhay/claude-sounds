@@ -464,6 +464,69 @@
     min-height: 0;
   }
 
+  /* ── Style editor ── */
+  .style-editor {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    display: none;
+  }
+  .style-editor.open { display: block; }
+  .style-editor-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .style-editor-row:last-child { margin-bottom: 0; }
+  .style-editor label {
+    font-size: 10px; color: var(--fg3); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .style-editor input[type="text"],
+  .style-editor textarea {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 12px;
+    padding: 5px 8px; width: 100%;
+  }
+  .style-editor textarea {
+    resize: vertical; min-height: 60px; line-height: 1.4;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
+  }
+  .style-editor input[type="text"]:focus,
+  .style-editor textarea:focus { outline: none; border-color: var(--accent); }
+  .style-editor input[readonly] { color: var(--fg3); background: var(--bg3); cursor: default; }
+  .style-editor-actions {
+    display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .style-editor-actions .spacer { flex: 1; }
+  .style-btn {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg2); font-size: 11px; padding: 5px 10px; cursor: pointer;
+    font-family: inherit; transition: 0.15s;
+  }
+  .style-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .style-btn.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .style-btn.primary:hover { filter: brightness(1.15); }
+  .style-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .style-btn:disabled { opacity: 0.4; cursor: default; filter: none; }
+  .style-msg {
+    font-size: 10px; color: var(--fg3); font-style: italic;
+    margin-top: 4px; min-height: 12px;
+  }
+  .style-msg.err { color: var(--red); }
+  .style-msg.ok { color: var(--green); }
+  .style-icon-btn {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg3); width: 28px; height: 28px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; transition: 0.15s;
+  }
+  .style-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .style-icon-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
   @media (max-width: 700px) {
     .channels { grid-template-columns: 1fr; }
     .narrator-columns { grid-template-columns: 1fr; gap: 12px 0; }
@@ -1039,11 +1102,25 @@ function renderNarratorVisibility() {
   if (show) renderNarrator();
 }
 
+function styleLabel(id, styles) {
+  const s = (styles || S.narrator_styles || {})[id];
+  if (s && typeof s === 'object' && s.label) return s.label;
+  return (id || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function stylePrompt(id, styles) {
+  const s = (styles || S.narrator_styles || {})[id];
+  if (s && typeof s === 'object' && s.prompt) return s.prompt;
+  if (typeof s === 'string') return s;
+  return '';
+}
+
 function renderNarrator() {
   const leftEl = document.getElementById('narratorLeft');
   const rightEl = document.getElementById('narratorRight');
   const providers = S.narrator_providers || {};
-  const styles = S.narrator_styles || [];
+  const styles = S.narrator_styles || {};
+  const styleIds = Object.keys(styles);
   const curProv = S.narrator_provider || 'claude_cli';
   const provInfo = providers[curProv] || {};
   const needsKey = provInfo.needs_key || false;
@@ -1065,9 +1142,10 @@ function renderNarrator() {
     modelOpts += `<option value="${esc(curModel)}" selected>${esc(curModel)} (custom)</option>`;
   }
 
-  // Style selector
-  const styleOpts = styles.map(s =>
-    `<option value="${s}" ${s === (S.narrator_style || 'pair_programmer') ? 'selected' : ''}>${s.replace(/_/g, ' ')}</option>`
+  // Style selector — use labels from the dict
+  const curStyle = S.narrator_style || styleIds[0] || 'pair_programmer';
+  const styleOpts = styleIds.map(id =>
+    `<option value="${id}" ${id === curStyle ? 'selected' : ''}>${esc(styleLabel(id, styles))}</option>`
   ).join('');
 
   // Voice selector (depends on TTS engine)
@@ -1122,11 +1200,18 @@ function renderNarrator() {
   `;
 
   // ── Right pane: Style & Voice ──
+  const editing = !!_styleEditorOpen;
   let right = `
     <div class="narrator-pane-title">Style &amp; Voice</div>
     <div class="narrator-grid">
       <span class="narrator-label">Style</span>
-      <select class="narrator-select" id="narrStyle">${styleOpts}</select>
+      <div class="narrator-key-row">
+        <select class="narrator-select" id="narrStyle" style="flex:1">${styleOpts}</select>
+        <button class="style-icon-btn ${editing ? 'active' : ''}" id="narrStyleEditBtn"
+          onclick="toggleStyleEditor()" title="Edit styles">&#9998;</button>
+      </div>
+
+      <div class="style-editor ${editing ? 'open' : ''}" id="styleEditor"></div>
 
       <span class="narrator-label">Voice</span>
       <div class="narrator-key-row">
@@ -1161,7 +1246,10 @@ function renderNarrator() {
   document.getElementById('narrStyle').onchange = async (e) => {
     S.narrator_style = e.target.value;
     await api('POST', '/api/config', { narrator_style: S.narrator_style });
+    if (_styleEditorOpen) renderStyleEditor();
   };
+
+  if (editing) renderStyleEditor();
 
   document.getElementById('narrVoice').onchange = async (e) => {
     if (isKokoroNarr) {
@@ -1175,6 +1263,167 @@ function renderNarrator() {
 
   // Auto-check on load
   checkNarrator();
+}
+
+// ── Style editor (CRUD for narrator styles) ──
+
+let _styleEditorOpen = false;
+let _styleEditorMode = 'edit'; // 'edit' | 'new'
+let _styleDraft = null;        // {id, original_id, label, prompt} when creating
+
+function toggleStyleEditor() {
+  _styleEditorOpen = !_styleEditorOpen;
+  if (_styleEditorOpen) {
+    _styleEditorMode = 'edit';
+    _styleDraft = null;
+  }
+  renderNarrator();
+}
+
+function renderStyleEditor() {
+  const el = document.getElementById('styleEditor');
+  if (!el) return;
+  const styles = S.narrator_styles || {};
+  const cur = _styleEditorMode === 'new'
+    ? (_styleDraft || { id: '', label: '', prompt: '' })
+    : (() => {
+        const id = S.narrator_style || Object.keys(styles)[0] || '';
+        const s = styles[id] || {};
+        return { id, label: s.label || '', prompt: s.prompt || '' };
+      })();
+  const isNew = _styleEditorMode === 'new';
+  const idReadonly = !isNew; // editing existing: lock id to avoid accidental breakage (rename via explicit button if needed)
+  const styleCount = Object.keys(styles).length;
+
+  el.innerHTML = `
+    <div class="style-editor-row">
+      <label>ID</label>
+      <input type="text" id="styleId" value="${esc(cur.id)}" ${idReadonly ? 'readonly' : ''}
+        placeholder="lowercase_with_underscores" maxlength="40">
+    </div>
+    <div class="style-editor-row">
+      <label>Label</label>
+      <input type="text" id="styleLabel" value="${esc(cur.label)}"
+        placeholder="Display name (e.g. Stand-up Comedian)" maxlength="60">
+    </div>
+    <div class="style-editor-row">
+      <label>Prompt</label>
+      <textarea id="stylePrompt" placeholder="System prompt \u2014 describes persona, tone, constraints">${esc(cur.prompt)}</textarea>
+    </div>
+    <div class="style-editor-actions">
+      ${isNew
+        ? `<button class="style-btn primary" onclick="saveStyle(true)">Create</button>
+           <button class="style-btn" onclick="cancelStyleDraft()">Cancel</button>`
+        : `<button class="style-btn primary" onclick="saveStyle(false)">Save</button>
+           <button class="style-btn" onclick="beginNewStyle()">New</button>
+           <button class="style-btn" onclick="resetStyles()">Reset defaults</button>
+           <span class="spacer"></span>
+           <button class="style-btn danger" onclick="deleteCurrentStyle()"
+             ${styleCount <= 1 ? 'disabled' : ''}>Delete</button>`
+      }
+    </div>
+    <div class="style-msg" id="styleMsg"></div>
+  `;
+
+  // Capture draft on input for new-mode so switches don't lose work
+  if (isNew) {
+    const sync = () => {
+      _styleDraft = {
+        id: document.getElementById('styleId').value.trim(),
+        label: document.getElementById('styleLabel').value,
+        prompt: document.getElementById('stylePrompt').value,
+      };
+    };
+    ['styleId', 'styleLabel', 'stylePrompt'].forEach(id => {
+      const node = document.getElementById(id);
+      if (node) node.oninput = sync;
+    });
+  }
+}
+
+function beginNewStyle() {
+  _styleEditorMode = 'new';
+  _styleDraft = { id: '', label: '', prompt: '' };
+  renderStyleEditor();
+  setTimeout(() => { const el = document.getElementById('styleId'); if (el) el.focus(); }, 30);
+}
+
+function cancelStyleDraft() {
+  _styleEditorMode = 'edit';
+  _styleDraft = null;
+  renderStyleEditor();
+}
+
+function styleMsg(text, cls) {
+  const el = document.getElementById('styleMsg');
+  if (!el) return;
+  el.className = 'style-msg ' + (cls || '');
+  el.textContent = text || '';
+  if (text && cls === 'ok') {
+    setTimeout(() => { if (el.textContent === text) { el.textContent = ''; el.className = 'style-msg'; } }, 2500);
+  }
+}
+
+async function saveStyle(isNew) {
+  const id = document.getElementById('styleId').value.trim().toLowerCase();
+  const label = document.getElementById('styleLabel').value.trim();
+  const prompt = document.getElementById('stylePrompt').value.trim();
+  if (!id || !label || !prompt) {
+    styleMsg('ID, label, and prompt are required.', 'err');
+    return;
+  }
+  if (!/^[a-z0-9_]{1,40}$/.test(id)) {
+    styleMsg('ID must be lowercase letters, digits, or underscore (1\u201340 chars).', 'err');
+    return;
+  }
+  if (isNew && (S.narrator_styles || {})[id]) {
+    styleMsg('A style with that ID already exists.', 'err');
+    return;
+  }
+  const body = { id, label, prompt };
+  if (!isNew) body.original_id = S.narrator_style;
+  const res = await api('POST', '/api/narrator-style', body);
+  if (!res.ok) { styleMsg(res.error || 'Save failed', 'err'); return; }
+  S.narrator_styles = res.styles;
+  if (isNew) {
+    // Select the newly created style
+    S.narrator_style = id;
+    await api('POST', '/api/config', { narrator_style: id });
+    _styleEditorMode = 'edit';
+    _styleDraft = null;
+  } else if (body.original_id && body.original_id !== id) {
+    S.narrator_style = id;
+  }
+  renderNarrator();
+  styleMsg('Saved.', 'ok');
+}
+
+async function deleteCurrentStyle() {
+  const id = S.narrator_style;
+  if (!id) return;
+  const styles = S.narrator_styles || {};
+  const label = styleLabel(id, styles);
+  if (!confirm(`Delete style "${label}"? This cannot be undone (use Reset to restore defaults).`)) return;
+  const res = await api('POST', '/api/narrator-style-delete', { id });
+  if (!res.ok) { styleMsg(res.error || 'Delete failed', 'err'); return; }
+  S.narrator_styles = res.styles;
+  // Backend falls back to first remaining style; reload selection.
+  S.narrator_style = Object.keys(res.styles)[0] || '';
+  renderNarrator();
+  styleMsg('Deleted.', 'ok');
+}
+
+async function resetStyles() {
+  if (!confirm('Reset all narrator styles to built-in defaults? Your custom styles will be removed.')) return;
+  const res = await api('POST', '/api/narrator-style-reset');
+  if (!res.ok) { styleMsg(res.error || 'Reset failed', 'err'); return; }
+  S.narrator_styles = res.styles;
+  if (!res.styles[S.narrator_style]) {
+    S.narrator_style = Object.keys(res.styles)[0] || 'pair_programmer';
+    await api('POST', '/api/config', { narrator_style: S.narrator_style });
+  }
+  renderNarrator();
+  styleMsg('Defaults restored.', 'ok');
 }
 
 async function saveNarrKey() {

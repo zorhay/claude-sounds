@@ -65,7 +65,7 @@ class TestConfigDefaults:
 
     def test_narrator_style_valid(self, config_defaults):
         import narrate
-        assert config_defaults["narrator_style"] in narrate.NARRATOR_STYLES
+        assert config_defaults["narrator_style"] in narrate.read_styles()
 
 
 class TestConfigKeysSync:

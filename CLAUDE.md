@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Audio feedback plugin for Claude Code. Three independent, mixable layers:
 - **Effects layer** — sound profiles triggered by hook events (12 profiles)
 - **Voice layer** — spoken lines via TTS or pre-rendered audio (2 profiles)
-- **Narrator layer** — LLM-generated live commentary on the coding process (5 providers, 5 styles)
+- **Narrator layer** — LLM-generated live commentary on the coding process (5 providers, 12 built-in styles, user-editable)
 
 ## Repo → Install mapping
 
@@ -27,11 +27,12 @@ soundbar/                          →  ~/.claude/soundbar/
 ├── uninstall.sh                   →  Uninstaller (also symlinked at repo root)
 ├── config.defaults.json           →  Default settings (shipped)
 ├── phrases.defaults.json          →  Default narration phrases (shipped)
+├── narrator_styles.defaults.json  →  Default narrator styles (shipped, {id: {label, prompt}})
 ├── sounds/{paper,construction,generals}/  →  Audio assets
 └── .venv/                         →  Kokoro venv (user-created, gitignored)
 ```
 
-User files created on install (never overwritten): `config.json`, `phrases.json`.
+User files created on install (never overwritten): `config.json`, `phrases.json`, `narrator_styles.json`.
 
 ## Architecture
 
@@ -42,6 +43,8 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 **Sound manifest:** `sounds.json` is the single source of truth for all sound mappings. Both `play.sh` (hooks) and `server.py` (UI) read it. Three spec types: `file`/`files` (sampled), `sox` (generated), `sequence` (multi-file, variable length). Optional `"rate": [min, max]` on any file-based spec randomizes `afplay -r` playback rate per play — standard game audio technique for natural variation. Narration voice profile reads `phrases.json` separately (TTS-specific).
 
 **Narrator:** `narrate.py` receives hook event JSON on stdin, extracts context (file paths, commands, patterns), calls an LLM for a one-sentence commentary, speaks it via TTS. Supports 5 providers (claude_cli, anthropic, gemini, openai, ollama) — all via raw HTTP, no SDK dependencies. Lock file prevents overlapping narrations. CLI modes: normal (hook playback), `--check` (test provider), `--check-tts` (test TTS engine), `--speak "text"` (speak via configured engine), `--dry-run` (text only).
+
+**Narrator styles:** `narrator_styles.json` (user) / `narrator_styles.defaults.json` (shipped) map a style id to `{label, prompt}`. Both `narrate.py` and `server.py` read the same file; the user file supersedes defaults when present. The panel supports full CRUD (create/edit/delete/reset) via `/api/narrator-style`, `/api/narrator-style-delete`, `/api/narrator-style-reset` — all persist to `narrator_styles.json`. Shipped styles: pair_programmer, sports, documentary, noir, haiku_poet, comedian, engineer, casual_guy, pirate, gamer, drill_sergeant, zen_master.
 
 **TTS engines:** Two TTS backends: `say` (macOS built-in, default) and `kokoro` (local neural TTS). Config key `tts_engine` selects which. Both narrator and senior profiles respect this setting. `play.sh` dispatches narration phrases to `narrate.py --speak` when kokoro is selected.
 
@@ -90,6 +93,12 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 1. Add profile entry in `sounds.json` under `voice`
 2. Add the profile name to `VOICE_PROFILES` in `switch.sh` and `server.py`
+
+## Adding a new narrator style
+
+Styles are data-driven. Either:
+- Edit via the panel (Voice → Narrator → pencil icon next to Style) — writes `narrator_styles.json`.
+- Or ship a new built-in: add an entry to `soundbar/narrator_styles.defaults.json` (`{id: {label, prompt}}`).
 
 ## Adding a new narrator provider
 

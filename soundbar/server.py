@@ -35,6 +35,8 @@ CONFIG_FILE = SND / "config.json"
 CONFIG_DEFAULTS = SND / "config.defaults.json"
 PHRASES_FILE = SND / "phrases.json"
 PHRASES_DEFAULTS = SND / "phrases.defaults.json"
+STYLES_FILE = SND / "narrator_styles.json"
+STYLES_DEFAULTS = SND / "narrator_styles.defaults.json"
 SOUNDS_FILE = SND / "sounds.json"
 
 EVENTS = [
@@ -123,7 +125,44 @@ NARRATOR_PROVIDERS = {
     },
 }
 
-NARRATOR_STYLES = ["pair_programmer", "sports", "documentary", "noir", "haiku_poet"]
+STYLE_ID_RE = re.compile(r"^[a-z0-9_]{1,40}$")
+
+
+def read_styles():
+    """Read narrator styles. User file overrides defaults when present."""
+    for path in (STYLES_FILE, STYLES_DEFAULTS):
+        try:
+            data = json.loads(path.read_text())
+            if isinstance(data, dict):
+                return data
+        except FileNotFoundError:
+            continue
+        except json.JSONDecodeError as e:
+            log.warning("bad JSON in %s: %s", path, e)
+            continue
+    return {}
+
+
+def read_default_styles():
+    try:
+        data = json.loads(STYLES_DEFAULTS.read_text())
+        return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def write_styles(data):
+    STYLES_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    log.info("wrote %s", STYLES_FILE.name)
+
+
+def _ensure_user_styles():
+    """Seed the user styles file from defaults on first write."""
+    if STYLES_FILE.exists():
+        return read_styles()
+    defaults = read_default_styles()
+    write_styles(defaults)
+    return defaults
 
 TTS_ENGINES = {
     "say": {"name": "macOS Say", "description": "Built-in macOS TTS. No setup needed."},
@@ -327,7 +366,8 @@ def get_status():
         "tts_engines": TTS_ENGINES,
         "kokoro_voices": KOKORO_VOICES,
         "narrator_providers": NARRATOR_PROVIDERS,
-        "narrator_styles": NARRATOR_STYLES,
+        "narrator_styles": read_styles(),
+        "narrator_styles_defaults": read_default_styles(),
     }
 
 
@@ -607,6 +647,61 @@ class Handler(SimpleHTTPRequestHandler):
 
         elif path == "/api/kokoro-status":
             self.json_response(kokoro.status())
+
+        elif path == "/api/narrator-style":
+            style_id = (body.get("id") or "").strip().lower()
+            label = (body.get("label") or "").strip()
+            prompt = (body.get("prompt") or "").strip()
+            original = (body.get("original_id") or "").strip().lower() or style_id
+            if not STYLE_ID_RE.match(style_id):
+                self.json_response({"ok": False, "error": "id must be lowercase letters, digits, underscore (1-40 chars)"})
+                return
+            if not label or not prompt:
+                self.json_response({"ok": False, "error": "label and prompt are required"})
+                return
+            styles = _ensure_user_styles()
+            # Rename case: remove old key if id changed
+            if original and original != style_id and original in styles:
+                styles.pop(original, None)
+            styles[style_id] = {"label": label, "prompt": prompt}
+            write_styles(styles)
+            # If caller is currently using a renamed style, update config pointer
+            if original and original != style_id:
+                config = read_config()
+                if config.get("narrator_style") == original:
+                    config["narrator_style"] = style_id
+                    write_config(config)
+            self.json_response({"ok": True, "styles": styles})
+
+        elif path == "/api/narrator-style-delete":
+            style_id = (body.get("id") or "").strip().lower()
+            if not style_id:
+                self.json_response({"ok": False, "error": "id required"})
+                return
+            styles = _ensure_user_styles()
+            if style_id not in styles:
+                self.json_response({"ok": False, "error": f"unknown style: {style_id}"})
+                return
+            if len(styles) <= 1:
+                self.json_response({"ok": False, "error": "cannot delete the last style"})
+                return
+            styles.pop(style_id, None)
+            write_styles(styles)
+            # If deleted style was selected, fall back to first remaining
+            config = read_config()
+            if config.get("narrator_style") == style_id:
+                config["narrator_style"] = next(iter(styles))
+                write_config(config)
+            self.json_response({"ok": True, "styles": styles})
+
+        elif path == "/api/narrator-style-reset":
+            # Restore defaults, overwriting user customizations
+            defaults = read_default_styles()
+            if not defaults:
+                self.json_response({"ok": False, "error": "no defaults available"})
+                return
+            write_styles(defaults)
+            self.json_response({"ok": True, "styles": defaults})
 
         elif path == "/api/narrator-check":
             try:

@@ -37,6 +37,8 @@ _eh.setLevel(logging.ERROR)
 _log.addHandler(_eh)
 CONFIG_FILE = SND / "config.json"
 CONFIG_DEFAULTS = SND / "config.defaults.json"
+STYLES_FILE = SND / "narrator_styles.json"
+STYLES_DEFAULTS = SND / "narrator_styles.defaults.json"
 
 PROVIDERS = {
     "claude_cli": {
@@ -71,15 +73,43 @@ PROVIDERS = {
     },
 }
 
-NARRATOR_STYLES = {
-    "pair_programmer": "You are a friendly pair programmer. Comment briefly on what the developer is doing — natural, supportive, sometimes amused.",
-    "sports": "You are an enthusiastic sports commentator narrating a live coding session. High energy, dramatic, play-by-play style.",
-    "documentary": "You are David Attenborough narrating a nature documentary about a programmer in their natural habitat. Gentle wonder and dry wit.",
-    "noir": "You are a hardboiled detective narrating a noir film about code. World-weary, sardonic, everything sounds suspicious.",
-    "haiku_poet": "Respond ONLY with a haiku (5-7-5 syllables) about what the programmer is doing. No other text.",
-}
+# Fallback prompt used only if no styles file is available at all.
+FALLBACK_STYLE_PROMPT = "You are a friendly pair programmer. Comment briefly on what the developer is doing — natural, supportive, sometimes amused."
 
 PROMPT_PREFIX = "Narrate this coding moment in one short sentence: "
+
+
+def read_styles():
+    """Read narrator styles (user file overrides defaults).
+
+    Returns dict of {id: {"label": str, "prompt": str}}.
+    """
+    for path in (STYLES_FILE, STYLES_DEFAULTS):
+        try:
+            data = json.loads(path.read_text())
+            if isinstance(data, dict):
+                return data
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+    return {}
+
+
+def style_prompt(style_id):
+    """Return the system prompt for a style id, with fallback."""
+    styles = read_styles()
+    s = styles.get(style_id) if style_id else None
+    if isinstance(s, dict) and s.get("prompt"):
+        return s["prompt"]
+    # Legacy flat mapping {id: "prompt string"}
+    if isinstance(s, str):
+        return s
+    # Fall back to pair_programmer default, then hardcoded string
+    pp = styles.get("pair_programmer")
+    if isinstance(pp, dict) and pp.get("prompt"):
+        return pp["prompt"]
+    if isinstance(pp, str):
+        return pp
+    return FALLBACK_STYLE_PROMPT
 
 TTS_ENGINES = {
     "say": {
@@ -189,7 +219,7 @@ def _http_json(url, headers, body, timeout):
 
 
 def _call_claude_cli(model, context, style):
-    system = NARRATOR_STYLES.get(style, NARRATOR_STYLES["pair_programmer"])
+    system = style_prompt(style)
     prompt = f"{system}\n\n{PROMPT_PREFIX}{context}"
     result = subprocess.run(
         ["claude", "-p", "--model", model, prompt],
@@ -202,7 +232,7 @@ def _call_claude_cli(model, context, style):
 
 
 def _call_anthropic(model, api_key, context, style):
-    system = NARRATOR_STYLES.get(style, NARRATOR_STYLES["pair_programmer"])
+    system = style_prompt(style)
     result = _http_json(
         "https://api.anthropic.com/v1/messages",
         {"x-api-key": api_key, "anthropic-version": "2023-06-01",
@@ -215,7 +245,7 @@ def _call_anthropic(model, api_key, context, style):
 
 
 def _call_gemini(model, api_key, context, style):
-    system = NARRATOR_STYLES.get(style, NARRATOR_STYLES["pair_programmer"])
+    system = style_prompt(style)
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     result = _http_json(
         url, {"Content-Type": "application/json"},
@@ -228,7 +258,7 @@ def _call_gemini(model, api_key, context, style):
 
 
 def _call_openai(model, api_key, context, style):
-    system = NARRATOR_STYLES.get(style, NARRATOR_STYLES["pair_programmer"])
+    system = style_prompt(style)
     result = _http_json(
         "https://api.openai.com/v1/chat/completions",
         {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -241,7 +271,7 @@ def _call_openai(model, api_key, context, style):
 
 
 def _call_ollama(model, context, style):
-    system = NARRATOR_STYLES.get(style, NARRATOR_STYLES["pair_programmer"])
+    system = style_prompt(style)
     result = _http_json(
         "http://localhost:11434/api/chat",
         {"Content-Type": "application/json"},
