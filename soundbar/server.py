@@ -48,7 +48,7 @@ EVENTS = [
 DIALOGUE_EVENTS = {"subagent_start", "subagent_stop"}
 VOICE_PROFILES = ["senior", "narrator", "generals"]
 
-CONFIG_KEYS = {"python3_path", "effects_on", "effects_profile", "effects_volume", "voice_on", "voice_profile", "voice_volume", "voice_main", "voice_sub", "tts_engine", "kokoro_voice", "narrator_provider", "narrator_model", "narrator_api_key", "narrator_style"}
+CONFIG_KEYS = {"python3_path", "effects_on", "effects_profile", "effects_volume", "voice_on", "voice_profile", "voice_volume", "voice_main", "voice_sub", "tts_engine", "kokoro_voice", "narrator_provider", "narrator_model", "narrator_api_key", "narrator_style", "narrator_deep_context"}
 
 
 # ── Config ──
@@ -61,6 +61,7 @@ DEFAULTS = {
     "tts_engine": "say", "kokoro_voice": "af_heart",
     "narrator_provider": "claude_cli", "narrator_model": "", "narrator_api_key": "",
     "narrator_style": "pair_programmer",
+    "narrator_deep_context": False,
 }
 
 
@@ -550,7 +551,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if k in updates and updates[k] != config.get(k):
                     log.info("config %s: %s -> %s", k, config.get(k), updates[k])
             # Log narrator setting changes
-            for k in ("narrator_provider", "narrator_model", "narrator_style", "tts_engine"):
+            for k in ("narrator_provider", "narrator_model", "narrator_style", "narrator_deep_context", "tts_engine"):
                 if k in updates and updates[k] != config.get(k):
                     log.info("config %s: %s -> %s", k, config.get(k), updates[k])
             config.update(updates)

@@ -78,6 +78,31 @@ FALLBACK_STYLE_PROMPT = "You are a friendly pair programmer. Comment briefly on 
 
 PROMPT_PREFIX = "Narrate this coding moment in one short sentence: "
 
+# Appended to every narrator system prompt. Output will be read aloud by TTS,
+# so markdown syntax and URLs would be spoken literally and sound awful.
+AUDIO_CLARITY_RULES = (
+    "\n\nOutput plain spoken prose only — this will be read aloud by a TTS engine. "
+    "Do NOT use any markdown or formatting: no asterisks, underscores, backticks, "
+    "code blocks, hashes, brackets, bullet points, or numbered lists. "
+    "Do NOT include URLs or full file paths; refer to files by their base name "
+    "(e.g. \"app.ts\"), and omit links entirely. "
+    "Do NOT write emoji, stage directions, parentheticals, or quote marks around the line. "
+    "One short, conversational sentence that sounds natural when spoken."
+)
+
+# System prompt for context compression (separate from narrator style).
+COMPRESS_SYSTEM = (
+    "You are summarizing a running log of a coding session for a narrator to reference. "
+    "Respond with 2 short sentences capturing the main files touched, tasks attempted, "
+    "and any arc of progress. Plain prose, no formatting, no lists."
+)
+
+# Session context parameters.
+SESSION_DIR = SND / "session_context"
+SESSION_RECENT_KEEP = 4     # how many recent entries survive a compression pass
+SESSION_RECENT_TRIGGER = 10 # compress once recent exceeds this
+SESSION_MAX_AGE = 7 * 24 * 3600  # drop session files older than 7 days
+
 
 def read_styles():
     """Read narrator styles (user file overrides defaults).
@@ -95,7 +120,7 @@ def read_styles():
 
 
 def style_prompt(style_id):
-    """Return the system prompt for a style id, with fallback."""
+    """Return the raw style prompt for a style id, with fallback."""
     styles = read_styles()
     s = styles.get(style_id) if style_id else None
     if isinstance(s, dict) and s.get("prompt"):
@@ -110,6 +135,11 @@ def style_prompt(style_id):
     if isinstance(pp, str):
         return pp
     return FALLBACK_STYLE_PROMPT
+
+
+def build_system_prompt(style_id):
+    """Return the full system prompt: style persona + audio-clarity constraints."""
+    return style_prompt(style_id) + AUDIO_CLARITY_RULES
 
 TTS_ENGINES = {
     "say": {
@@ -218,12 +248,11 @@ def _http_json(url, headers, body, timeout):
         return json.loads(resp.read())
 
 
-def _call_claude_cli(model, context, style):
-    system = style_prompt(style)
-    prompt = f"{system}\n\n{PROMPT_PREFIX}{context}"
+def _call_claude_cli(model, system, user, max_tokens=80, timeout=15):
+    prompt = f"{system}\n\n{user}"
     result = subprocess.run(
         ["claude", "-p", "--model", model, prompt],
-        capture_output=True, text=True, timeout=15,
+        capture_output=True, text=True, timeout=timeout,
         stdin=subprocess.DEVNULL,
     )
     if result.returncode == 0 and result.stdout.strip():
@@ -231,78 +260,113 @@ def _call_claude_cli(model, context, style):
     return None
 
 
-def _call_anthropic(model, api_key, context, style):
-    system = style_prompt(style)
+def _call_anthropic(model, api_key, system, user, max_tokens=80, timeout=5):
     result = _http_json(
         "https://api.anthropic.com/v1/messages",
         {"x-api-key": api_key, "anthropic-version": "2023-06-01",
          "Content-Type": "application/json"},
-        {"model": model, "max_tokens": 80, "system": system,
-         "messages": [{"role": "user", "content": PROMPT_PREFIX + context}]},
-        timeout=5,
+        {"model": model, "max_tokens": max_tokens, "system": system,
+         "messages": [{"role": "user", "content": user}]},
+        timeout=timeout,
     )
     return result["content"][0]["text"].strip()
 
 
-def _call_gemini(model, api_key, context, style):
-    system = style_prompt(style)
+def _call_gemini(model, api_key, system, user, max_tokens=80, timeout=5):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     result = _http_json(
         url, {"Content-Type": "application/json"},
         {"system_instruction": {"parts": [{"text": system}]},
-         "contents": [{"parts": [{"text": PROMPT_PREFIX + context}]}],
-         "generationConfig": {"maxOutputTokens": 80}},
-        timeout=5,
+         "contents": [{"parts": [{"text": user}]}],
+         "generationConfig": {"maxOutputTokens": max_tokens}},
+        timeout=timeout,
     )
     return result["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 
-def _call_openai(model, api_key, context, style):
-    system = style_prompt(style)
+def _call_openai(model, api_key, system, user, max_tokens=80, timeout=5):
     result = _http_json(
         "https://api.openai.com/v1/chat/completions",
         {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        {"model": model, "max_tokens": 80,
+        {"model": model, "max_tokens": max_tokens,
          "messages": [{"role": "system", "content": system},
-                      {"role": "user", "content": PROMPT_PREFIX + context}]},
-        timeout=5,
+                      {"role": "user", "content": user}]},
+        timeout=timeout,
     )
     return result["choices"][0]["message"]["content"].strip()
 
 
-def _call_ollama(model, context, style):
-    system = style_prompt(style)
+def _call_ollama(model, system, user, max_tokens=80, timeout=10):
     result = _http_json(
         "http://localhost:11434/api/chat",
         {"Content-Type": "application/json"},
         {"model": model, "stream": False,
          "messages": [{"role": "system", "content": system},
-                      {"role": "user", "content": PROMPT_PREFIX + context}],
-         "options": {"num_predict": 80}},
-        timeout=10,
+                      {"role": "user", "content": user}],
+         "options": {"num_predict": max_tokens}},
+        timeout=timeout,
     )
     return result["message"]["content"].strip()
 
 
-def call_provider(provider, model, api_key, context, style):
-    """Dispatch to the appropriate provider. Returns narration text or None."""
+def _dispatch(provider, model, api_key, system, user, max_tokens=80, timeout=None):
+    """Low-level provider dispatch. Returns text or None."""
     meta = PROVIDERS.get(provider)
     if not meta:
         return None
     if not model:
         model = meta["default_model"]
-
     if provider == "claude_cli":
-        return _call_claude_cli(model, context, style)
-    elif provider == "anthropic":
-        return _call_anthropic(model, api_key, context, style)
-    elif provider == "gemini":
-        return _call_gemini(model, api_key, context, style)
-    elif provider == "openai":
-        return _call_openai(model, api_key, context, style)
-    elif provider == "ollama":
-        return _call_ollama(model, context, style)
+        return _call_claude_cli(model, system, user, max_tokens, timeout or 15)
+    if provider == "anthropic":
+        return _call_anthropic(model, api_key, system, user, max_tokens, timeout or 5)
+    if provider == "gemini":
+        return _call_gemini(model, api_key, system, user, max_tokens, timeout or 5)
+    if provider == "openai":
+        return _call_openai(model, api_key, system, user, max_tokens, timeout or 5)
+    if provider == "ollama":
+        return _call_ollama(model, system, user, max_tokens, timeout or 10)
     return None
+
+
+def call_provider(provider, model, api_key, context, style, session=None):
+    """Generate narration.
+
+    When `session` is provided (deep-context mode), prior summary and recent
+    moments from this session are embedded in the user turn so the LLM can
+    reference earlier work.
+    """
+    system = build_system_prompt(style)
+    user = _build_user_turn(context, session)
+    return _dispatch(provider, model, api_key, system, user)
+
+
+def _build_user_turn(context, session):
+    """Compose the user message, optionally enriched with prior session memory."""
+    if not session:
+        return PROMPT_PREFIX + context
+
+    summary = (session.get("summary") or "").strip()
+    recent = session.get("recent") or []
+    if not summary and not recent:
+        return PROMPT_PREFIX + context
+
+    parts = ["Prior context from this coding session (for continuity — do not narrate it, just reference it if natural):\n"]
+    if summary:
+        parts.append(f"Earlier work: {summary}\n")
+    if recent:
+        parts.append("Recent moments you already narrated:\n")
+        for item in recent[-SESSION_RECENT_TRIGGER:]:
+            ctx = (item.get("ctx") or "").strip()
+            text = (item.get("text") or "").strip()
+            if ctx and text:
+                parts.append(f"  • ({ctx}) — you said: \"{text}\"\n")
+            elif ctx:
+                parts.append(f"  • {ctx}\n")
+    parts.append("\nNow, ")
+    parts.append(PROMPT_PREFIX.lower())
+    parts.append(context)
+    return "".join(parts)
 
 
 def check_provider(provider, model, api_key):
@@ -322,7 +386,7 @@ def check_provider(provider, model, api_key):
         if not model:
             model = meta["default_model"]
         try:
-            call_provider(provider, model, api_key, "Test connection.", "pair_programmer")
+            _dispatch(provider, model, api_key, "You are a connection test.", "Reply with OK.", max_tokens=8)
             return {"ok": True, "message": f"Connected ({api_key[:8]}...)."}
         except Exception as e:
             msg = str(e)
@@ -521,6 +585,122 @@ def check_kokoro():
         return {"ok": False, "message": f"Error checking venv: {e}"}
 
 
+# --- Session context (deep mode) ---
+
+def _session_path(session_id):
+    """Return the path for a session's context file. None for invalid ids."""
+    if not session_id:
+        return None
+    # Keep filename safe: only allow letters, digits, dash, underscore.
+    safe = "".join(c for c in str(session_id) if c.isalnum() or c in "-_")[:80]
+    if not safe:
+        return None
+    return SESSION_DIR / f"{safe}.json"
+
+
+def load_session(session_id):
+    """Load or create a session context blob."""
+    path = _session_path(session_id)
+    if not path:
+        return None
+    try:
+        SESSION_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        _log.error("session dir create failed: %s", e)
+        return None
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+            if isinstance(data, dict):
+                data.setdefault("session_id", session_id)
+                data.setdefault("summary", "")
+                data.setdefault("recent", [])
+                data.setdefault("created", int(time.time()))
+                return data
+        except (OSError, json.JSONDecodeError) as e:
+            _log.warning("bad session file %s: %s", path, e)
+    return {
+        "session_id": session_id,
+        "created": int(time.time()),
+        "updated": int(time.time()),
+        "summary": "",
+        "recent": [],
+    }
+
+
+def save_session(session):
+    """Persist session context, pruning old sessions opportunistically."""
+    if not isinstance(session, dict):
+        return
+    path = _session_path(session.get("session_id"))
+    if not path:
+        return
+    session["updated"] = int(time.time())
+    try:
+        SESSION_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(session, ensure_ascii=False, indent=2))
+    except OSError as e:
+        _log.error("session save failed: %s", e)
+    _prune_sessions()
+
+
+def _prune_sessions():
+    """Drop session files older than SESSION_MAX_AGE."""
+    try:
+        cutoff = time.time() - SESSION_MAX_AGE
+        for p in SESSION_DIR.glob("*.json"):
+            try:
+                if p.stat().st_mtime < cutoff:
+                    p.unlink()
+            except OSError:
+                continue
+    except OSError:
+        pass
+
+
+def compress_session_if_needed(session, provider, model, api_key):
+    """If recent history is too long, compress older entries into the summary."""
+    recent = session.get("recent") or []
+    if len(recent) <= SESSION_RECENT_TRIGGER:
+        return
+    # Split: fold everything but the last SESSION_RECENT_KEEP entries into summary.
+    to_fold = recent[:-SESSION_RECENT_KEEP]
+    keep = recent[-SESSION_RECENT_KEEP:]
+
+    prior = (session.get("summary") or "").strip()
+    bullets = "\n".join(
+        f"- ({(it.get('ctx') or '').strip()}) {(it.get('text') or '').strip()}"
+        for it in to_fold
+    )
+    user = "Prior summary:\n" + (prior or "(none)") + "\n\nNew events to fold in:\n" + bullets
+    try:
+        new_summary = _dispatch(provider, model, api_key, COMPRESS_SYSTEM, user,
+                                max_tokens=160, timeout=10)
+    except Exception as e:
+        _log.warning("compression failed: %s", e)
+        new_summary = None
+
+    if new_summary:
+        session["summary"] = new_summary.strip()
+        session["recent"] = keep
+    else:
+        # If compression failed, at least trim to prevent unbounded growth.
+        session["recent"] = keep
+
+
+def update_session(session, context, text):
+    """Append a narration to the session's recent-moments log."""
+    if not isinstance(session, dict):
+        return
+    recent = session.setdefault("recent", [])
+    recent.append({
+        "t": int(time.time()),
+        "ctx": context,
+        "text": text,
+    })
+    session["event_count"] = session.get("event_count", 0) + 1
+
+
 # --- Lock file ---
 
 def _pid_alive(pid):
@@ -555,7 +735,7 @@ def release_lock():
 
 # --- Entry points ---
 
-def main():
+def main(force_deep=False):
     try:
         data = json.loads(sys.stdin.read())
     except (json.JSONDecodeError, ValueError):
@@ -570,6 +750,7 @@ def main():
         model = config.get("narrator_model", "")
         api_key = config.get("narrator_api_key", "")
         style = config.get("narrator_style", "pair_programmer")
+        deep = force_deep or bool(config.get("narrator_deep_context", False))
         tts_engine = config.get("tts_engine", "say")
         voice = config.get("kokoro_voice", "af_heart") if tts_engine == "kokoro" \
             else config.get("voice_main", "Tara")
@@ -579,11 +760,20 @@ def main():
         if not context:
             return
 
-        text = call_provider(provider, model, api_key, context, style)
+        session = None
+        session_id = data.get("session_id")
+        if deep and session_id:
+            session = load_session(session_id)
+
+        text = call_provider(provider, model, api_key, context, style, session=session)
         if text:
             speak(text, tts_engine, voice, volume)
-    except Exception:
-        pass
+            if session is not None:
+                update_session(session, context, text)
+                compress_session_if_needed(session, provider, model, api_key)
+                save_session(session)
+    except Exception as e:
+        _log.error("main failed: %s", e)
     finally:
         release_lock()
 
@@ -631,11 +821,16 @@ if __name__ == "__main__":
         if not context:
             print("Error: no context extracted from event", file=sys.stderr)
             sys.exit(1)
+        deep = ("--deep" in sys.argv) or bool(config.get("narrator_deep_context", False))
+        session = None
+        session_id = data.get("session_id")
+        if deep and session_id:
+            session = load_session(session_id)
         try:
-            text = call_provider(provider, model, api_key, context, style)
+            text = call_provider(provider, model, api_key, context, style, session=session)
             print(text or "")
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
     else:
-        main()
+        main(force_deep="--deep" in sys.argv)

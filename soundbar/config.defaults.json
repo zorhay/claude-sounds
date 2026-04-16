@@ -13,5 +13,6 @@
   "narrator_provider": "claude_cli",
   "narrator_model": "",
   "narrator_api_key": "",
-  "narrator_style": "pair_programmer"
+  "narrator_style": "pair_programmer",
+  "narrator_deep_context": false
 }
