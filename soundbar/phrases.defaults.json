@@ -5,20 +5,24 @@
     "All set"
   ],
   "edit": [
-    "Writing code",
-    "Implementing"
+    "Implementing",
+    "Scaffolding",
+    "Writing code"
   ],
   "bash": [
-    "Running command",
-    "Accessing OS"
+    "Accessing OS",
+    "SQL injection",
+    "Running command"
   ],
   "search": [
     "Searching",
-    "Where is it"
+    "Where is it",
+    "Let's find that"
   ],
   "permission": [
     "Need your approval",
-    "Do you agree?"
+    "Do you agree?",
+    "Hey, look at this"
   ],
   "error": [
     "Something went wrong",
@@ -41,9 +45,11 @@
   "session_start": [
     "Hi there",
     "Let's do that",
-    "what's on your mind"
+    "what's on your mind",
+    "Keep calm"
   ],
   "compact": [
-    "Compacting memory"
+    "Compacting memory",
+    "What a trash?"
   ]
 }
