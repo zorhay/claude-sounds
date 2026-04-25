@@ -38,6 +38,8 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 **Event flow:** Claude Code hook → `soundbar/play.sh <event>` → captures stdin JSON, backgrounds all work → Layer 1 (voice) + Layer 2 (effects) in parallel.
 
+**Pre vs Post hooks:** Most tool events fire on `PreToolUse` (Edit, Write, Grep, Glob) — narration kicks in *before* the tool runs, characterizing intent. **Bash is the exception** — it's wired to `PostToolUse` so the narrator can react to actual results (exit code, stdout, stderr from `tool_response`). This means Bash narration arrives after the command finishes, not before. Only one hook fires per Bash call, avoiding lock collisions in `narrate.py`.
+
 **Backgrounding:** `play.sh` captures hook stdin (~1ms), then wraps all work in `{ ... } &`. Script exits in ~2ms; config reading, sound playback, and narration all run in the background subshell. Hook commands do NOT use `&` — play.sh handles its own backgrounding.
 
 **Sound manifest:** `sounds.json` is the single source of truth for all sound mappings. Both `play.sh` (hooks) and `server.py` (UI) read it. Three spec types: `file`/`files` (sampled), `sox` (generated), `sequence` (multi-file, variable length). Optional `"rate": [min, max]` on any file-based spec randomizes `afplay -r` playback rate per play — standard game audio technique for natural variation. Narration voice profile reads `phrases.json` separately (TTS-specific).

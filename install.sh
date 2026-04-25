@@ -94,8 +94,10 @@ HOOKS_JSON=$(cat <<'EOF'
   "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh user_prompt", "timeout": 5}]}],
   "PreToolUse": [
     {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh edit", "timeout": 5}]},
-    {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh bash", "timeout": 5}]},
     {"matcher": "Grep|Glob", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh search", "timeout": 5}]}
+  ],
+  "PostToolUse": [
+    {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh bash", "timeout": 5}]}
   ]
 }
 EOF

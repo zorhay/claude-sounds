@@ -236,11 +236,24 @@ def build_context(data):
         return f"Writing {short}"
 
     if tool == "Bash":
-        desc = inp.get("description", "")
-        if desc:
-            return f"Running command: {desc[:150]}"
-        cmd = inp.get("command", "")
-        return f"Running: {cmd[:150]}"
+        desc = _clip(inp.get("description", ""), 150)
+        cmd = _clip(inp.get("command", ""), 150)
+        label = desc or cmd or "(no command)"
+        resp = data.get("tool_response") or {}
+        if resp:
+            exit_code = resp.get("exitCode", 0)
+            stdout = _clip(resp.get("stdout", ""), 200)
+            stderr = _clip(resp.get("stderr", ""), 200)
+            status = "exit 0" if exit_code == 0 else f"exit {exit_code}"
+            tail = ""
+            if stderr:
+                tail = f' Stderr: "{stderr}"'
+            elif stdout:
+                tail = f' Stdout: "{stdout}"'
+            else:
+                tail = " No output."
+            return f'Ran "{label}" — {status}.{tail}'
+        return f"Running: {label}"
 
     if tool in ("Grep", "Glob"):
         pattern = inp.get("pattern", "")
