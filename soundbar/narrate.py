@@ -176,6 +176,16 @@ def read_config():
     return {}
 
 
+def _clip(text, limit):
+    """Collapse whitespace and truncate with ellipsis. Empty input returns ""."""
+    if not text:
+        return ""
+    flat = " ".join(str(text).split())
+    if len(flat) <= limit:
+        return flat
+    return flat[:limit].rstrip() + "…"
+
+
 def build_context(data):
     """Extract a short narration-relevant string from hook event JSON."""
     event = data.get("hook_event_name", "")
@@ -208,8 +218,16 @@ def build_context(data):
         fp = inp.get("file_path", "")
         parts = fp.rsplit("/", 2)
         short = "/".join(parts[-2:]) if len(parts) >= 2 else fp
-        verb = "Editing" if tool == "Edit" else "Writing"
-        return f"{verb} {short}"
+        if tool == "Edit":
+            old = _clip(inp.get("old_string", ""), 180)
+            new = _clip(inp.get("new_string", ""), 180)
+            if old or new:
+                return f'Editing {short}. Old: "{old}". New: "{new}"'
+            return f"Editing {short}"
+        content = _clip(inp.get("content", ""), 300)
+        if content:
+            return f'Writing {short}. Content: "{content}"'
+        return f"Writing {short}"
 
     if tool == "Bash":
         desc = inp.get("description", "")
