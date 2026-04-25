@@ -195,6 +195,12 @@ def build_context(data):
     if event == "SessionStart":
         return "New coding session started."
 
+    if event == "UserPromptSubmit":
+        prompt = _clip(data.get("prompt", ""), 250)
+        if prompt:
+            return f'User asked: "{prompt}"'
+        return "User submitted a prompt."
+
     if event in ("SubagentStart", "SubagentStop"):
         atype = data.get("agent_type", "agent")
         verb = "spawned" if "Start" in event else "returned"
@@ -367,10 +373,13 @@ def _build_user_turn(context, session):
     summary = (session.get("summary") or "").strip()
     recent = session.get("recent") or []
     files = session.get("files") or []
-    if not summary and not recent and not files:
+    intent = (session.get("intent") or "").strip()
+    if not summary and not recent and not files and not intent:
         return PROMPT_PREFIX + context
 
     parts = ["Prior context from this coding session (for continuity — do not narrate it, just reference it if natural):\n"]
+    if intent:
+        parts.append(f'Active task (what the user asked for): "{intent}"\n')
     if summary:
         parts.append(f"Earlier work: {summary}\n")
     if files:
@@ -637,6 +646,7 @@ def load_session(session_id):
                 data.setdefault("summary", "")
                 data.setdefault("recent", [])
                 data.setdefault("files", [])
+                data.setdefault("intent", "")
                 data.setdefault("created", int(time.time()))
                 return data
         except (OSError, json.JSONDecodeError) as e:
@@ -648,6 +658,7 @@ def load_session(session_id):
         "summary": "",
         "recent": [],
         "files": [],
+        "intent": "",
     }
 
 
@@ -810,6 +821,10 @@ def main(force_deep=False):
         if text:
             speak(text, tts_engine, voice, volume)
             if session is not None:
+                if data.get("hook_event_name") == "UserPromptSubmit":
+                    prompt = data.get("prompt", "")
+                    if prompt:
+                        session["intent"] = _clip(prompt, 400)
                 update_session(session, context, text, data)
                 compress_session_if_needed(session, provider, model, api_key)
                 save_session(session)

@@ -91,6 +91,7 @@ HOOKS_JSON=$(cat <<'EOF'
   "SubagentStart": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh subagent_start", "timeout": 5}]}],
   "SubagentStop": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh subagent_stop", "timeout": 5}]}],
   "PostToolUseFailure": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh error", "timeout": 5}]}],
+  "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh user_prompt", "timeout": 5}]}],
   "PreToolUse": [
     {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh edit", "timeout": 5}]},
     {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh bash", "timeout": 5}]},
