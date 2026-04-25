@@ -366,12 +366,15 @@ def _build_user_turn(context, session):
 
     summary = (session.get("summary") or "").strip()
     recent = session.get("recent") or []
-    if not summary and not recent:
+    files = session.get("files") or []
+    if not summary and not recent and not files:
         return PROMPT_PREFIX + context
 
     parts = ["Prior context from this coding session (for continuity — do not narrate it, just reference it if natural):\n"]
     if summary:
         parts.append(f"Earlier work: {summary}\n")
+    if files:
+        parts.append(f"Files in play this session: {', '.join(files[-10:])}\n")
     if recent:
         parts.append("Recent moments you already narrated:\n")
         for item in recent[-SESSION_RECENT_TRIGGER:]:
@@ -633,6 +636,7 @@ def load_session(session_id):
                 data.setdefault("session_id", session_id)
                 data.setdefault("summary", "")
                 data.setdefault("recent", [])
+                data.setdefault("files", [])
                 data.setdefault("created", int(time.time()))
                 return data
         except (OSError, json.JSONDecodeError) as e:
@@ -643,6 +647,7 @@ def load_session(session_id):
         "updated": int(time.time()),
         "summary": "",
         "recent": [],
+        "files": [],
     }
 
 
@@ -706,8 +711,15 @@ def compress_session_if_needed(session, provider, model, api_key):
         session["recent"] = keep
 
 
-def update_session(session, context, text):
-    """Append a narration to the session's recent-moments log."""
+FILES_TOUCHED_CAP = 20
+
+
+def update_session(session, context, text, data=None):
+    """Append a narration to the session's recent-moments log.
+
+    `data` is the raw hook event JSON; used to track which files have been
+    touched in this session so the LLM can reference revisits naturally.
+    """
     if not isinstance(session, dict):
         return
     recent = session.setdefault("recent", [])
@@ -717,6 +729,17 @@ def update_session(session, context, text):
         "text": text,
     })
     session["event_count"] = session.get("event_count", 0) + 1
+
+    if data:
+        inp = data.get("tool_input") or {}
+        fp = inp.get("file_path", "")
+        if fp:
+            basename = fp.rsplit("/", 1)[-1]
+            files = session.setdefault("files", [])
+            if basename in files:
+                files.remove(basename)
+            files.append(basename)
+            del files[:-FILES_TOUCHED_CAP]
 
 
 # --- Lock file ---
@@ -787,7 +810,7 @@ def main(force_deep=False):
         if text:
             speak(text, tts_engine, voice, volume)
             if session is not None:
-                update_session(session, context, text)
+                update_session(session, context, text, data)
                 compress_session_if_needed(session, provider, model, api_key)
                 save_session(session)
     except Exception as e:
