@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watchtower — mock</title>
+<style>
+  :root {
+    --bg:        #0e0e16;
+    --bg2:       #16161f;
+    --bg3:       #1e1e2a;
+    --bg4:       #262635;
+    --bg5:       #2e2e40;
+    --fg:        #dcdce4;
+    --fg2:       #9898a8;
+    --fg3:       #606070;
+    --fg4:       #42424e;
+    --accent:    #e0a030;
+    --accent2:   #f0b850;
+    --accent-d:  #4a3618;
+    --accent-dd: #2a1f0c;
+    --cyan:      #70c4d8;
+    --cyan-d:    #1e3a48;
+    --green:     #5cc064;
+    --green-d:   #1e3c24;
+    --red:       #e05858;
+    --red-d:     #3c1c1c;
+    --amber:     #e0a840;
+    --amber-d:   #3c2c10;
+    --blue:      #7ea0e0;
+    --blue-d:    #1e2c48;
+    --purple:    #b090e0;
+    --purple-d:  #2c1e44;
+    --border:    #2a2a40;
+    --border2:   #38384e;
+    --border3:   #4a4a60;
+    --radius:    8px;
+    --mono:      'SF Mono', 'Fira Code', ui-monospace, Menlo, monospace;
+    --glow-green:  0 0 10px rgba(92, 192, 100, 0.45);
+    --glow-accent: 0 0 14px rgba(224, 160, 48, 0.4);
+    --glow-red:    0 0 14px rgba(224, 88, 88, 0.55);
+    --glow-cyan:   0 0 8px rgba(112, 196, 216, 0.45);
+    --glow-amber:  0 0 8px rgba(224, 168, 64, 0.5);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    padding: 18px 22px 40px;
+    font-size: 13px;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(224, 160, 48, 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at bottom right, rgba(112, 196, 216, 0.04) 0%, transparent 60%);
+  }
+
+  /* ══════════ HEADER ══════════ */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 16px;
+  }
+  .brand-block { display: flex; align-items: baseline; gap: 12px; }
+  .brand {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    text-shadow: 0 0 22px rgba(224, 160, 48, 0.4);
+  }
+  .brand-sub { font-size: 11px; color: var(--fg3); letter-spacing: 0.5px; font-style: italic; }
+  .header-status {
+    display: flex; align-items: center; gap: 8px; flex: 1;
+    font-size: 11px; color: var(--fg3);
+  }
+  .hs-stat { display: inline-flex; align-items: center; gap: 5px; }
+  .hs-stat b { color: var(--fg); font-weight: 700; }
+  .hs-stat.alert b { color: var(--red); }
+  .hs-stat.alert { color: var(--red); }
+  .hs-sep { color: var(--fg4); }
+
+  /* Mode switch (tabs) */
+  .mode-switch {
+    display: flex;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 4px;
+  }
+  .mode-btn {
+    background: none; border: none;
+    color: var(--fg3); font-family: inherit;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 7px 18px; border-radius: 18px;
+    cursor: pointer; transition: 0.2s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .mode-btn:hover { color: var(--fg); background: var(--bg3); }
+  .mode-btn.active { background: var(--accent); color: #14141c; box-shadow: var(--glow-accent); }
+  .mode-btn .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--fg4);
+  }
+  .mode-btn.has-alert .dot { background: var(--red); box-shadow: var(--glow-red); animation: pulse 1s infinite; }
+  .mode-btn.active .dot { background: #14141c; }
+
+  .gear-btn {
+    width: 36px; height: 36px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 50%;
+    color: var(--fg3); cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.15s;
+  }
+  .gear-btn:hover { color: var(--accent); border-color: var(--accent); transform: rotate(45deg); }
+
+  /* ══════════ SHARED BUTTONS ══════════ */
+  .btn {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--fg2);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg3); }
+  .btn.primary { background: var(--accent); color: #14141c; border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent2); color: #14141c; }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .btn.ghost { background: none; border-color: transparent; }
+  .btn.ghost:hover { background: var(--bg3); border-color: var(--border2); }
+  .btn.sm { font-size: 10px; padding: 5px 10px; }
+  .btn.icon { padding: 7px; width: 30px; height: 30px; justify-content: center; }
+
+  /* Toggle */
+  .toggle {
+    position: relative; display: inline-block;
+    width: 36px; height: 20px; cursor: pointer; flex-shrink: 0;
+  }
+  .toggle input { display: none; }
+  .toggle .track {
+    position: absolute; inset: 0;
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 10px; transition: 0.2s;
+  }
+  .toggle .track::after {
+    content: ''; position: absolute;
+    width: 14px; height: 14px; left: 2px; top: 2px;
+    background: var(--fg3); border-radius: 50%; transition: 0.2s;
+  }
+  .toggle:hover .track { border-color: var(--border3); }
+  .toggle input:checked + .track {
+    background: var(--green-d); border-color: var(--green);
+    box-shadow: var(--glow-green);
+  }
+  .toggle input:checked + .track::after { background: var(--green); transform: translateX(16px); }
+
+  /* ══════════ OBSERVE TAB ══════════ */
+  .section-head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 4px 2px 10px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 2.5px;
+    color: var(--fg2); text-transform: uppercase;
+  }
+  .section-title small {
+    color: var(--fg3); font-weight: 500; letter-spacing: 0.5px;
+    margin-left: 8px; text-transform: none; font-size: 10px;
+  }
+  .section-head .spacer { flex: 1; }
+
+  /* Session card strip */
+  .sessions-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .session-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 14px 12px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    overflow: hidden;
+  }
+  .session-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--fg4);
+    transition: background 0.2s;
+  }
+  .session-card.live::before    { background: var(--green); box-shadow: var(--glow-green); }
+  .session-card.working::before { background: var(--amber); box-shadow: var(--glow-amber); }
+  .session-card.alert::before   { background: var(--red); box-shadow: var(--glow-red); animation: pulse 1.2s infinite; }
+  .session-card.idle::before    { background: var(--fg4); }
+
+  .session-card:hover {
+    border-color: var(--border3);
+    transform: translateY(-2px);
+    background: var(--bg3);
+  }
+  .session-card.selected {
+    border-color: var(--accent);
+    background: linear-gradient(145deg, var(--accent-dd), var(--bg2));
+    box-shadow: var(--glow-accent);
+  }
+
+  .sc-top {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .sc-name {
+    font-size: 13px; font-weight: 700; color: var(--fg);
+    font-family: var(--mono);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sc-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 9px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .sc-badge.live    { background: var(--green-d); color: var(--green); }
+  .sc-badge.working { background: var(--amber-d); color: var(--amber); }
+  .sc-badge.alert   { background: var(--red-d); color: var(--red); animation: pulse 1.2s infinite; }
+  .sc-badge.idle    { background: var(--bg4); color: var(--fg3); }
+
+  .sc-path {
+    font-size: 10px; color: var(--fg3); font-family: var(--mono);
+    margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sc-meta {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 10px; color: var(--fg3);
+  }
+  .sc-meta .agent-dots { display: inline-flex; gap: 3px; }
+  .sc-meta .adot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--fg4);
+  }
+  .sc-meta .adot.live { background: var(--green); box-shadow: var(--glow-green); }
+  .sc-meta .adot.working { background: var(--amber); }
+  .sc-meta .adot.idle { background: var(--fg4); }
+  .sc-meta .adot.alert { background: var(--red); box-shadow: var(--glow-red); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ──── Agent tree canvas ──── */
+  .tree-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .tree-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .tree-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 2px;
+    color: var(--fg); text-transform: uppercase;
+  }
+  .tree-crumb {
+    font-size: 11px; color: var(--fg3); font-family: var(--mono);
+  }
+  .tree-crumb b { color: var(--fg); font-weight: 600; }
+
+  .tree-canvas {
+    position: relative;
+    padding: 30px 20px 20px;
+    min-height: 260px;
+    background:
+      radial-gradient(circle at 50% 30%, rgba(224, 160, 48, 0.04), transparent 70%),
+      var(--bg2);
+    overflow: auto;
+  }
+  .tree-svg {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    width: 100%; height: 100%;
+  }
+  .tree-layout {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 50px;
+  }
+  .tree-level {
+    display: flex; justify-content: center; gap: 28px;
+    flex-wrap: wrap;
+  }
+
+  /* Agent node card */
+  .agent-node {
+    position: relative;
+    background: var(--bg3);
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 14px 10px;
+    width: 220px;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 2;
+  }
+  .agent-node:hover {
+    border-color: var(--border3);
+    background: var(--bg4);
+    transform: translateY(-2px);
+  }
+  .agent-node.selected {
+    border-color: var(--accent);
+    background: linear-gradient(145deg, var(--accent-dd), var(--bg3));
+    box-shadow: var(--glow-accent), 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  .agent-node.main {
+    width: 260px;
+    background: linear-gradient(145deg, var(--bg4), var(--bg3));
+    border-color: var(--border3);
+  }
+  .agent-node.main.selected {
+    border-color: var(--accent);
+    background: linear-gradient(145deg, var(--accent-d), var(--bg4));
+  }
+
+  .an-top {
+    display: flex; align-items: center; gap: 9px;
+    margin-bottom: 6px;
+  }
+  .an-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900;
+    flex-shrink: 0;
+  }
+  .an-icon.main     { background: var(--accent-d); color: var(--accent); border: 1px solid var(--accent); }
+  .an-icon.explore  { background: var(--cyan-d); color: var(--cyan); border: 1px solid var(--cyan); }
+  .an-icon.review   { background: var(--purple-d); color: var(--purple); border: 1px solid var(--purple); }
+  .an-icon.plan     { background: var(--blue-d); color: var(--blue); border: 1px solid var(--blue); }
+
+  .an-title {
+    flex: 1; overflow: hidden;
+  }
+  .an-name {
+    font-size: 13px; font-weight: 700; color: var(--fg);
+    font-family: var(--mono);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .an-kind {
+    font-size: 9px; color: var(--fg3);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-top: 1px;
+  }
+
+  .an-status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .an-status-dot.live    { background: var(--green); box-shadow: var(--glow-green); animation: pulse 2s infinite; }
+  .an-status-dot.working { background: var(--amber); box-shadow: var(--glow-amber); animation: pulse 1.1s infinite; }
+  .an-status-dot.idle    { background: var(--fg4); }
+  .an-status-dot.done    { background: var(--cyan); box-shadow: var(--glow-cyan); }
+  .an-status-dot.alert   { background: var(--red); box-shadow: var(--glow-red); animation: pulse 0.9s infinite; }
+
+  .an-activity {
+    font-size: 11px; color: var(--fg2);
+    font-family: var(--mono);
+    background: var(--bg);
+    border-radius: 4px;
+    padding: 5px 8px;
+    margin-bottom: 8px;
+    line-height: 1.35;
+    min-height: 28px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+  }
+  .an-activity .ctx { color: var(--accent); font-weight: 700; margin-right: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .an-activity.empty { color: var(--fg3); font-style: italic; background: transparent; border-style: dashed; }
+
+  .an-foot {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; color: var(--fg3);
+    font-family: var(--mono);
+  }
+  .an-foot .spacer { flex: 1; }
+  .an-mini {
+    width: 22px; height: 22px;
+    background: var(--bg); border: 1px solid var(--border2); border-radius: 4px;
+    color: var(--fg3); font-size: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.15s;
+  }
+  .an-mini:hover { border-color: var(--accent); color: var(--accent); }
+  .an-mini.active { background: var(--accent-d); color: var(--accent); border-color: var(--accent); }
+
+  /* Pulse ring for active agents */
+  .agent-node .pulse-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .agent-node[data-status="working"] .pulse-ring {
+    border-color: var(--amber);
+    animation: ring-pulse 2s infinite;
+  }
+  .agent-node[data-status="live"] .pulse-ring {
+    border-color: var(--green);
+    animation: ring-pulse 2.5s infinite;
+  }
+  @keyframes ring-pulse {
+    0% { opacity: 0.6; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.05); }
+  }
+
+  /* Alert prompt inline in tree */
+  .tree-alert {
+    margin: 16px 20px 0;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, var(--red-d), transparent 80%);
+    border: 1px solid var(--red);
+    border-radius: 6px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 12px; color: var(--fg);
+  }
+  .tree-alert .ta-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--red-d); border: 1px solid var(--red);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--red); font-size: 18px; font-weight: 900;
+    flex-shrink: 0;
+    animation: pulse 1.2s infinite;
+  }
+  .tree-alert .ta-text { flex: 1; }
+  .tree-alert .ta-text b { color: var(--red); }
+  .tree-alert code {
+    background: var(--bg); padding: 2px 6px; border-radius: 3px;
+    font-family: var(--mono); font-size: 11px; color: var(--amber);
+  }
+
+  /* ──── Focus pane ──── */
+  .focus-pane {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .focus-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .focus-tabs {
+    display: flex; background: var(--bg); border-radius: 6px; padding: 3px; gap: 2px;
+  }
+  .focus-tab {
+    background: none; border: none;
+    color: var(--fg3); font-family: inherit;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    padding: 5px 12px; border-radius: 4px;
+    cursor: pointer; transition: 0.15s;
+  }
+  .focus-tab:hover { color: var(--fg2); background: var(--bg3); }
+  .focus-tab.active { background: var(--bg4); color: var(--fg); }
+  .focus-tab .count {
+    font-size: 9px; color: var(--fg3); margin-left: 5px;
+    font-family: var(--mono); background: var(--bg); padding: 1px 5px; border-radius: 3px;
+  }
+  .focus-tab.active .count { color: var(--accent); }
+  .focus-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+  .focus-body { max-height: 320px; overflow-y: auto; padding: 6px 0; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Transcript lines */
+  .line {
+    display: grid;
+    grid-template-columns: 70px 80px 1fr;
+    gap: 10px;
+    padding: 7px 16px;
+    align-items: baseline;
+    border-left: 2px solid transparent;
+  }
+  .line:hover { background: var(--bg3); }
+  .line.new { border-left-color: var(--accent); animation: flash 1.4s ease-out; }
+  @keyframes flash {
+    0% { background: var(--accent-d); }
+    100% { background: transparent; }
+  }
+  .line .time { font-size: 10px; color: var(--fg3); font-family: var(--mono); }
+  .event-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 6px; border-radius: 3px;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--fg3);
+    text-align: center; justify-self: start;
+  }
+  .event-tag.edit    { color: var(--accent); border-color: #504018; }
+  .event-tag.bash    { color: var(--cyan); border-color: var(--cyan-d); }
+  .event-tag.search  { color: var(--purple); border-color: var(--purple-d); }
+  .event-tag.stop    { color: var(--green); border-color: var(--green-d); }
+  .event-tag.error   { color: var(--red); border-color: var(--red-d); }
+  .event-tag.spawn   { color: var(--amber); border-color: var(--amber-d); }
+  .line-body { font-size: 12.5px; color: var(--fg); line-height: 1.45; }
+  .line-ctx { font-family: var(--mono); font-size: 11px; color: var(--fg3); margin-bottom: 2px; }
+  .line-ctx .agent { color: var(--cyan); font-weight: 700; }
+  .line-quote { color: var(--fg); font-style: italic; }
+  .line-quote::before, .line-quote::after { content: '"'; color: var(--fg3); }
+
+  /* Files list */
+  .files-list { padding: 6px 16px; font-family: var(--mono); font-size: 12px; }
+  .file-item {
+    display: grid; grid-template-columns: 56px 1fr auto auto; gap: 12px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  .file-item:last-child { border: none; }
+  .file-op {
+    font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+    background: var(--accent-d); color: var(--accent); text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .file-op.read { background: var(--cyan-d); color: var(--cyan); }
+  .file-path { color: var(--fg); }
+  .file-count { color: var(--fg3); font-size: 10px; }
+  .file-agent { color: var(--cyan); font-size: 10px; }
+
+  /* Tool calls */
+  .calls-list { padding: 6px 16px; font-family: var(--mono); font-size: 12px; }
+  .call-item { padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .call-item:last-child { border: none; }
+  .call-head {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px;
+  }
+  .call-tool { color: var(--accent); font-weight: 700; }
+  .call-args { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .call-dur { color: var(--fg3); font-size: 10px; margin-left: auto; flex-shrink: 0; }
+  .call-body { color: var(--fg3); font-size: 11px; margin-top: 4px; padding-left: 16px; }
+
+  /* ══════════ LISTEN TAB ══════════ */
+  .now-card {
+    background:
+      radial-gradient(circle at top left, rgba(224, 160, 48, 0.12), transparent 60%),
+      var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .now-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--accent);
+    box-shadow: var(--glow-accent);
+  }
+  .now-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 2.5px;
+    color: var(--accent); text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .now-label .mic-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); box-shadow: var(--glow-accent);
+    animation: pulse 1.5s infinite;
+  }
+  .now-source {
+    font-size: 11px; color: var(--fg3); font-family: var(--mono);
+    margin-bottom: 10px;
+  }
+  .now-source b { color: var(--fg2); font-weight: 600; }
+  .now-source .arrow { color: var(--fg4); margin: 0 6px; }
+  .now-quote {
+    font-size: 17px; color: var(--fg); line-height: 1.5;
+    font-style: italic;
+    margin-bottom: 16px;
+  }
+  .now-quote::before, .now-quote::after { content: '"'; color: var(--accent); font-size: 22px; }
+
+  .now-controls {
+    display: flex; align-items: center; gap: 8px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .now-controls .rate-wrap {
+    display: flex; align-items: center; gap: 8px;
+    margin-left: auto;
+  }
+  .rate-wrap label { font-size: 10px; color: var(--fg3); letter-spacing: 1px; text-transform: uppercase; }
+  .rate-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100px; height: 4px;
+    background: var(--border2); border-radius: 2px; outline: none;
+  }
+  .rate-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--fg2); cursor: pointer; border: none;
+  }
+  .rate-slider::-webkit-slider-thumb:hover { background: var(--accent); }
+  .rate-val { font-size: 10px; color: var(--fg3); font-family: var(--mono); min-width: 52px; }
+
+  /* Per-session mute list */
+  .mute-list {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .mute-head {
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 800; letter-spacing: 2px;
+    color: var(--fg2); text-transform: uppercase;
+  }
+  .mute-row {
+    display: grid; grid-template-columns: 10px 1fr auto auto;
+    gap: 14px; align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mute-row:last-child { border: none; }
+  .mute-row:hover { background: var(--bg3); }
+  .mute-row .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .mute-row .dot.live  { background: var(--green); box-shadow: var(--glow-green); }
+  .mute-row .dot.work  { background: var(--amber); box-shadow: var(--glow-amber); }
+  .mute-row .dot.alert { background: var(--red); box-shadow: var(--glow-red); animation: pulse 1s infinite; }
+  .mute-row .dot.idle  { background: var(--fg4); }
+  .mute-row .name { font-family: var(--mono); font-size: 13px; color: var(--fg); font-weight: 600; }
+  .mute-row .sub  { font-size: 11px; color: var(--fg3); margin-left: 8px; font-weight: 400; }
+
+  /* Recent transcript (listen) */
+  .recent {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .recent-head {
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .recent-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 2px;
+    color: var(--fg2); text-transform: uppercase;
+  }
+  .recent-body { padding: 6px 0; max-height: 280px; overflow-y: auto; }
+  .recent-line {
+    display: grid; grid-template-columns: 64px 1fr; gap: 14px;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(42,42,64,0.4);
+  }
+  .recent-line:last-child { border: none; }
+  .recent-line:hover { background: var(--bg3); }
+  .recent-line .time { font-size: 10px; color: var(--fg3); font-family: var(--mono); }
+  .recent-line .src { font-size: 10px; color: var(--cyan); font-family: var(--mono); margin-bottom: 2px; }
+  .recent-line .text { font-size: 12.5px; color: var(--fg); line-height: 1.45; font-style: italic; }
+
+  /* ══════════ CONFIGURE TAB ══════════ */
+  .cfg-section {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .cfg-head {
+    padding: 11px 16px; background: var(--bg3); border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 800; letter-spacing: 2px;
+    color: var(--fg); text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cfg-head small { font-size: 10px; color: var(--fg3); letter-spacing: 0.5px; font-weight: 500; text-transform: none; }
+  .cfg-head .spacer { flex: 1; }
+  .cfg-body { padding: 16px; font-size: 12px; color: var(--fg2); line-height: 1.7; }
+  .cfg-body .ph { color: var(--fg3); font-style: italic; }
+  .cfg-body code { font-family: var(--mono); font-size: 11px; background: var(--bg); padding: 1px 6px; border-radius: 3px; color: var(--amber); }
+  .cfg-body .pill {
+    display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 9px;
+    background: var(--green-d); color: var(--green);
+    text-transform: uppercase; margin-left: 4px;
+  }
+  .cfg-body .pill.roadmap { background: var(--bg4); color: var(--fg3); }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 1000px) {
+    .sessions-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<div class="header">
+  <div class="brand-block">
+    <span class="brand">Watchtower</span>
+    <span class="brand-sub">for AI agents</span>
+  </div>
+  <div class="header-status">
+    <span class="hs-stat"><b>3</b> live</span>
+    <span class="hs-sep">·</span>
+    <span class="hs-stat"><b>1</b> idle</span>
+    <span class="hs-sep">·</span>
+    <span class="hs-stat alert">⚠ <b>1</b> needs you</span>
+  </div>
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="observe"><span class="dot"></span> Observe</button>
+    <button class="mode-btn has-alert" data-mode="listen"><span class="dot"></span> Listen</button>
+    <button class="mode-btn" data-mode="configure"><span class="dot"></span> Configure</button>
+  </div>
+  <button class="gear-btn" title="Help">?</button>
+</div>
+
+<!-- ══════════ OBSERVE TAB ══════════ -->
+<div id="observeTab">
+
+  <!-- Session cards -->
+  <div class="section-head">
+    <span class="section-title">Sessions <small>click a card to focus its agent tree</small></span>
+    <span class="spacer"></span>
+    <button class="btn sm">+ attach session</button>
+  </div>
+
+  <div class="sessions-strip">
+
+    <div class="session-card live selected" onclick="selectSession(0)">
+      <div class="sc-top">
+        <span class="sc-name">claude-sounds</span>
+        <span class="sc-badge live">live</span>
+      </div>
+      <div class="sc-path">~/projects/claude-sounds</div>
+      <div class="sc-meta">
+        <span>2h 14m</span>
+        <span>·</span>
+        <span>79 events</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="agent-dots">
+          <span class="adot live" title="main"></span>
+          <span class="adot working" title="Explore"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="session-card working" onclick="selectSession(1)">
+      <div class="sc-top">
+        <span class="sc-name">frontend-repo</span>
+        <span class="sc-badge working">building</span>
+      </div>
+      <div class="sc-path">~/work/frontend</div>
+      <div class="sc-meta">
+        <span>34m</span>
+        <span>·</span>
+        <span>42 events</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="agent-dots">
+          <span class="adot working"></span>
+          <span class="adot idle"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="session-card alert" onclick="selectSession(2)">
+      <div class="sc-top">
+        <span class="sc-name">infra/terraform</span>
+        <span class="sc-badge alert">needs you</span>
+      </div>
+      <div class="sc-path">~/ops/infra</div>
+      <div class="sc-meta">
+        <span>2m idle</span>
+        <span>·</span>
+        <span>permission</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="agent-dots">
+          <span class="adot alert"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="session-card idle" onclick="selectSession(3)">
+      <div class="sc-top">
+        <span class="sc-name">design-system</span>
+        <span class="sc-badge idle">idle</span>
+      </div>
+      <div class="sc-path">~/projects/design-system</div>
+      <div class="sc-meta">
+        <span>idle 18m</span>
+        <span>·</span>
+        <span>tests green</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="agent-dots">
+          <span class="adot idle"></span>
+        </span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Agent tree -->
+  <div class="tree-panel">
+    <div class="tree-head">
+      <span class="tree-title">Agents</span>
+      <span class="tree-crumb">in <b>claude-sounds</b></span>
+    </div>
+
+    <div class="tree-canvas">
+      <svg class="tree-svg" id="treeSvg" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gradEdge" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#e0a030" stop-opacity="0.7"/>
+            <stop offset="100%" stop-color="#70c4d8" stop-opacity="0.5"/>
+          </linearGradient>
+          <linearGradient id="gradEdgeWork" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#e0a030" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#e0a840" stop-opacity="0.6"/>
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <div class="tree-layout" id="treeLayout">
+
+        <div class="tree-level" id="level-root">
+          <div class="agent-node main" data-status="live" data-id="main" onclick="selectAgent('main')">
+            <span class="pulse-ring"></span>
+            <div class="an-top">
+              <div class="an-icon main">M</div>
+              <div class="an-title">
+                <div class="an-name">main</div>
+                <div class="an-kind">Primary agent · 2h 14m</div>
+              </div>
+              <div class="an-status-dot live"></div>
+            </div>
+            <div class="an-activity"><span class="ctx">edit</span>src/auth.ts</div>
+            <div class="an-foot">
+              <span>79 events</span>
+              <span>·</span>
+              <span>3 files</span>
+              <span class="spacer"></span>
+              <button class="an-mini active" title="Narrator on" onclick="event.stopPropagation()">🗣</button>
+              <button class="an-mini active" title="Effects on" onclick="event.stopPropagation()">🎵</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tree-level" id="level-children">
+
+          <div class="agent-node selected" data-status="working" data-id="explore" onclick="selectAgent('explore')">
+            <span class="pulse-ring"></span>
+            <div class="an-top">
+              <div class="an-icon explore">🔍</div>
+              <div class="an-title">
+                <div class="an-name">Explore</div>
+                <div class="an-kind">Subagent · 2m 18s</div>
+              </div>
+              <div class="an-status-dot working"></div>
+            </div>
+            <div class="an-activity"><span class="ctx">search</span>"session token"</div>
+            <div class="an-foot">
+              <span>18 events</span>
+              <span class="spacer"></span>
+              <button class="an-mini active" onclick="event.stopPropagation()">🗣</button>
+            </div>
+          </div>
+
+          <div class="agent-node" data-status="idle" data-id="review" onclick="selectAgent('review')">
+            <div class="an-top">
+              <div class="an-icon review">📋</div>
+              <div class="an-title">
+                <div class="an-name">code-reviewer</div>
+                <div class="an-kind">Subagent · idle</div>
+              </div>
+              <div class="an-status-dot idle"></div>
+            </div>
+            <div class="an-activity empty">awaiting work from main</div>
+            <div class="an-foot">
+              <span>0 events</span>
+              <span class="spacer"></span>
+              <button class="an-mini" onclick="event.stopPropagation()">🗣</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Focus pane -->
+  <div class="focus-pane">
+    <div class="focus-head">
+      <div class="focus-tabs">
+        <button class="focus-tab active" data-tab="transcript">Transcript <span class="count">18</span></button>
+        <button class="focus-tab" data-tab="files">Files <span class="count">3</span></button>
+        <button class="focus-tab" data-tab="calls">Tool calls <span class="count">9</span></button>
+      </div>
+      <div class="focus-actions">
+        <button class="btn sm ghost" title="Pin this node">📌 Pin</button>
+        <button class="btn sm">Open in terminal</button>
+      </div>
+    </div>
+
+    <div class="focus-body">
+
+      <div class="tab-panel active" id="tab-transcript">
+
+        <div class="line">
+          <span class="time">14:03:14</span>
+          <span class="event-tag spawn">spawn</span>
+          <div class="line-body">
+            <div class="line-ctx">main → <span class="agent">Explore</span></div>
+            <div class="line-quote">Main's handing off to Explore — wants to know where session tokens are persisted.</div>
+          </div>
+        </div>
+
+        <div class="line">
+          <span class="time">14:03:18</span>
+          <span class="event-tag search">search</span>
+          <div class="line-body">
+            <div class="line-ctx"><span class="agent">Explore</span> · "session token"</div>
+            <div class="line-quote">Agent's hunting for where tokens get saved.</div>
+          </div>
+        </div>
+
+        <div class="line">
+          <span class="time">14:03:44</span>
+          <span class="event-tag search">search</span>
+          <div class="line-body">
+            <div class="line-ctx"><span class="agent">Explore</span> · "refresh"</div>
+            <div class="line-quote">Widening the net — checking refresh flow too.</div>
+          </div>
+        </div>
+
+        <div class="line">
+          <span class="time">14:04:02</span>
+          <span class="event-tag edit">edit</span>
+          <div class="line-body">
+            <div class="line-ctx"><span class="agent">Explore</span> · src/session.ts</div>
+            <div class="line-quote">Found it — rewriting the persistence layer.</div>
+          </div>
+        </div>
+
+        <div class="line new">
+          <span class="time">14:05:44</span>
+          <span class="event-tag stop">return</span>
+          <div class="line-body">
+            <div class="line-ctx"><span class="agent">Explore</span> → main</div>
+            <div class="line-quote">Done. Persistence moved out of middleware, tests still green.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="tab-panel" id="tab-files">
+        <div class="files-list">
+          <div class="file-item">
+            <span class="file-op">edit</span>
+            <span class="file-path">src/session.ts</span>
+            <span class="file-count">2 edits · +48 -17</span>
+            <span class="file-agent">Explore</span>
+          </div>
+          <div class="file-item">
+            <span class="file-op read">read</span>
+            <span class="file-path">src/auth.ts</span>
+            <span class="file-count">1 read</span>
+            <span class="file-agent">Explore</span>
+          </div>
+          <div class="file-item">
+            <span class="file-op read">read</span>
+            <span class="file-path">src/middleware/tokens.ts</span>
+            <span class="file-count">1 read</span>
+            <span class="file-agent">Explore</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-calls">
+        <div class="calls-list">
+          <div class="call-item">
+            <div class="call-head">
+              <span class="call-tool">Grep</span>
+              <span class="call-args">pattern: "session token"</span>
+              <span class="call-dur">18ms</span>
+            </div>
+            <div class="call-body">4 matches across 2 files</div>
+          </div>
+          <div class="call-item">
+            <div class="call-head">
+              <span class="call-tool">Grep</span>
+              <span class="call-args">pattern: "refresh"</span>
+              <span class="call-dur">12ms</span>
+            </div>
+            <div class="call-body">11 matches across 6 files</div>
+          </div>
+          <div class="call-item">
+            <div class="call-head">
+              <span class="call-tool">Edit</span>
+              <span class="call-args">src/session.ts — token persistence block</span>
+              <span class="call-dur">7ms</span>
+            </div>
+            <div class="call-body">+ moved token storage into SessionStore class</div>
+          </div>
+          <div class="call-item">
+            <div class="call-head">
+              <span class="call-tool">Bash</span>
+              <span class="call-args">git diff src/session.ts</span>
+              <span class="call-dur">92ms</span>
+            </div>
+            <div class="call-body">shown to main agent on return</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ LISTEN TAB ══════════ -->
+<div id="listenTab" class="hidden">
+
+  <!-- Now narrating hero card -->
+  <div class="now-card">
+    <div class="now-label"><span class="mic-dot"></span> Now narrating</div>
+    <div class="now-source">
+      <b>claude-sounds</b> <span class="arrow">›</span> <b>Explore</b> <span class="arrow">·</span> pair programmer · Kokoro/af_heart
+    </div>
+    <div class="now-quote">Found it — rewriting the persistence layer.</div>
+    <div class="now-controls">
+      <button class="btn" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+      <button class="btn">↻ Repeat last</button>
+      <button class="btn">⏭ Skip</button>
+      <button class="btn ghost">🔕 Mute 60s</button>
+      <div class="rate-wrap">
+        <label>Rate</label>
+        <input type="range" class="rate-slider" min="80" max="180" value="120" oninput="document.getElementById('rateVal').textContent = this.value + ' wpm'">
+        <span class="rate-val" id="rateVal">120 wpm</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-session mute list -->
+  <div class="mute-list">
+    <div class="mute-head">Who do you want to hear?</div>
+
+    <div class="mute-row">
+      <span class="dot live"></span>
+      <span><span class="name">claude-sounds</span><span class="sub">Explore is working</span></span>
+      <span style="font-size:10px;color:var(--fg3);font-family:var(--mono)">127 lines</span>
+      <label class="toggle"><input type="checkbox" checked><span class="track"></span></label>
+    </div>
+
+    <div class="mute-row">
+      <span class="dot work"></span>
+      <span><span class="name">frontend-repo</span><span class="sub">npm run build</span></span>
+      <span style="font-size:10px;color:var(--fg3);font-family:var(--mono)">42 lines</span>
+      <label class="toggle"><input type="checkbox"><span class="track"></span></label>
+    </div>
+
+    <div class="mute-row">
+      <span class="dot alert"></span>
+      <span><span class="name">infra/terraform</span><span class="sub" style="color:var(--red)">awaiting permission</span></span>
+      <span style="font-size:10px;color:var(--fg3);font-family:var(--mono)">—</span>
+      <label class="toggle"><input type="checkbox" checked><span class="track"></span></label>
+    </div>
+
+    <div class="mute-row">
+      <span class="dot idle"></span>
+      <span><span class="name">design-system</span><span class="sub">idle</span></span>
+      <span style="font-size:10px;color:var(--fg3);font-family:var(--mono)">—</span>
+      <label class="toggle"><input type="checkbox"><span class="track"></span></label>
+    </div>
+  </div>
+
+  <!-- Recent transcript -->
+  <div class="recent">
+    <div class="recent-head">
+      <span class="recent-title">Recent</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn sm ghost">Clear</button>
+    </div>
+    <div class="recent-body" id="recentBody">
+      <div class="recent-line">
+        <span class="time">14:05:44</span>
+        <div>
+          <div class="src">claude-sounds › Explore</div>
+          <div class="text">Done. Persistence moved out of middleware, tests still green.</div>
+        </div>
+      </div>
+      <div class="recent-line">
+        <span class="time">14:04:02</span>
+        <div>
+          <div class="src">claude-sounds › Explore</div>
+          <div class="text">Found it — rewriting the persistence layer.</div>
+        </div>
+      </div>
+      <div class="recent-line">
+        <span class="time">14:03:18</span>
+        <div>
+          <div class="src">claude-sounds › Explore</div>
+          <div class="text">Agent's hunting for where tokens get saved.</div>
+        </div>
+      </div>
+      <div class="recent-line">
+        <span class="time">14:02:47</span>
+        <div>
+          <div class="src">claude-sounds › main</div>
+          <div class="text">Running the suite. Let's see if yesterday's fix held.</div>
+        </div>
+      </div>
+      <div class="recent-line">
+        <span class="time">14:02:11</span>
+        <div>
+          <div class="src">claude-sounds › main</div>
+          <div class="text">Back to auth — looks like he's wiring the refresh flow now.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ CONFIGURE TAB ══════════ -->
+<div id="configureTab" class="hidden">
+  <div class="cfg-section">
+    <div class="cfg-head">
+      Watchtower daemon <small>— the event bus</small>
+      <span class="spacer"></span>
+      <span class="pill">running</span>
+    </div>
+    <div class="cfg-body">
+      Listening on <code>~/.claude/watchtower/daemon.sock</code><br>
+      Uptime 2h 18m · 279 events · 4 sessions · 5 subscribers<br>
+      <span class="ph">All Claude Code hook events route here and fan out to subscribers.</span>
+    </div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-head">Outputs <small>— plug things into the bus</small></div>
+    <div class="cfg-body">
+      <b>Narrator</b> — LLM commentary (Ollama · llama3.2 · pair programmer) <span class="pill">on</span><br>
+      <b>Effects</b> — sound profiles (construction) <span class="pill">on</span><br>
+      <b>Voice phrases</b> — scripted TTS <span class="pill roadmap">off</span><br>
+      <b>Notifications</b> — desktop alert on permission / error <span class="pill roadmap">roadmap</span><br>
+      <b>Webhook</b> — POST events to URL <span class="pill roadmap">roadmap</span><br>
+      <b>Audit log</b> — JSONL to file <span class="pill roadmap">roadmap</span>
+    </div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-head">Narrator settings</div>
+    <div class="cfg-body"><span class="ph">Provider, model, style cards, TTS engine — the usual narrator config.</span></div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-head">Effects &amp; voice</div>
+    <div class="cfg-body"><span class="ph">Profile pickers, event mapping, volumes.</span></div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-head">Session defaults</div>
+    <div class="cfg-body">
+      New sessions attach with: <b>narrator on</b> · <b>effects on</b> · <b>voice off</b><br>
+      <span class="ph">Per-session overrides persist once you set them.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Tab switch
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const m = btn.dataset.mode;
+      ['observe', 'listen', 'configure'].forEach(name => {
+        document.getElementById(name + 'Tab').classList.toggle('hidden', name !== m);
+      });
+      if (m === 'observe') requestAnimationFrame(drawEdges);
+    };
+  });
+
+  // ── Session select (demo: toggle selected)
+  function selectSession(idx) {
+    document.querySelectorAll('.session-card').forEach((c, i) => {
+      c.classList.toggle('selected', i === idx);
+    });
+  }
+
+  // ── Agent select + crumb
+  function selectAgent(id) {
+    document.querySelectorAll('.agent-node').forEach(n => n.classList.toggle('selected', n.dataset.id === id));
+    requestAnimationFrame(drawEdges);
+  }
+
+  // ── Tree edge drawing
+  function drawEdges() {
+    const svg = document.getElementById('treeSvg');
+    if (!svg) return;
+    const canvas = svg.parentElement;
+    const cr = canvas.getBoundingClientRect();
+    svg.setAttribute('width', cr.width);
+    svg.setAttribute('height', cr.height);
+    svg.setAttribute('viewBox', `0 0 ${cr.width} ${cr.height}`);
+
+    // Clear except defs
+    [...svg.querySelectorAll('path, circle')].forEach(el => el.remove());
+
+    const root = document.querySelector('#level-root .agent-node');
+    const children = document.querySelectorAll('#level-children .agent-node');
+    if (!root || !children.length) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const rootX = rootRect.left + rootRect.width / 2 - cr.left;
+    const rootY = rootRect.bottom - cr.top;
+
+    children.forEach(c => {
+      const r = c.getBoundingClientRect();
+      const x = r.left + r.width / 2 - cr.left;
+      const y = r.top - cr.top;
+      const dy = y - rootY;
+      const d = `M ${rootX} ${rootY} C ${rootX} ${rootY + dy * 0.55}, ${x} ${y - dy * 0.55}, ${x} ${y}`;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      const status = c.dataset.status;
+      path.setAttribute('stroke', status === 'idle' ? '#38384e' : 'url(#gradEdge)');
+      path.setAttribute('stroke-width', status === 'idle' ? '1.5' : '2');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-linecap', 'round');
+      if (status === 'working' || status === 'live') {
+        path.setAttribute('stroke-dasharray', '4 6');
+        path.style.animation = 'dash-flow 1.4s linear infinite';
+      }
+      svg.appendChild(path);
+
+      // moving dot on active edge
+      if (status === 'working' || status === 'live') {
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('r', '3');
+        dot.setAttribute('fill', '#e0a030');
+        dot.setAttribute('filter', 'drop-shadow(0 0 4px #e0a030)');
+        const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+        animate.setAttribute('dur', '1.8s');
+        animate.setAttribute('repeatCount', 'indefinite');
+        animate.setAttribute('path', d);
+        dot.appendChild(animate);
+        svg.appendChild(dot);
+      }
+    });
+  }
+
+  // dash flow keyframes
+  const style = document.createElement('style');
+  style.textContent = `@keyframes dash-flow { to { stroke-dashoffset: -20; } }`;
+  document.head.appendChild(style);
+
+  window.addEventListener('resize', () => requestAnimationFrame(drawEdges));
+  window.addEventListener('load', () => requestAnimationFrame(drawEdges));
+  requestAnimationFrame(drawEdges);
+
+  // ── Focus tabs
+  document.querySelectorAll('.focus-tab').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('.focus-tab').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+    };
+  });
+
+  // ── Mini toggles
+  document.querySelectorAll('.an-mini').forEach(t => {
+    t.addEventListener('click', (e) => {
+      e.stopPropagation();
+      t.classList.toggle('active');
+    });
+  });
+
+  // ── Listen pause
+  let paused = false;
+  function togglePause() {
+    paused = !paused;
+    const b = document.getElementById('pauseBtn');
+    b.textContent = paused ? '▶ Resume' : '⏸ Pause';
+    b.classList.toggle('primary', paused);
+  }
+
+  // ── Simulate new transcript lines in Observe
+  const SAMPLES = [
+    { tag: 'bash', ev: 'bash', ctx: 'npm test', quote: "Kicking off the suite one more time." },
+    { tag: 'edit', ev: 'edit', ctx: 'src/session.ts', quote: "Small tweak — clarifying the cleanup path." },
+    { tag: 'search', ev: 'search', ctx: '"tokens"', quote: "Double-checking we didn't miss a reference." },
+  ];
+  let idx = 0;
+  setInterval(() => {
+    if (paused) return;
+    const panel = document.getElementById('tab-transcript');
+    if (!panel || !panel.classList.contains('active')) return;
+    document.querySelectorAll('.line.new').forEach(l => l.classList.remove('new'));
+    const s = SAMPLES[idx++ % SAMPLES.length];
+    const t = new Date().toTimeString().slice(0, 8);
+    const el = document.createElement('div');
+    el.className = 'line new';
+    el.innerHTML = `
+      <span class="time">${t}</span>
+      <span class="event-tag ${s.tag}">${s.ev}</span>
+      <div class="line-body">
+        <div class="line-ctx"><span class="agent">Explore</span> · ${s.ctx}</div>
+        <div class="line-quote">${s.quote}</div>
+      </div>`;
+    panel.appendChild(el);
+    panel.parentElement.scrollTop = panel.parentElement.scrollHeight;
+  }, 6000);
+</script>
+
+</body>
+</html>

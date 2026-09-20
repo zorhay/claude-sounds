@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundbar — mock</title>
+<style>
+  :root {
+    --bg: #1c1c26;
+    --bg2: #222230;
+    --bg3: #2a2a38;
+    --bg4: #32324a;
+    --fg: #d0d0d8;
+    --fg2: #909098;
+    --fg3: #606068;
+    --accent: #e0a030;
+    --accent-dim: #503c18;
+    --green: #50b858;
+    --green-dim: #2a4028;
+    --red: #d05050;
+    --blue: #6080c0;
+    --blue-dim: #253048;
+    --border: #33334a;
+    --radius: 6px;
+    --glow-green: 0 0 6px rgba(80, 184, 88, 0.4);
+    --glow-accent: 0 0 6px rgba(224, 160, 48, 0.3);
+    --mono: 'SF Mono', 'Fira Code', ui-monospace, Menlo, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    padding: 18px 22px 40px;
+    font-size: 13px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .brand-block { display: flex; align-items: baseline; gap: 10px; flex: 1; }
+  .brand {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .brand-sub { font-size: 11px; color: var(--fg3); letter-spacing: 0.3px; }
+
+  .mode-switch {
+    display: flex;
+    gap: 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px;
+  }
+  .mode-btn {
+    background: none;
+    border: none;
+    color: var(--fg3);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .mode-btn:hover { color: var(--fg2); }
+  .mode-btn.active {
+    background: var(--accent);
+    color: #1a1a24;
+  }
+
+  .gear-btn {
+    width: 32px; height: 32px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 50%;
+    color: var(--fg3); cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.15s;
+  }
+  .gear-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Narrator channel strip (listen) ── */
+  .channel-strip {
+    background: linear-gradient(90deg, var(--bg2), var(--bg3));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    transition: 0.2s;
+  }
+  .channel-strip.narrator { border-left: 3px solid var(--accent); }
+  .channel-strip.off { opacity: 0.55; }
+  .cs-top {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .cs-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
+    color: var(--accent); text-transform: uppercase;
+    min-width: 62px;
+  }
+  .cs-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cs-spacer { flex: 1; }
+
+  /* (legacy status-bead still used inside strip) */
+  .status-bead {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: linear-gradient(90deg, var(--bg2), var(--bg3));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 10px;
+  }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--green); box-shadow: var(--glow-green);
+    flex-shrink: 0;
+  }
+  .status-dot.pulse { animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .status-sep { color: var(--fg3); font-size: 11px; }
+  .status-chip {
+    font-size: 11px; color: var(--fg); font-weight: 600;
+  }
+  .status-chip.muted { color: var(--fg2); font-weight: 500; }
+  .badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 10px;
+    text-transform: uppercase;
+  }
+  .badge.local { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .badge.cloud { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue); }
+  .status-spacer { flex: 1; }
+  .counter { font-size: 11px; color: var(--fg3); font-family: var(--mono); }
+
+  /* ── Transport bar ── */
+  .transport {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 14px;
+  }
+  .t-btn {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--fg2); font-family: inherit; font-size: 11px;
+    padding: 6px 12px; cursor: pointer; transition: 0.15s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .t-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .t-btn.primary { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .t-btn.primary:hover { filter: brightness(1.15); }
+  .t-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .t-label { font-size: 10px; color: var(--fg3); text-transform: uppercase; letter-spacing: 1px; }
+  .rate-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 4px; background: var(--border); border-radius: 2px; outline: none;
+  }
+  .rate-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--fg2); cursor: pointer; border: none;
+  }
+  .rate-slider::-webkit-slider-thumb:hover { background: var(--accent); }
+  .rate-val { font-size: 10px; color: var(--fg3); font-family: var(--mono); min-width: 28px; }
+
+  /* ── Transcript ── */
+  .transcript {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .transcript-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .transcript-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--fg3); text-transform: uppercase;
+    flex: 1;
+  }
+  .filter-pill {
+    font-size: 10px; color: var(--fg3);
+    padding: 3px 8px; border-radius: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .filter-pill.active { color: var(--accent); border-color: var(--accent); }
+
+  .transcript-body { padding: 0; max-height: 520px; overflow-y: auto; }
+
+  /* Session blocks */
+  .session-block {
+    border-bottom: 1px solid var(--border);
+  }
+  .session-block:last-child { border-bottom: none; }
+  .session-block.current { background: rgba(224, 160, 48, 0.015); }
+
+  .session-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .session-head:hover { background: var(--bg3); }
+  .session-block.current .session-head {
+    background: linear-gradient(90deg, rgba(224,160,48,0.08), transparent);
+  }
+  .session-arrow {
+    font-size: 9px; color: var(--fg3); transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .session-arrow.open { transform: rotate(90deg); }
+  .session-title {
+    font-size: 12px; font-weight: 700; color: var(--fg);
+    font-family: var(--mono);
+  }
+  .session-meta {
+    font-size: 10px; color: var(--fg3); font-weight: 400;
+    margin-left: 2px;
+  }
+  .session-pill {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px; border-radius: 10px;
+    background: var(--bg3); color: var(--fg3);
+    border: 1px solid var(--border);
+  }
+  .session-pill.current {
+    background: var(--accent-dim); color: var(--accent); border-color: var(--accent);
+  }
+
+  .session-summary {
+    padding: 8px 14px 10px 30px;
+    font-size: 11.5px; color: var(--fg2); line-height: 1.55;
+    background: var(--bg);
+    border-bottom: 1px solid #25253a;
+  }
+  .session-summary b { color: var(--fg); font-weight: 700; }
+  .session-summary.collapsed { display: none; }
+
+  .session-lines { padding: 4px 0; }
+  .session-lines.collapsed { display: none; }
+  .line {
+    display: grid;
+    grid-template-columns: 70px 90px 1fr;
+    gap: 10px;
+    padding: 7px 14px;
+    align-items: baseline;
+    border-left: 2px solid transparent;
+  }
+  .line:hover { background: var(--bg3); }
+  .line.new {
+    border-left-color: var(--accent);
+    animation: flash 1.2s ease-out;
+  }
+  @keyframes flash {
+    0% { background: var(--accent-dim); }
+    100% { background: transparent; }
+  }
+  .time { font-size: 10px; color: var(--fg3); font-family: var(--mono); }
+  .event-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 6px; border-radius: 3px;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--fg3);
+    text-align: center;
+    justify-self: start;
+  }
+  .event-tag.edit    { color: #e0a030; border-color: #504018; }
+  .event-tag.bash    { color: #50b8b8; border-color: #1c4040; }
+  .event-tag.search  { color: #b080e0; border-color: #402c50; }
+  .event-tag.stop    { color: var(--green); border-color: var(--green-dim); }
+  .event-tag.error   { color: var(--red); border-color: #402020; }
+  .event-tag.session { color: var(--fg2); border-color: var(--border); }
+  .line-body { font-size: 12.5px; color: var(--fg); line-height: 1.45; }
+  .line-ctx {
+    font-family: var(--mono); font-size: 11px; color: var(--fg3);
+    margin-bottom: 2px;
+  }
+  .line-quote { color: var(--fg); font-style: italic; }
+  .line-quote::before { content: '"'; color: var(--fg3); }
+  .line-quote::after { content: '"'; color: var(--fg3); }
+
+  /* Subagent lane */
+  .lane {
+    margin: 6px 14px 6px 80px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .lane-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: var(--blue-dim);
+    font-size: 11px;
+  }
+  .lane-icon {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--blue); box-shadow: 0 0 6px rgba(96, 128, 192, 0.5);
+    animation: pulse 1.4s infinite;
+  }
+  .lane-title { color: var(--blue); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; font-size: 10px; }
+  .lane-duration { color: var(--fg3); font-family: var(--mono); font-size: 10px; }
+  .lane-spacer { flex: 1; }
+  .lane-body .line { padding: 5px 10px 5px 10px; grid-template-columns: 60px 70px 1fr; }
+  .lane-body .line:hover { background: var(--blue-dim); }
+
+  /* ── Session memory ── */
+  .session-memory {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .session-summary-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .session-summary-header:hover { background: var(--bg3); }
+  .session-arrow { font-size: 9px; color: var(--fg3); transition: transform 0.2s; }
+  .session-arrow.open { transform: rotate(90deg); }
+  .session-summary-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--fg3); text-transform: uppercase;
+    flex: 1;
+  }
+  .session-body {
+    display: none;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--fg2); line-height: 1.55;
+    background: var(--bg);
+  }
+  .session-body.open { display: block; }
+
+  /* ── Accessories footer ── */
+  .accessories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .acc-strip {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .acc-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--fg3); text-transform: uppercase;
+    min-width: 52px;
+  }
+  .toggle { position: relative; width: 32px; height: 16px; cursor: pointer; flex-shrink: 0; }
+  .toggle input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 9px; transition: 0.2s;
+  }
+  .toggle-track::after {
+    content: ''; position: absolute; width: 10px; height: 10px;
+    left: 2px; top: 2px;
+    background: var(--fg3); border-radius: 50%; transition: 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--green-dim); border-color: var(--green); box-shadow: var(--glow-green); }
+  .toggle input:checked + .toggle-track::after { background: var(--green); transform: translateX(16px); }
+  .acc-profile { font-size: 11px; color: var(--fg2); font-family: var(--mono); }
+  .acc-vol { font-size: 10px; color: var(--fg3); margin-left: auto; }
+
+  /* ── Configure mode ── */
+  .cfg-section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .cfg-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .cfg-header.collapsible { cursor: pointer; }
+  .cfg-header.collapsible:hover { background: #30304a; }
+  .cfg-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--fg); text-transform: uppercase; flex: 1;
+  }
+  .cfg-title small { font-size: 10px; color: var(--fg3); letter-spacing: 0.5px; font-weight: 500; text-transform: none; margin-left: 6px; }
+  .cfg-body { padding: 14px; }
+
+  .cfg-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .cfg-row:last-child { margin-bottom: 0; }
+  .cfg-label { font-size: 11px; color: var(--fg2); font-weight: 600; }
+  .cfg-value { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cfg-select, .cfg-input {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); font-family: inherit; font-size: 12px;
+    padding: 6px 10px;
+  }
+  .cfg-select {
+    padding-right: 24px; cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23606068'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  .cfg-input { min-width: 220px; }
+  .cfg-select:focus, .cfg-input:focus { outline: none; border-color: var(--accent); }
+  .checkbox-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--fg2); cursor: pointer;
+  }
+  .checkbox-row input { accent-color: var(--accent); }
+  .cfg-help { font-size: 10px; color: var(--fg3); font-style: italic; }
+
+  /* Style cards */
+  .style-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .style-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: 0.15s;
+    position: relative;
+  }
+  .style-card:hover { border-color: var(--fg3); }
+  .style-card.selected {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, rgba(224,160,48,0.1), var(--bg));
+    box-shadow: var(--glow-accent);
+  }
+  .style-card.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 6px; right: 8px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .style-name {
+    font-size: 12px; font-weight: 700; color: var(--fg);
+    margin-bottom: 4px;
+  }
+  .style-sample {
+    font-size: 11px; color: var(--fg2); font-style: italic;
+    line-height: 1.4;
+    min-height: 32px;
+  }
+  .style-actions {
+    display: flex; gap: 4px; margin-top: 8px;
+  }
+  .style-btn {
+    flex: 1;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 3px;
+    color: var(--fg3); font-family: inherit; font-size: 10px;
+    padding: 4px 6px; cursor: pointer; transition: 0.15s;
+  }
+  .style-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .style-card-add {
+    border: 1px dashed var(--border);
+    background: none;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fg3);
+    font-size: 12px;
+    min-height: 100px;
+  }
+  .style-card-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Onboarding modal ── */
+  .onboarding-backdrop {
+    position: fixed; inset: 0; background: rgba(10, 10, 16, 0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .onboarding-backdrop.open { display: flex; }
+  .onboarding {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 30px 36px;
+    max-width: 680px;
+    width: calc(100% - 40px);
+  }
+  .ob-title {
+    font-size: 18px; font-weight: 700; color: var(--fg);
+    margin-bottom: 6px; text-align: center;
+  }
+  .ob-sub {
+    font-size: 12px; color: var(--fg3); text-align: center;
+    margin-bottom: 24px;
+  }
+  .ob-options {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .ob-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 18px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .ob-card:hover { border-color: var(--accent); box-shadow: var(--glow-accent); }
+  .ob-icon { font-size: 28px; margin-bottom: 8px; }
+  .ob-head {
+    font-size: 13px; font-weight: 700; letter-spacing: 2px;
+    color: var(--fg); text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .ob-desc { font-size: 12px; color: var(--fg2); line-height: 1.5; margin-bottom: 10px; }
+  .ob-list { font-size: 11px; color: var(--fg3); line-height: 1.8; margin-bottom: 14px; }
+  .ob-list b { color: var(--fg2); }
+  .ob-detect {
+    font-size: 10px; color: var(--green);
+    background: var(--green-dim);
+    border: 1px solid var(--green);
+    padding: 4px 8px; border-radius: 3px; display: inline-block;
+    margin-bottom: 10px;
+  }
+  .ob-choose {
+    width: 100%;
+    background: var(--accent); color: #1a1a24; border: none; border-radius: 4px;
+    font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    padding: 8px; cursor: pointer; text-transform: uppercase;
+  }
+  .ob-choose.secondary { background: var(--bg3); color: var(--fg); }
+  .ob-skip {
+    text-align: center; margin-top: 18px;
+    font-size: 11px; color: var(--fg3); cursor: pointer;
+  }
+  .ob-skip:hover { color: var(--fg2); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="brand-block">
+    <span class="brand">Soundbar</span>
+    <span class="brand-sub">for AI Agents</span>
+  </div>
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="listen">Listen</button>
+    <button class="mode-btn" data-mode="configure">Configure</button>
+  </div>
+  <button class="gear-btn" onclick="document.getElementById('onboarding').classList.add('open')" title="Show onboarding">?</button>
+</div>
+
+<!-- ═══ LISTEN MODE ═══ -->
+<div id="listenMode">
+
+  <!-- Narrator strip (toggleable, primary) -->
+  <div class="channel-strip narrator" id="narratorStrip">
+    <div class="cs-top">
+      <span class="cs-label">Narrator</span>
+      <label class="toggle"><input type="checkbox" id="narratorOn" checked><span class="toggle-track"></span></label>
+      <span class="status-dot pulse" id="narratorDot"></span>
+      <span class="cs-chips">
+        <span class="status-chip">Ollama</span>
+        <span class="status-chip muted">llama3.2</span>
+        <span class="status-sep">·</span>
+        <span class="status-chip">pair programmer</span>
+        <span class="status-sep">·</span>
+        <span class="status-chip muted">Kokoro / af_heart</span>
+        <span class="badge local">Local</span>
+      </span>
+      <span class="cs-spacer"></span>
+      <button class="t-btn" id="pauseBtn" onclick="togglePause()" title="Pause narration">⏸</button>
+    </div>
+  </div>
+
+  <!-- Transcript -->
+  <div class="transcript">
+    <div class="transcript-header">
+      <span class="transcript-title">Transcript</span>
+      <span class="filter-pill active">All</span>
+      <span class="filter-pill">Agents only</span>
+      <span class="filter-pill">Errors</span>
+      <span class="counter" id="lineCounter" style="margin-left:auto">127 lines · 2 sessions</span>
+    </div>
+    <div class="transcript-body" id="transcriptBody">
+
+      <!-- Session 1 (earlier, collapsed) -->
+      <div class="session-block">
+        <div class="session-head" onclick="toggleSessionBlock(this)">
+          <span class="session-arrow">▶</span>
+          <span class="session-title">claude-sounds <span class="session-meta">· 11:04 – 13:22 · 2h 18m · 48 lines</span></span>
+          <span class="cs-spacer"></span>
+          <span class="session-pill">earlier</span>
+        </div>
+        <div class="session-summary collapsed">
+          <b>Summary</b> — Refactored the narrator's deep-context memory into per-session files. Added compression step when recent &gt; 10. Tested on three providers.
+        </div>
+        <div class="session-lines collapsed">
+          <div class="line">
+            <span class="time">13:19</span>
+            <span class="event-tag stop">stop</span>
+            <div class="line-body">
+              <div class="line-ctx">turn complete</div>
+              <div class="line-quote">Memory files look clean. Shipping.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session 2 (current, expanded) -->
+      <div class="session-block current">
+        <div class="session-head" onclick="toggleSessionBlock(this)">
+          <span class="session-arrow open">▶</span>
+          <span class="session-title">claude-sounds <span class="session-meta">· 13:58 – now · 2h 14m · 79 lines</span></span>
+          <span class="cs-spacer"></span>
+          <span class="session-pill current">live</span>
+        </div>
+        <div class="session-summary">
+          <b>Summary</b> — Working on the auth refresh flow. Session tokens were moved out of middleware earlier after a compliance review. Tests currently green.
+        </div>
+        <div class="session-lines">
+
+          <div class="line">
+            <span class="time">13:58:04</span>
+            <span class="event-tag session">start</span>
+            <div class="line-body">
+              <div class="line-ctx">claude-sounds</div>
+              <div class="line-quote">Alright, new session — opening up the claude-sounds repo. Let's see what's on deck.</div>
+            </div>
+          </div>
+
+          <div class="line">
+            <span class="time">14:02:11</span>
+            <span class="event-tag edit">edit</span>
+            <div class="line-body">
+              <div class="line-ctx">src/auth.ts</div>
+              <div class="line-quote">Back to auth — looks like he's wiring the refresh flow now.</div>
+            </div>
+          </div>
+
+          <div class="line">
+            <span class="time">14:02:47</span>
+            <span class="event-tag bash">bash</span>
+            <div class="line-body">
+              <div class="line-ctx">npm test</div>
+              <div class="line-quote">Running the suite. Let's see if yesterday's fix held.</div>
+            </div>
+          </div>
+
+          <!-- Subagent lane -->
+          <div class="lane">
+            <div class="lane-header">
+              <span class="lane-icon"></span>
+              <span class="lane-title">Explore subagent</span>
+              <span class="lane-spacer"></span>
+              <span class="lane-duration">2m 18s</span>
+            </div>
+            <div class="lane-body">
+              <div class="line">
+                <span class="time">14:03:18</span>
+                <span class="event-tag search">search</span>
+                <div class="line-body">
+                  <div class="line-ctx">"session token"</div>
+                  <div class="line-quote">Agent's hunting for where tokens get saved.</div>
+                </div>
+              </div>
+              <div class="line">
+                <span class="time">14:04:02</span>
+                <span class="event-tag edit">edit</span>
+                <div class="line-body">
+                  <div class="line-ctx">src/session.ts</div>
+                  <div class="line-quote">Found it — rewriting the persistence layer.</div>
+                </div>
+              </div>
+              <div class="line">
+                <span class="time">14:05:31</span>
+                <span class="event-tag bash">bash</span>
+                <div class="line-body">
+                  <div class="line-ctx">git diff src/session.ts</div>
+                  <div class="line-quote">Taking a look at what changed before handing it back.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="line">
+            <span class="time">14:05:46</span>
+            <span class="event-tag edit">edit</span>
+            <div class="line-body">
+              <div class="line-ctx">src/auth.ts</div>
+              <div class="line-quote">Agent's done — picking up the thread in auth again, threading in the new session helper.</div>
+            </div>
+          </div>
+
+          <div class="line new">
+            <span class="time">14:06:12</span>
+            <span class="event-tag stop">stop</span>
+            <div class="line-body">
+              <div class="line-ctx">turn complete</div>
+              <div class="line-quote">Done. Tests green, auth's in one piece — and the token storage is way cleaner now.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Accessories -->
+  <div class="accessories">
+    <div class="acc-strip">
+      <span class="acc-label">Effects</span>
+      <label class="toggle"><input type="checkbox" checked><span class="toggle-track"></span></label>
+      <span class="acc-profile">construction</span>
+      <span class="acc-vol">60%</span>
+    </div>
+    <div class="acc-strip">
+      <span class="acc-label">Voice</span>
+      <label class="toggle"><input type="checkbox"><span class="toggle-track"></span></label>
+      <span class="acc-profile" style="color:var(--fg3)">off</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ CONFIGURE MODE ═══ -->
+<div id="configureMode" class="hidden">
+
+  <!-- Narrator (primary) -->
+  <div class="cfg-section">
+    <div class="cfg-header"><span class="cfg-title">Narrator <small>— the headline</small></span></div>
+    <div class="cfg-body">
+
+      <div class="cfg-row">
+        <span class="cfg-label">Provider</span>
+        <div class="cfg-value">
+          <select class="cfg-select">
+            <option>Claude CLI</option>
+            <option selected>Ollama (local)</option>
+            <option>Anthropic API</option>
+            <option>OpenAI</option>
+            <option>Gemini</option>
+          </select>
+          <select class="cfg-select">
+            <option>llama3.2</option>
+            <option>mistral</option>
+            <option>qwen2.5</option>
+          </select>
+          <span class="status-dot" style="width:8px;height:8px"></span>
+          <span class="cfg-help" style="color:var(--green)">connected</span>
+          <button class="t-btn">Test</button>
+          <span class="badge local">Local</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <span class="cfg-label">API key</span>
+        <div class="cfg-value">
+          <input class="cfg-input" type="password" placeholder="not required for Ollama" disabled>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <span class="cfg-label">Memory</span>
+        <div class="cfg-value">
+          <label class="checkbox-row"><input type="checkbox" checked> Deep context — remembers prior moments in the session</label>
+        </div>
+      </div>
+
+      <div class="cfg-row" style="align-items: flex-start">
+        <span class="cfg-label" style="padding-top: 6px">Style</span>
+        <div class="cfg-value" style="flex-direction: column; align-items: stretch; width: 100%">
+          <div class="style-grid">
+
+            <div class="style-card selected">
+              <div class="style-name">Pair programmer</div>
+              <div class="style-sample">"Back to auth — looks like he's wiring the refresh flow now."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Sports</div>
+              <div class="style-sample">"He dives back into the auth file — the clock's ticking, folks."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Documentary</div>
+              <div class="style-sample">"Observe — the developer returns to familiar territory."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Noir</div>
+              <div class="style-sample">"The auth file was still open. Nothing ever stays closed for long."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Haiku poet</div>
+              <div class="style-sample">"Auth file opens / tokens scatter like petals / refresh, rebloom."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Comedian</div>
+              <div class="style-sample">"Auth again. This file and I should probably define the relationship."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Engineer</div>
+              <div class="style-sample">"Editing src/auth.ts. Refresh flow modification in progress."</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card">
+              <div class="style-name">Pirate</div>
+              <div class="style-sample">"Back to the auth file, ye scurvy dog — them tokens won't refresh themselves!"</div>
+              <div class="style-actions">
+                <button class="style-btn">▸ Sample</button>
+                <button class="style-btn">✎ Edit</button>
+              </div>
+            </div>
+
+            <div class="style-card style-card-add">
+              + New style
+            </div>
+
+          </div>
+          <div class="cfg-help" style="margin-top: 8px">12 built-in styles · edit or add your own</div>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <span class="cfg-label">TTS</span>
+        <div class="cfg-value">
+          <select class="cfg-select">
+            <option>macOS say</option>
+            <option selected>Kokoro (local neural)</option>
+          </select>
+          <select class="cfg-select">
+            <option selected>af_heart (female)</option>
+            <option>af_bella (female)</option>
+            <option>am_michael (male)</option>
+          </select>
+          <button class="t-btn">▸ Preview</button>
+          <span class="status-dot" style="width:8px;height:8px"></span>
+          <span class="cfg-help" style="color:var(--green)">installed</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Effects & Voice (collapsed) -->
+  <div class="cfg-section">
+    <div class="cfg-header collapsible" onclick="toggleSection('accBody')">
+      <span class="cfg-title">Effects &amp; Voice <small>— accessories</small></span>
+      <span class="session-arrow" id="accArrow">▶</span>
+    </div>
+    <div class="cfg-body hidden" id="accBody">
+      <div class="cfg-row">
+        <span class="cfg-label">Effects</span>
+        <div class="cfg-value">
+          <label class="toggle"><input type="checkbox" checked><span class="toggle-track"></span></label>
+          <select class="cfg-select">
+            <option>paper</option>
+            <option selected>construction</option>
+            <option>generals</option>
+          </select>
+          <span class="cfg-help">Vol 60%</span>
+        </div>
+      </div>
+      <div class="cfg-row">
+        <span class="cfg-label">Voice</span>
+        <div class="cfg-value">
+          <label class="toggle"><input type="checkbox"><span class="toggle-track"></span></label>
+          <select class="cfg-select">
+            <option>narrator</option>
+            <option>senior</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event mapping (collapsed) -->
+  <div class="cfg-section">
+    <div class="cfg-header collapsible" onclick="toggleSection('mapBody')">
+      <span class="cfg-title">Event mapping <small>— 10 events · 2 muted</small></span>
+      <span class="session-arrow" id="mapArrow">▶</span>
+    </div>
+    <div class="cfg-body hidden" id="mapBody">
+      <div class="cfg-help">Mixer table lives here — rarely touched after setup.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ ONBOARDING MODAL ═══ -->
+<div class="onboarding-backdrop" id="onboarding">
+  <div class="onboarding">
+    <div class="ob-title">How should your narrator speak?</div>
+    <div class="ob-sub">One decision now. You can change it later.</div>
+    <div class="ob-options">
+
+      <div class="ob-card" onclick="document.getElementById('onboarding').classList.remove('open')">
+        <div class="ob-icon">🖥️</div>
+        <div class="ob-head">Local</div>
+        <div class="ob-desc">Runs on your machine. No keys, no data leaves.</div>
+        <div class="ob-list">
+          <b>• Ollama</b> — local LLM<br>
+          <b>• Kokoro</b> — neural voice
+        </div>
+        <div class="ob-detect">✓ Claude CLI detected — free fallback</div>
+        <button class="ob-choose">Choose local</button>
+      </div>
+
+      <div class="ob-card" onclick="document.getElementById('onboarding').classList.remove('open')">
+        <div class="ob-icon">☁️</div>
+        <div class="ob-head">Cloud</div>
+        <div class="ob-desc">Faster, smarter models. Needs an API key.</div>
+        <div class="ob-list">
+          <b>• Anthropic</b> · Claude<br>
+          <b>• OpenAI</b> · GPT-4o<br>
+          <b>• Gemini</b> · 2.0 Flash
+        </div>
+        <button class="ob-choose secondary">Choose cloud</button>
+      </div>
+
+    </div>
+    <div class="ob-skip" onclick="document.getElementById('onboarding').classList.remove('open')">
+      Skip — I'll configure manually
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mode switcher
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const m = btn.dataset.mode;
+      document.getElementById('listenMode').classList.toggle('hidden', m !== 'listen');
+      document.getElementById('configureMode').classList.toggle('hidden', m !== 'configure');
+    };
+  });
+
+  // Collapsibles
+  function toggleSection(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('hidden');
+    const arrowId = id.replace('Body', 'Arrow');
+    const arrow = document.getElementById(arrowId);
+    if (arrow) arrow.classList.toggle('open');
+  }
+
+  // Session block expand/collapse
+  function toggleSessionBlock(head) {
+    const block = head.parentElement;
+    const arrow = head.querySelector('.session-arrow');
+    const summary = block.querySelector('.session-summary');
+    const lines = block.querySelector('.session-lines');
+    arrow.classList.toggle('open');
+    summary.classList.toggle('collapsed');
+    lines.classList.toggle('collapsed');
+  }
+
+  // Narrator toggle dims the strip
+  document.getElementById('narratorOn').addEventListener('change', (e) => {
+    document.getElementById('narratorStrip').classList.toggle('off', !e.target.checked);
+    document.getElementById('narratorDot').classList.toggle('pulse', e.target.checked);
+    if (!e.target.checked) paused = true;
+  });
+
+  // Style cards
+  document.querySelectorAll('.style-card:not(.style-card-add)').forEach(c => {
+    c.onclick = (e) => {
+      if (e.target.closest('.style-btn')) return;
+      document.querySelectorAll('.style-card').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+    };
+  });
+
+  // Pause toggle
+  let paused = false;
+  function togglePause() {
+    paused = !paused;
+    const btn = document.getElementById('pauseBtn');
+    btn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+    btn.classList.toggle('primary', paused);
+    document.querySelector('.status-dot').classList.toggle('pulse', !paused);
+  }
+
+  // Live transcript simulation
+  const SAMPLE_LINES = [
+    { ev: 'edit', tag: 'edit', ctx: 'soundbar/ui.mock.html', quote: "Tweaking the mock — sharpening the transcript lane." },
+    { ev: 'search', tag: 'search', ctx: '"session_id"', quote: "Chasing how deep-context threads sessions together." },
+    { ev: 'bash', tag: 'bash', ctx: 'git status', quote: "Pausing to see what's staged." },
+    { ev: 'edit', tag: 'edit', ctx: 'soundbar/server.py', quote: "Back in server.py — adding a route for the transcript feed." },
+  ];
+  let idx = 0;
+  let lineCount = 127;
+  function addLine() {
+    if (paused) return;
+    const s = SAMPLE_LINES[idx++ % SAMPLE_LINES.length];
+    // Append to the current session's lines container
+    const currentLines = document.querySelector('.session-block.current .session-lines');
+    if (!currentLines) return;
+    document.querySelectorAll('.line.new').forEach(l => l.classList.remove('new'));
+    const now = new Date();
+    const t = now.toTimeString().slice(0, 8);
+    const el = document.createElement('div');
+    el.className = 'line new';
+    el.innerHTML = `
+      <span class="time">${t}</span>
+      <span class="event-tag ${s.tag}">${s.ev}</span>
+      <div class="line-body">
+        <div class="line-ctx">${s.ctx}</div>
+        <div class="line-quote">${s.quote}</div>
+      </div>`;
+    currentLines.appendChild(el);
+    const tb = document.getElementById('transcriptBody');
+    tb.scrollTop = tb.scrollHeight;
+    lineCount++;
+    document.getElementById('lineCounter').textContent = `${lineCount} lines · 2 sessions`;
+  }
+  setInterval(addLine, 5500);
+
+  function testSpeak() {
+    const btn = event.target;
+    const old = btn.textContent;
+    btn.textContent = '🔊 Speaking…';
+    setTimeout(() => { btn.textContent = old; }, 1400);
+  }
+  function flashLine() {
+    const lines = document.querySelectorAll('.line');
+    if (!lines.length) return;
+    const last = lines[lines.length - 1];
+    last.classList.remove('new');
+    void last.offsetWidth;
+    last.classList.add('new');
+  }
+
+  // Auto-scroll transcript to bottom on load
+  const tb = document.getElementById('transcriptBody');
+  tb.scrollTop = tb.scrollHeight;
+</script>
+
+</body>
+</html>
