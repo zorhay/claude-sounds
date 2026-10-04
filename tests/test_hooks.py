@@ -10,10 +10,11 @@ import re
 import pytest
 
 
-# All 10 events the soundbar handles
+# All 11 events the soundbar handles
 ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
     "subagent_start", "subagent_stop", "session_start", "compact",
+    "user_prompt",
 }
 
 
@@ -60,7 +61,7 @@ class TestHookFormat:
 
 
 class TestHookCoverage:
-    """All 10 events must be covered by hooks."""
+    """All 11 events must be covered by hooks."""
 
     def test_all_events_covered(self, install_script):
         hooks = _extract_hooks_json(install_script)

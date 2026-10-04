@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Audio feedback plugin for Claude Code. Three independent, mixable layers:
+Audio feedback plugin for Claude Code and local Codex sessions. Three independent, mixable layers:
 - **Effects layer** — sound profiles triggered by hook events (12 profiles)
 - **Voice layer** — spoken lines via TTS or pre-rendered audio (2 profiles)
 - **Narrator layer** — LLM-generated live commentary on the coding process (5 providers, 12 built-in styles, user-editable)
@@ -16,6 +16,7 @@ Audio feedback plugin for Claude Code. Three independent, mixable layers:
 ```
 soundbar/                          →  ~/.claude/soundbar/
 ├── play.sh                        →  Sound engine (hooks call this)
+├── codex.py                       →  Codex hook installer and event adapter
 ├── narrate.py                     →  Narrator engine (LLM + TTS, called by play.sh)
 ├── sounds.json                    →  Sound manifest (single source of truth)
 ├── switch.sh                      →  CLI control
@@ -37,6 +38,8 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 ## Architecture
 
 **Event flow:** Claude Code hook → `soundbar/play.sh <event>` → captures stdin JSON, backgrounds all work → Layer 1 (voice) + Layer 2 (effects) in parallel.
+
+**Codex flow:** Codex hook → `soundbar/codex.py` → normalizes the event and narrator payload → the same `play.sh`. `bash install-codex.sh` connects an existing Soundbar installation to `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). Supports `--dry-run` and `--uninstall`, preserves unrelated handlers, backs up changes, and never edits Codex trust or `config.toml`. Users review/trust hooks through `/hooks`. Remove Codex hooks before the shared installation. Generals requires `voice_on: true` as well as `voice_profile: "generals"`.
 
 **Pre vs Post hooks:** Most tool events fire on `PreToolUse` (Edit, Write, Grep, Glob) — narration kicks in *before* the tool runs, characterizing intent. **Bash is the exception** — it's wired to `PostToolUse` so the narrator can react to actual results (exit code, stdout, stderr from `tool_response`). This means Bash narration arrives after the command finishes, not before. Only one hook fires per Bash call, avoiding lock collisions in `narrate.py`.
 
@@ -74,6 +77,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 - `play.sh` is a generic dispatcher — reads manifest via `jq`, plays via `afplay`/`play`/`say`. Two special cases: senior (reads `phrases.json`), narrator (pipes stdin to `narrate.py`).
 - All 11 events: `stop`, `edit`, `bash`, `search`, `permission`, `error`, `subagent_start`, `subagent_stop`, `session_start`, `compact`, `user_prompt`. The narrator handles `user_prompt` (sourced from Claude Code's `UserPromptSubmit` hook); effects/voice layers can opt in by adding mappings in `sounds.json` / `phrases.json` but currently ignore it silently.
 - Hook tag: any hook containing `soundbar/play.sh` is ours.
+- Codex hook tag: `soundbar/codex.py`. Codex shell failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
 - `server.py` uses unified `/api/config` POST — send any subset of keys.
 - `/api/play` takes `{layer, profile, event}` and plays sounds directly (no shell script).
 - `/api/narrator-check` tests provider connectivity, `/api/narrator-test` generates and speaks a test narration.

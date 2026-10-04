@@ -1,12 +1,12 @@
 # Soundbar — Architecture & Implementation Guide
 
-Comprehensive reference for the Claude Code audio feedback system. Covers all components, their connections, data flows, and planned features.
+Comprehensive reference for the Claude Code and Codex audio feedback system. Covers all components, their connections, data flows, and planned features.
 
 ---
 
 ## 1. System Overview
 
-Soundbar adds audio feedback to Claude Code through three independent, mixable layers:
+Soundbar adds audio feedback to Claude Code and local Codex sessions through three independent, mixable layers:
 
 ```
 Claude Code                    Soundbar
@@ -25,7 +25,10 @@ Claude Code                    Soundbar
                               └──────────────────────────────────────────┘
 ```
 
-All three layers fire on every event, in parallel (backgrounded subshells). Each layer can be independently toggled on/off and has its own profile. The voice layer covers both voice profiles (senior, generals) and the narrator profile — selected by `voice_profile` config key.
+Codex events pass through `codex.py` before reaching the same `play.sh` dispatcher.
+Both integrations share the installation, sound manifest, mixer settings, and audio assets in `~/.claude/soundbar/`.
+
+Enabled layers run in parallel (backgrounded subshells) for events with a profile mapping. The voice layer covers both voice profiles (senior, generals) and the narrator profile — selected by `voice_profile` config key.
 
 ## 2. Components
 
@@ -33,11 +36,11 @@ All three layers fire on every event, in parallel (backgrounded subshells). Each
 
 **Purpose:** Core audio engine. Receives an event name, reads config and sound manifest, plays sounds from both layers.
 
-**Invocation:** Called by Claude Code hooks: `~/.claude/soundbar/play.sh <event>`
+**Invocation:** Called directly by Claude Code hooks, or by the Codex adapter: `~/.claude/soundbar/play.sh <event>`
 
 **Input:**
-- `$1` — event name (one of 10 events)
-- `stdin` — hook JSON from Claude Code. Captured immediately into `$STDIN_DATA` (~1ms). Consumed by the narrator profile (piped to `narrate.py`); drained and discarded for all other profiles.
+- `$1` — event name (one of 11 events, including `user_prompt`)
+- `stdin` — hook JSON from Claude Code or normalized by the Codex adapter. Captured immediately into `$STDIN_DATA` (~1ms). Consumed by the narrator profile (piped to `narrate.py`); drained and discarded for all other profiles.
 
 **Config reading:** Single `jq` call extracts all config values as TSV for speed:
 ```
@@ -378,6 +381,56 @@ switch.sh <profile-name>         # shorthand for effects-profile
 **Dev mode safety:** Detects if `~/.claude/soundbar` is a symlink. Only removes the symlink, never deletes files in the source repo.
 
 **Hook removal:** Filters out entries containing `soundbar/play.sh` from all hook event arrays. Validates JSON before writing. Removes empty hook events. Removes the `hooks` key if it becomes empty.
+
+### 2.10 codex.py and install-codex.sh — Codex Integration
+
+`bash install-codex.sh` invokes `soundbar/codex.py --install`. It requires an
+existing Soundbar installation and copies the adapter there unless the dev
+symlink already points to the source. `--dry-run` previews the merged JSON;
+`--uninstall` removes only handlers whose command contains `soundbar/codex.py`.
+
+The installer merges nine event groups into `$CODEX_HOME/hooks.json` (default
+`~/.codex/hooks.json`). It preserves unrelated handlers, including handlers in
+the same matcher group, and unrelated JSON fields. Changes use an atomic file
+replacement after backing up an existing file to `hooks.json.soundbar-backup`.
+An unchanged reinstall does not duplicate hooks or replace the backup.
+`config.toml`, existing `notify` commands, and hook trust are not modified.
+
+Hook commands use absolute, shell-quoted paths to Python and the installed
+adapter, with a five-second timeout. Codex requires users to review and trust
+the definitions via `/hooks` before execution. Start a new chat after setup.
+
+| Codex hook | Matcher or condition | Soundbar event |
+|------------|----------------------|----------------|
+| `SessionStart` | `startup`, `resume`, `clear` | `session_start` |
+| `UserPromptSubmit` | Any | `user_prompt` |
+| `PermissionRequest` | Any | `permission` |
+| `PostCompact` | Any | `compact` |
+| `SubagentStart` / `SubagentStop` | Any | `subagent_start` / `subagent_stop` |
+| `Stop` | Any | `stop` |
+| `PreToolUse` | `apply_patch`, `Edit`, `Write` | `edit` |
+| `PostToolUse` | Shell tools, nonzero exit code | `error` |
+| `PostToolUse` | Shell command beginning with `rg`, `grep`, `find`, `fd` | `search` |
+| `PostToolUse` | Other shell commands | `bash` |
+
+Codex exposes unified exec as `Bash`; the adapter also accepts `exec_command`,
+`shell`, and `shell_command`. Failed search commands take the error path.
+Shell parsing recognizes a leading executable; searches within compound shell
+commands may produce the ordinary `bash` sound. Hosted web searches do not
+emit these local tool hooks. There are no Codex `StopFailure` or
+`PostToolUseFailure` registrations; shell failures are derived from post-tool
+results. Session starts caused by compaction are skipped to avoid a second sound.
+
+For narration, the adapter maps patches to an `Edit` payload, normalizes shell
+command and response fields, and preserves session context. Unknown events
+are ignored. Runtime failures produce no hook output or permission decision.
+The adapter calls `play.sh` with output streams redirected to `/dev/null`, so
+background playback cannot hold Codex's captured pipes open. Playback uses the
+existing layer toggles and volumes, including the Generals voice profile.
+
+Run `python3 -m unittest tests.test_codex` for routing, dispatch, installation,
+backup, idempotence, and uninstall tests. Remove Codex hooks before running the
+base uninstaller, which manages only Claude Code hooks and shared files.
 
 ## 3. Data Files
 

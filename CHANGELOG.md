@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Codex desktop/CLI integration: `install-codex.sh` and `soundbar/codex.py` connect lifecycle hooks to the shared sound engine, including Generals playback and narrator payload normalization.
+- Codex hook installation with dry-run preview, backups, idempotent merging, and surgical uninstall that preserves unrelated handlers and settings.
+- Codex setup, hook trust, Generals troubleshooting, event mapping documentation, and six adapter/installer regression tests.
 - UI polish: accent brand header, play button pulse animation, toggle/slider glow effects, zebra-striped mixer rows, channel hover borders
 - Narrator settings two-column layout (LLM | Style & Voice) with vertical divider
 

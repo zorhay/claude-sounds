@@ -17,6 +17,7 @@ SOUNDBAR_DIR = REPO_ROOT / "soundbar"
 ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
     "subagent_start", "subagent_stop", "session_start", "compact",
+    "user_prompt",
 }
 
 
@@ -106,7 +107,7 @@ class TestPlayShEvents:
     """Events in play.sh must be consistent with sounds.json."""
 
     def test_event_header_lists_all_events(self, play_script):
-        """The comment header should list all 10 events."""
+        """The comment header should list all 11 events."""
         # Comment: # Events: stop, edit, bash, search, ...
         m = re.search(r"# Events: (.+)", play_script)
         assert m, "Could not find Events comment in play.sh"

@@ -1,6 +1,6 @@
 # Soundbar
 
-Audio feedback for Claude Code — three independent, mixable layers: **effects** (sound profiles), **voice** (spoken lines via TTS), and **narrator** (LLM-generated live commentary).
+Audio feedback for Claude Code and Codex — three independent, mixable layers: **effects** (sound profiles), **voice** (spoken lines via TTS), and **narrator** (LLM-generated live commentary).
 
 ## Install
 
@@ -14,6 +14,67 @@ cd claude-sounds
 
 Copies `soundbar/` → `~/.claude/soundbar/` and injects hooks into `settings.json` (with backup + validation).
 
+### Connect Codex (desktop app and CLI)
+
+After installing Soundbar, connect the same sounds and mixer settings to local
+Codex desktop and CLI sessions. The base installer also installs Claude Code
+hooks; the Codex installer adds a separate integration:
+
+```bash
+bash ./install-codex.sh --dry-run  # preview
+bash ./install-codex.sh            # install Codex hooks
+bash ./install-codex.sh --uninstall # remove only Soundbar's Codex hooks
+```
+
+The installer merges into `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`),
+backs up an existing file, and preserves other hooks and `config.toml`, including
+any existing `notify` command. Reinstalling does not duplicate hooks.
+
+Open `/hooks` in the Codex CLI to review and trust the Soundbar commands, then
+start a new chat. Codex skips untrusted hooks; the installer does not alter hook
+trust. See the [official Codex hook documentation](https://learn.chatgpt.com/docs/hooks).
+
+Supported sounds: session start, prompt submission, edits, completed shell
+commands, shell searches (`rg`, `grep`, `find`, `fd`), failed shell commands,
+permission requests, subagent start/stop, compaction, and turn completion.
+Codex does not currently expose Claude's `StopFailure` or `PostToolUseFailure`
+events; the adapter derives shell errors from `PostToolUse` results. Hosted web
+searches do not emit tool hooks. Narration receives normalized Codex tool input.
+
+Both apps share `~/.claude/soundbar/config.json` and the existing control panel.
+Remove the Codex hooks before uninstalling Soundbar itself. This integration
+requires local macOS playback and a Codex version with lifecycle hook support.
+
+#### Generals voice profile
+
+Generals works with Codex through the same sound manifest and 28 local AIFF
+clips used by Claude Code. Select the profile **and enable the Voice layer**:
+
+```bash
+~/.claude/soundbar/switch.sh voice-profile generals
+~/.claude/soundbar/switch.sh voice on
+~/.claude/soundbar/panel.sh
+```
+
+The control panel runs at [http://localhost:8111](http://localhost:8111).
+Its profile, volume, and layer controls apply to both agents. Selecting Generals
+alone does not turn Voice on. Generals has no prompt-submission clip, so silence
+on `UserPromptSubmit` is expected.
+
+Test a completion sound through the Codex adapter without changing saved settings:
+
+```bash
+printf '%s\n' '{"hook_event_name":"Stop"}' | \
+  FORCE_LAYER=voice FORCE_VOICE_PROFILE=generals \
+  python3 ~/.claude/soundbar/codex.py
+```
+
+If this plays but real Codex events are silent, check `/hooks` for enabled,
+trusted Soundbar hooks and start a new chat. If playback is silent too, check
+Voice volume, macOS output volume, and the selected output device. Missing
+Generals clips can be regenerated with
+`bash ~/.claude/soundbar/sounds/generals/generate.sh`.
+
 ### Dependencies
 
 - **jq** — required (`brew install jq`)
@@ -25,6 +86,7 @@ Copies `soundbar/` → `~/.claude/soundbar/` and injects hooks into `settings.js
 ## Uninstall
 
 ```bash
+bash ./install-codex.sh --uninstall # remove Codex hooks first, if installed
 ./uninstall.sh              # keeps user config
 ./uninstall.sh --purge      # removes everything
 ./uninstall.sh --dry-run    # preview
@@ -54,7 +116,8 @@ Opens a mixer UI in the browser. Server runs in the foreground — Ctrl+C stops 
 
 ## Architecture
 
-Three layers fire on every Claude Code event, mixed together:
+Enabled layers respond to supported Claude Code or Codex events, mixed together.
+Profiles play only the events defined in their sound mappings:
 
 ```
  ┌─────────────┐   ┌─────────────┐   ┌──────────────┐
@@ -123,15 +186,17 @@ Optional local neural TTS engine (alternative to macOS `say`). `kokoro_server.py
 
 ### Events
 
-`session_start` `edit` `bash` `search` `permission` `error` `subagent_start` `subagent_stop` `compact` `stop`
+`session_start` `edit` `bash` `search` `permission` `error` `subagent_start` `subagent_stop` `compact` `stop` `user_prompt`
 
 ## Repo Structure
 
 ```
 install.sh                    # Installer (--dev, --dry-run)
+install-codex.sh              # Connect/remove Codex hooks (--dry-run, --uninstall)
 uninstall.sh → soundbar/...   # Symlink to uninstaller
 soundbar/                     # Installed to ~/.claude/soundbar/ (1:1 copy)
 ├── play.sh                   # Sound engine (hooks call this)
+├── codex.py                  # Codex hook installer and event adapter
 ├── narrate.py                # Narrator engine (LLM + TTS)
 ├── sounds.json               # Sound manifest (single source of truth)
 ├── switch.sh                 # CLI control
@@ -176,6 +241,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed component documentation, dat
 
 ```bash
 ./install.sh --dev    # symlinks repo → ~/.claude/soundbar/
+bash ./install-codex.sh # add Codex hooks to the dev installation
+python3 -m unittest tests.test_codex # adapter and installer regression tests
 ```
 
 Edits to files in `soundbar/` are immediately live. Config files live at repo root (gitignored), symlinked into `soundbar/`.
