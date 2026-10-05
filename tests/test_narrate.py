@@ -86,6 +86,38 @@ class TestNarratorStyles:
 class TestBuildContext:
     """build_context() extracts narration-relevant context from event JSON."""
 
+    def test_codex_turn_completion_is_not_task_completion(self):
+        from narrate import build_context
+        ctx = build_context({"soundbar_agent": "codex", "soundbar_event": "stop",
+                             "last_assistant_message": "The first step is complete."})
+        assert "finished this turn" in ctx
+        assert "first step" in ctx
+        assert "Task finished" not in ctx
+
+    def test_codex_command_and_search_context(self):
+        from narrate import build_context
+        data = {"soundbar_agent": "codex", "soundbar_event": "test", "tool_name": "Bash",
+                "tool_input": {"command": "uv run pytest -q"},
+                "tool_response": {"exitCode": 0, "stdout": "All passed"}}
+        ctx = build_context(data)
+        assert "ran tests" in ctx and "All passed" in ctx
+        data.update(soundbar_event="search", soundbar_no_matches=True)
+        assert "normal search result" in build_context(data)
+        data.update(soundbar_event="bash", soundbar_no_matches=False)
+        data["tool_response"]["exitCode"] = None
+        assert "Exit code None" not in build_context(data)
+
+    def test_codex_lifecycle_and_tools_have_useful_context(self):
+        from narrate import build_context
+        cases = {
+            "pre_compact": "preparing", "interrupt": "interrupted", "session_end": "closed",
+            "plan": "planning", "read": "inspecting", "tool": "using",
+        }
+        for event, word in cases.items():
+            ctx = build_context({"soundbar_agent": "codex", "soundbar_event": event,
+                                 "tool_name": "mcp__docs__read_page", "tool_input": {"path": "src/app.py"}})
+            assert word in ctx
+
     def test_session_start(self):
         from narrate import build_context
         ctx = build_context({"hook_event_name": "SessionStart"})

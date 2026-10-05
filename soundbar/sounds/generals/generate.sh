@@ -10,10 +10,18 @@ UNIT_VOICE="Reed"       # Unit voice
 CMD_RATE=200
 UNIT_RATE=190
 
+has_audio() {
+  afinfo "$1" 2>/dev/null | awk '/^audio bytes:/ {found=($3 > 0)} END {exit !found}'
+}
+
 gen() {
   local voice="$1" rate="$2" file="$3" text="$4"
-  if [ ! -f "$DIR/$file" ]; then
+  if [ ! -f "$DIR/$file" ] || ! has_audio "$DIR/$file"; then
     say -v "$voice" -r "$rate" -o "$DIR/$file" "$text"
+    if ! has_audio "$DIR/$file"; then
+      printf '  ✗ %s contains no audio; rerun outside a restricted sandbox.\n' "$file" >&2
+      return 1
+    fi
     printf '  ✓ %s\n' "$file"
   else
     printf '  · %s (exists)\n' "$file"
@@ -34,6 +42,19 @@ gen "$UNIT_VOICE"  "$UNIT_RATE"  "unit_lost.aiff"              "Unit lost"
 gen "$UNIT_VOICE"  "$UNIT_RATE"  "construction_complete.aiff"  "Construction complete"
 gen "$CMD_VOICE"   "$CMD_RATE"   "command_center.aiff"         "Command center, online"
 gen "$UNIT_VOICE"  "$UNIT_RATE"  "upgrading.aiff"              "Upgrading"
+
+# ── Codex lifecycle and command categories ──
+
+gen "$CMD_VOICE"   "$CMD_RATE"   "orders_received.aiff"        "Orders received"
+gen "$UNIT_VOICE"  "$UNIT_RATE"  "gathering_intel.aiff"        "Gathering intel"
+gen "$UNIT_VOICE"  "$UNIT_RATE"  "equipment_ready.aiff"        "Equipment ready"
+gen "$CMD_VOICE"   "$CMD_RATE"   "battle_plan.aiff"            "Battle plan updated"
+gen "$UNIT_VOICE"  "$UNIT_RATE"  "checks_complete.aiff"        "Systems checked, ready for action"
+gen "$UNIT_VOICE"  "$UNIT_RATE"  "build_complete.aiff"         "Build complete"
+gen "$UNIT_VOICE"  "$UNIT_RATE"  "repository_updated.aiff"     "Repository operation complete"
+gen "$UNIT_VOICE"  "$UNIT_RATE"  "consolidating_intel.aiff"     "Consolidating intel"
+gen "$CMD_VOICE"   "$CMD_RATE"   "command_center_offline.aiff" "Command center, offline"
+gen "$CMD_VOICE"   "$CMD_RATE"   "hold_position.aiff"          "Hold position"
 
 # ── Commander lines (subagent start: commander delegates) ──
 

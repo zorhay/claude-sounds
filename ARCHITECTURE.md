@@ -39,7 +39,7 @@ Enabled layers run in parallel (backgrounded subshells) for events with a profil
 **Invocation:** Called directly by Claude Code hooks, or by the Codex adapter: `~/.claude/soundbar/play.sh <event>`
 
 **Input:**
-- `$1` — event name (one of 11 events, including `user_prompt`)
+- `$1` — event name (one of 20 events across both integrations)
 - `stdin` — hook JSON from Claude Code or normalized by the Codex adapter. Captured immediately into `$STDIN_DATA` (~1ms). Consumed by the narrator profile (piped to `narrate.py`); drained and discarded for all other profiles.
 
 **Config reading:** Single `jq` call extracts all config values as TSV for speed:
@@ -389,7 +389,7 @@ existing Soundbar installation and copies the adapter there unless the dev
 symlink already points to the source. `--dry-run` previews the merged JSON;
 `--uninstall` removes only handlers whose command contains `soundbar/codex.py`.
 
-The installer merges nine event groups into `$CODEX_HOME/hooks.json` (default
+The installer merges all 12 event groups into `$CODEX_HOME/hooks.json` (default
 `~/.codex/hooks.json`). It preserves unrelated handlers, including handlers in
 the same matcher group, and unrelated JSON fields. Changes use an atomic file
 replacement after backing up an existing file to `hooks.json.soundbar-backup`.
@@ -397,36 +397,52 @@ An unchanged reinstall does not duplicate hooks or replace the backup.
 `config.toml`, existing `notify` commands, and hook trust are not modified.
 
 Hook commands use absolute, shell-quoted paths to Python and the installed
-adapter, with a five-second timeout. Codex requires users to review and trust
+adapter, with a five-second timeout (three seconds for `Interrupt`). Codex requires users to review and trust
 the definitions via `/hooks` before execution. Start a new chat after setup.
 
 | Codex hook | Matcher or condition | Soundbar event |
 |------------|----------------------|----------------|
 | `SessionStart` | `startup`, `resume`, `clear` | `session_start` |
 | `UserPromptSubmit` | Any | `user_prompt` |
+| `SessionEnd` | Any | `session_end` |
+| `Interrupt` | Any | `interrupt` |
+| `PreCompact` | Any | `pre_compact` |
 | `PermissionRequest` | Any | `permission` |
 | `PostCompact` | Any | `compact` |
 | `SubagentStart` / `SubagentStop` | Any | `subagent_start` / `subagent_stop` |
 | `Stop` | Any | `stop` |
-| `PreToolUse` | `apply_patch`, `Edit`, `Write` | `edit` |
-| `PostToolUse` | Shell tools, nonzero exit code | `error` |
-| `PostToolUse` | Shell command beginning with `rg`, `grep`, `find`, `fd` | `search` |
-| `PostToolUse` | Other shell commands | `bash` |
+| `PreToolUse` | File edit, read, search, plan, or other local/MCP tool | `edit`, `read`, `search`, `plan`, `tool` |
+| `PostToolUse` | Explicit shell/patch/MCP failure | `error` |
+| `PostToolUse` | Shell command category | `test`, `build`, `git`, `search`, `read`, `bash` |
 
-Codex exposes unified exec as `Bash`; the adapter also accepts `exec_command`,
-`shell`, and `shell_command`. Failed search commands take the error path.
-Shell parsing recognizes a leading executable; searches within compound shell
-commands may produce the ordinary `bash` sound. Hosted web searches do not
-emit these local tool hooks. There are no Codex `StopFailure` or
-`PostToolUseFailure` registrations; shell failures are derived from post-tool
-results. Session starts caused by compaction are skipped to avoid a second sound.
+Pre/post tool handlers match every tool, with classification in the adapter.
+Non-shell successes are announced before execution; post-tool hooks detect
+explicit error indicators without duplicating successful playback. Shell
+results normalize exit-code fields, model-facing text, and MCP content blocks.
+Pending unified-exec sessions are ignored until completion. `write_stdin`,
+agent spawning, and coordination waits are silent; lifecycle hooks cover agents.
+
+The shell classifier tokenizes compound commands, pipelines, newlines,
+environment assignments, shell `-c` wrappers, and `uv run`. Setup commands such
+as `cd` and `echo` are ignored. Categories prioritize test, build, Git, search,
+read, then generic shell. It never executes shell input. `rg`/`grep` exit 1 is
+classified as no matches when the command consists of searches/output filters;
+other nonzero statuses remain errors. Hosted tools have no local hook path.
+Failures without explicit result indicators remain undetectable. There are no
+Claude-only failure hook registrations, and compaction-triggered session starts
+are suppressed to avoid duplicate sound.
 
 For narration, the adapter maps patches to an `Edit` payload, normalizes shell
-command and response fields, and preserves session context. Unknown events
-are ignored. Runtime failures produce no hook output or permission decision.
+command and response fields, and preserves session context. It tags payloads with `soundbar_agent: "codex"`
+and `soundbar_event` so narration distinguishes command categories, interrupted
+turns, session closure, and normal no-match searches. Turn completion uses the
+last assistant response rather than claiming the entire task is finished. Unknown lifecycle events are ignored; unknown local tool names use generic tool audio. Runtime failures produce no hook output or permission decision.
 The adapter calls `play.sh` with output streams redirected to `/dev/null`, so
 background playback cannot hold Codex's captured pipes open. Playback uses the
-existing layer toggles and volumes, including the Generals voice profile.
+existing layer toggles and volumes, including 38 Generals clips. Effects profiles
+reuse their existing semantic sounds for the new categories; attention and silent
+profiles retain their limited mappings. Missing senior phrase keys fall back to
+shipped defaults; explicit user phrases and empty lists take precedence.
 
 Run `python3 -m unittest tests.test_codex` for routing, dispatch, installation,
 backup, idempotence, and uninstall tests. Remove Codex hooks before running the

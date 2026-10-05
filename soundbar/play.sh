@@ -1,8 +1,8 @@
 #!/bin/bash
-# Soundbar — Claude Code sound engine
+# Soundbar — Claude Code and Codex sound engine
 # Two independent layers: effects + voice
 # Usage: play.sh <event> [stdin: hook JSON]
-# Events: stop, edit, bash, search, permission, error, subagent_start, subagent_stop, session_start, compact, user_prompt
+# Events: stop, edit, bash, search, permission, error, subagent_start, subagent_stop, session_start, compact, user_prompt, read, tool, plan, test, build, git, pre_compact, session_end, interrupt
 #
 # Sound mappings are read from sounds.json (shared with the web UI).
 # Narration voice profile reads phrases.json (TTS-specific).
@@ -15,7 +15,7 @@ EVENT="${1:-stop}"
 # Background all work — script exits in ~2ms, Claude Code proceeds immediately
 {
 
-SND="$HOME/.claude/soundbar"
+SND="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CFG="$SND/config.json"
 [ ! -f "$CFG" ] && CFG="$SND/config.defaults.json"
 [ ! -f "$CFG" ] && exit 0
@@ -146,41 +146,49 @@ if [ "$VOICE_ON" = "on" ]; then
   elif [ "$VOICE_PROFILE" = "senior" ]; then
     # Narration reads phrases.json (TTS, not in manifest)
     if [ -f "$PHRASES" ] && command -v jq &>/dev/null; then
-      COUNT=$(jq -r ".[\"$EVENT\"] | length // 0" "$PHRASES" 2>/dev/null)
+      # Existing user phrases keep their overrides; new events fall back to
+      # shipped phrases without overwriting the user's file.
+      EVENT_PHRASES="$PHRASES"
+      COUNT=$(jq -r ".[\"$EVENT\"] | length // 0" "$EVENT_PHRASES" 2>/dev/null)
+      if [ "$COUNT" = "0" ] && [ "$PHRASES" != "$SND/phrases.defaults.json" ] && \
+         ! jq -e --arg e "$EVENT" 'has($e)' "$PHRASES" >/dev/null 2>&1; then
+        EVENT_PHRASES="$SND/phrases.defaults.json"
+        COUNT=$(jq -r ".[\"$EVENT\"] | length // 0" "$EVENT_PHRASES" 2>/dev/null)
+      fi
       if [ "$COUNT" -gt 0 ] 2>/dev/null; then
         IDX=$((RANDOM % COUNT))
         if [ "$TTS_ENGINE" = "kokoro" ]; then
           # Kokoro TTS: extract phrase, speak via narrate.py --speak
           case "$EVENT" in
             subagent_start)
-              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$PHRASES")
-              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$PHRASES")
+              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$EVENT_PHRASES")
+              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$EVENT_PHRASES")
               ("$PYTHON3" "$SND/narrate.py" --speak "$MAIN_P" && "$PYTHON3" "$SND/narrate.py" --speak "$SUB_P") &
               ;;
             subagent_stop)
-              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$PHRASES")
-              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$PHRASES")
+              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$EVENT_PHRASES")
+              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$EVENT_PHRASES")
               ("$PYTHON3" "$SND/narrate.py" --speak "$SUB_P" && "$PYTHON3" "$SND/narrate.py" --speak "$MAIN_P") &
               ;;
             *)
-              PHRASE=$(jq -r ".[\"$EVENT\"][$IDX]" "$PHRASES")
+              PHRASE=$(jq -r ".[\"$EVENT\"][$IDX]" "$EVENT_PHRASES")
               "$PYTHON3" "$SND/narrate.py" --speak "$PHRASE" &
               ;;
           esac
         else
           case "$EVENT" in
             subagent_start)
-              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$PHRASES")
-              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$PHRASES")
+              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$EVENT_PHRASES")
+              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$EVENT_PHRASES")
               (say_vol -v "$VOICE" -r 200 "$MAIN_P" && sleep 0.2 && say_vol -v "$SUBVOICE" -r 190 "$SUB_P") &
               ;;
             subagent_stop)
-              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$PHRASES")
-              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$PHRASES")
+              SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$EVENT_PHRASES")
+              MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$EVENT_PHRASES")
               (say_vol -v "$SUBVOICE" -r 190 "$SUB_P" && sleep 0.2 && say_vol -v "$VOICE" -r 200 "$MAIN_P") &
               ;;
             *)
-              PHRASE=$(jq -r ".[\"$EVENT\"][$IDX]" "$PHRASES")
+              PHRASE=$(jq -r ".[\"$EVENT\"][$IDX]" "$EVENT_PHRASES")
               say_vol -v "$VOICE" -r 200 "$PHRASE" &
               ;;
           esac

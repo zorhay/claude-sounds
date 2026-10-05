@@ -75,9 +75,9 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 - `sounds.json` is the single source of truth for sound mappings. Both `play.sh` and `server.py` read it.
 - `play.sh` captures stdin then backgrounds all work via `{ ... } &`. Hook commands must NOT use trailing `&`.
 - `play.sh` is a generic dispatcher — reads manifest via `jq`, plays via `afplay`/`play`/`say`. Two special cases: senior (reads `phrases.json`), narrator (pipes stdin to `narrate.py`).
-- All 11 events: `stop`, `edit`, `bash`, `search`, `permission`, `error`, `subagent_start`, `subagent_stop`, `session_start`, `compact`, `user_prompt`. The narrator handles `user_prompt` (sourced from Claude Code's `UserPromptSubmit` hook); effects/voice layers can opt in by adding mappings in `sounds.json` / `phrases.json` but currently ignore it silently.
+- Original Claude hook events: `stop`, `edit`, `bash`, `search`, `permission`, `error`, `subagent_start`, `subagent_stop`, `session_start`, `compact`, `user_prompt`. Codex adds `read`, `tool`, `plan`, `test`, `build`, `git`, `pre_compact`, `session_end`, and `interrupt`, for 20 mixer events. Generals maps all 20; senior phrases merge missing keys from shipped defaults, while user overrides (including empty lists) are preserved.
 - Hook tag: any hook containing `soundbar/play.sh` is ours.
-- Codex hook tag: `soundbar/codex.py`. Codex shell failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
+- Codex hook tag: `soundbar/codex.py`. All 12 Codex hook events are registered. Shell, patch, and MCP failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
 - `server.py` uses unified `/api/config` POST — send any subset of keys.
 - `/api/play` takes `{layer, profile, event}` and plays sounds directly (no shell script).
 - `/api/narrator-check` tests provider connectivity, `/api/narrator-test` generates and speaks a test narration.

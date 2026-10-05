@@ -11,7 +11,17 @@
         "subagent_start": {"sox": "synth 0.3 sine 300:600 reverb 50 fade 0.01 0.3 0.15 tremolo 4"},
         "subagent_stop":  {"sox": "synth 0.25 sine 600:350 reverb 45 fade 0.01 0.25 0.15"},
         "compact":       {"sox": "synth 0.5 pinknoise vol 0.2 fade 0.05 0.5 0.4 reverb 50"},
-        "stop":          {"sox": "synth 0.8 sine 220:330 reverb 60 fade 0.05 0.8 0.4"}
+        "stop":          {"sox": "synth 0.8 sine 220:330 reverb 60 fade 0.05 0.8 0.4"},
+        "user_prompt": {"sox": "synth 0.8 pluck 330 synth 0.8 pluck 440 synth 0.8 pluck 550 reverb 60 fade 0.05 0.8 0.5"},
+        "read": {"sox": "synth 0.15 triangle 700 reverb 25 fade 0.01 0.15 0.1"},
+        "tool": {"sox": "synth 0.3 sine 300 fade 0.05 0.3 0.2 reverb 40"},
+        "plan": {"sox": "synth 0.25 pluck 500 reverb 30 fade 0.01 0.25 0.15"},
+        "test": {"sox": "synth 0.8 sine 220:330 reverb 60 fade 0.05 0.8 0.4"},
+        "build": {"sox": "synth 0.8 sine 220:330 reverb 60 fade 0.05 0.8 0.4"},
+        "git": {"sox": "synth 0.3 sine 300 fade 0.05 0.3 0.2 reverb 40"},
+        "pre_compact": {"sox": "synth 0.5 pinknoise vol 0.2 fade 0.05 0.5 0.4 reverb 50"},
+        "session_end": {"sox": "synth 0.8 sine 220:330 reverb 60 fade 0.05 0.8 0.4"},
+        "interrupt": {"sox": "synth 0.3 pluck 440:660 reverb 50 fade 0.01 0.3 0.2"}
       }
     },
     "attention": {
@@ -31,7 +41,17 @@
         "subagent_start": {"sox": "synth 0.05 square 400 : synth 0.05 square 600 : synth 0.05 square 800 : synth 0.05 square 1000"},
         "subagent_stop":  {"sox": "synth 0.05 square 1000 : synth 0.05 square 800 : synth 0.05 square 600 : synth 0.05 square 400"},
         "compact":       {"sox": "synth 0.08 square 800 : synth 0.08 square 400 : synth 0.08 square 200"},
-        "stop":          {"sox": "synth 0.08 square 523 : synth 0.08 square 659 : synth 0.08 square 784 : synth 0.15 square 1047"}
+        "stop":          {"sox": "synth 0.08 square 523 : synth 0.08 square 659 : synth 0.08 square 784 : synth 0.15 square 1047"},
+        "user_prompt": {"sox": "synth 0.1 square 523 : synth 0.1 square 659 : synth 0.1 square 784 : synth 0.2 square 1047 : synth 0.1 square 784 : synth 0.15 square 1047"},
+        "read": {"sox": "synth 0.05 square 1250"},
+        "tool": {"sox": "synth 0.1 square 200 : synth 0.05 square 250 : synth 0.05 square 300"},
+        "plan": {"sox": "synth 0.06 square 1000 : synth 0.06 square 1150"},
+        "test": {"sox": "synth 0.08 square 523 : synth 0.08 square 659 : synth 0.08 square 784 : synth 0.15 square 1047"},
+        "build": {"sox": "synth 0.08 square 523 : synth 0.08 square 659 : synth 0.08 square 784 : synth 0.15 square 1047"},
+        "git": {"sox": "synth 0.1 square 200 : synth 0.05 square 250 : synth 0.05 square 300"},
+        "pre_compact": {"sox": "synth 0.08 square 800 : synth 0.08 square 400 : synth 0.08 square 200"},
+        "session_end": {"sox": "synth 0.08 square 523 : synth 0.08 square 659 : synth 0.08 square 784 : synth 0.15 square 1047"},
+        "interrupt": {"sox": "synth 0.08 square 600 : synth 0.08 square 800 : synth 0.12 square 600"}
       }
     },
     "construction": {
@@ -46,7 +66,17 @@
         "subagent_start": {"file": "walkie_start.mp3"},
         "subagent_stop":  {"file": "walkie_tones.mp3"},
         "compact":       {"file": "metal_barrier.mp3"},
-        "stop":          {"files": ["hammer.mp3", "hammering_single.mp3", "hammering_few.mp3"]}
+        "stop":          {"files": ["hammer.mp3", "hammering_single.mp3", "hammering_few.mp3"]},
+        "user_prompt": {"file": "jackhammer.mp3"},
+        "read": {"file": "ratchet.mp3"},
+        "tool": {"file": "stapler_wood.mp3"},
+        "plan": {"file": "saw.mp3"},
+        "test": {"files": ["hammer.mp3", "hammering_single.mp3", "hammering_few.mp3"]},
+        "build": {"files": ["hammer.mp3", "hammering_single.mp3", "hammering_few.mp3"]},
+        "git": {"file": "stapler_wood.mp3"},
+        "pre_compact": {"file": "metal_barrier.mp3"},
+        "session_end": {"files": ["hammer.mp3", "hammering_single.mp3", "hammering_few.mp3"]},
+        "interrupt": {"file": "whistle.mp3"}
       }
     },
     "default": {
@@ -60,7 +90,17 @@
         "subagent_start": {"file": "/System/Library/Sounds/Bottle.aiff"},
         "subagent_stop":  {"file": "/System/Library/Sounds/Ping.aiff"},
         "compact":       {"file": "/System/Library/Sounds/Purr.aiff"},
-        "stop":          {"file": "/System/Library/Sounds/Hero.aiff"}
+        "stop":          {"file": "/System/Library/Sounds/Hero.aiff"},
+        "user_prompt": {"file": "/System/Library/Sounds/Glass.aiff"},
+        "read": {"file": "/System/Library/Sounds/Pop.aiff"},
+        "tool": {"file": "/System/Library/Sounds/Submarine.aiff"},
+        "plan": {"file": "/System/Library/Sounds/Frog.aiff"},
+        "test": {"file": "/System/Library/Sounds/Hero.aiff"},
+        "build": {"file": "/System/Library/Sounds/Hero.aiff"},
+        "git": {"file": "/System/Library/Sounds/Submarine.aiff"},
+        "pre_compact": {"file": "/System/Library/Sounds/Purr.aiff"},
+        "session_end": {"file": "/System/Library/Sounds/Hero.aiff"},
+        "interrupt": {"file": "/System/Library/Sounds/Funk.aiff"}
       }
     },
     "factory": {
@@ -74,7 +114,17 @@
         "subagent_start": {"sox": "synth 0.25 sawtooth 80:200 tremolo 15 vol 0.3 fade 0.01 0.25 0.1"},
         "subagent_stop":  {"sox": "synth 0.2 sawtooth 200:60 tremolo 10 vol 0.25 fade 0.01 0.2 0.12"},
         "compact":       {"sox": "synth 0.15 brownnoise vol 0.3 : synth 0.1 square 100:50 vol 0.25 fade 0.01 0.25 0.1"},
-        "stop":          {"sox": "synth 0.15 noise vol 0.4 fade 0.01 0.15 0.05 : synth 0.4 square 180:160 tremolo 25 vol 0.3 fade 0.01 0.4 0.2"}
+        "stop":          {"sox": "synth 0.15 noise vol 0.4 fade 0.01 0.15 0.05 : synth 0.4 square 180:160 tremolo 25 vol 0.3 fade 0.01 0.4 0.2"},
+        "user_prompt": {"sox": "synth 0.6 sawtooth 60:180 tremolo 8 vol 0.35 fade 0.02 0.6 0.3 : synth 0.2 noise vol 0.15 fade 0.01 0.2 0.15"},
+        "read": {"sox": "synth 0.08 sine 1500 vol 0.3 fade 0.005 0.08 0.06 repeat 1 reverb 50"},
+        "tool": {"sox": "synth 0.2 brownnoise vol 0.4 fade 0.01 0.2 0.1 : synth 0.1 sawtooth 120:60 vol 0.3 fade 0.01 0.1 0.05"},
+        "plan": {"sox": "synth 0.04 square 140 synth 0.04 noise vol 0.5 fade 0 0.04 0.03 : synth 0.15 sine 420 vol 0.15 fade 0 0.15 0.12"},
+        "test": {"sox": "synth 0.15 noise vol 0.4 fade 0.01 0.15 0.05 : synth 0.4 square 180:160 tremolo 25 vol 0.3 fade 0.01 0.4 0.2"},
+        "build": {"sox": "synth 0.15 noise vol 0.4 fade 0.01 0.15 0.05 : synth 0.4 square 180:160 tremolo 25 vol 0.3 fade 0.01 0.4 0.2"},
+        "git": {"sox": "synth 0.2 brownnoise vol 0.4 fade 0.01 0.2 0.1 : synth 0.1 sawtooth 120:60 vol 0.3 fade 0.01 0.1 0.05"},
+        "pre_compact": {"sox": "synth 0.15 brownnoise vol 0.3 : synth 0.1 square 100:50 vol 0.25 fade 0.01 0.25 0.1"},
+        "session_end": {"sox": "synth 0.15 noise vol 0.4 fade 0.01 0.15 0.05 : synth 0.4 square 180:160 tremolo 25 vol 0.3 fade 0.01 0.4 0.2"},
+        "interrupt": {"sox": "synth 0.1 square 300 vol 0.35 : synth 0.05 noise vol 0.2 : synth 0.1 square 350 vol 0.35 fade 0.01 0.25 0.05"}
       }
     },
     "minimal": {
@@ -88,7 +138,17 @@
         "subagent_start": {"sox": "synth 0.1 sine 500:700 vol 0.2 fade 0.01 0.1 0.06"},
         "subagent_stop":  {"sox": "synth 0.1 sine 700:450 vol 0.15 fade 0.01 0.1 0.07"},
         "compact":       {"sox": "synth 0.15 sine 600:400 vol 0.15 fade 0.02 0.15 0.1"},
-        "stop":          {"sox": "synth 0.2 sine 660 vol 0.3 fade 0.02 0.2 0.15"}
+        "stop":          {"sox": "synth 0.2 sine 660 vol 0.3 fade 0.02 0.2 0.15"},
+        "user_prompt": {"sox": "synth 0.3 sine 440 vol 0.25 fade 0.03 0.3 0.2"},
+        "read": {"sox": "synth 0.06 sine 950 vol 0.15 fade 0.01 0.06 0.03"},
+        "tool": {"sox": "synth 0.1 sine 425 vol 0.25 fade 0.01 0.1 0.06"},
+        "plan": {"sox": "synth 0.08 sine 750 vol 0.2 fade 0.01 0.08 0.05"},
+        "test": {"sox": "synth 0.2 sine 660 vol 0.3 fade 0.02 0.2 0.15"},
+        "build": {"sox": "synth 0.2 sine 660 vol 0.3 fade 0.02 0.2 0.15"},
+        "git": {"sox": "synth 0.1 sine 425 vol 0.25 fade 0.01 0.1 0.06"},
+        "pre_compact": {"sox": "synth 0.15 sine 600:400 vol 0.15 fade 0.02 0.15 0.1"},
+        "session_end": {"sox": "synth 0.2 sine 660 vol 0.3 fade 0.02 0.2 0.15"},
+        "interrupt": {"sox": "synth 0.06 sine 700 vol 0.25 fade 0.01 0.06 0.04 : synth 0.08 sine 750 vol 0.2 fade 0.01 0.08 0.05"}
       }
     },
     "organic": {
@@ -102,7 +162,17 @@
         "subagent_start": {"sox": "synth 0.15 pluck 400 : synth 0.15 pluck 550 : synth 0.15 pluck 700 reverb 20"},
         "subagent_stop":  {"sox": "synth 0.2 pluck 650 : synth 0.2 pluck 430 chorus 0.5 0.8 40 0.3 0.2 2 reverb 20"},
         "compact":       {"sox": "synth 0.3 pluck 300:200 vol 0.2 reverb 35 fade 0.02 0.3 0.25"},
-        "stop":          {"sox": "synth 0.5 pluck 450 synth 0.5 pluck 550 synth 0.5 pluck 650 chorus 0.6 0.9 50 0.4 0.25 2 reverb 30"}
+        "stop":          {"sox": "synth 0.5 pluck 450 synth 0.5 pluck 550 synth 0.5 pluck 650 chorus 0.6 0.9 50 0.4 0.25 2 reverb 30"},
+        "user_prompt": {"sox": "synth 0.6 pluck 375 synth 0.6 pluck 485 synth 0.6 pluck 595 chorus 0.7 0.9 55 0.4 0.3 2 reverb 40"},
+        "read": {"sox": "synth 0.12 pluck 850 fade 0.01 0.12 0.05"},
+        "tool": {"sox": "synth 0.25 pluck 375 reverb 20"},
+        "plan": {"sox": "synth 0.2 pluck 650 chorus 0.5 0.9 40 0.3 0.2 2 fade 0.01 0.2 0.1"},
+        "test": {"sox": "synth 0.5 pluck 450 synth 0.5 pluck 550 synth 0.5 pluck 650 chorus 0.6 0.9 50 0.4 0.25 2 reverb 30"},
+        "build": {"sox": "synth 0.5 pluck 450 synth 0.5 pluck 550 synth 0.5 pluck 650 chorus 0.6 0.9 50 0.4 0.25 2 reverb 30"},
+        "git": {"sox": "synth 0.25 pluck 375 reverb 20"},
+        "pre_compact": {"sox": "synth 0.3 pluck 300:200 vol 0.2 reverb 35 fade 0.02 0.3 0.25"},
+        "session_end": {"sox": "synth 0.5 pluck 450 synth 0.5 pluck 550 synth 0.5 pluck 650 chorus 0.6 0.9 50 0.4 0.25 2 reverb 30"},
+        "interrupt": {"sox": "synth 0.2 pluck 700 : synth 0.2 pluck 550 chorus 0.6 0.9 50 0.4 0.25 2 reverb 25"}
       }
     },
     "paper": {
@@ -169,7 +239,17 @@
           ],
           "gap": 0.2,
           "rate": [0.97, 1.03]
-        }
+        },
+        "user_prompt": {"sequence": [["book_open.mp3", "page_flip.mp3"], ["book_open.mp3", "page_flip2.mp3"], ["book_open.mp3", "page_flip3.mp3"]], "gap": 0.2, "rate": [0.97, 1.03]},
+        "read": {"files": ["page_flip.mp3", "page_flip2.mp3", "page_flip3.mp3", "page_turn_quick.mp3"], "rate": [0.92, 1.08]},
+        "tool": {"files": ["typewriter_short.mp3", "typewriter.mp3"], "rate": [0.93, 1.07]},
+        "plan": {"files": ["pencil_soft1.mp3", "pencil_soft2.mp3", "pencil_soft3.mp3", "pencil_soft4.mp3"], "rate": [0.92, 1.08]},
+        "test": {"sequence": [["page_turn_slow.mp3", "book_close.mp3"], ["page_flip.mp3", "book_close.mp3"], ["page_flip2.mp3", "book_close.mp3"]], "gap": 0.2, "rate": [0.97, 1.03]},
+        "build": {"sequence": [["page_turn_slow.mp3", "book_close.mp3"], ["page_flip.mp3", "book_close.mp3"], ["page_flip2.mp3", "book_close.mp3"]], "gap": 0.2, "rate": [0.97, 1.03]},
+        "git": {"files": ["typewriter_short.mp3", "typewriter.mp3"], "rate": [0.93, 1.07]},
+        "pre_compact": {"sequence": [["paper_rustle2.mp3", "page_turn_quick.mp3"], ["paper_rustle2.mp3", "page_flip.mp3"]], "gap": 0.15, "rate": [0.95, 1.05]},
+        "session_end": {"sequence": [["page_turn_slow.mp3", "book_close.mp3"], ["page_flip.mp3", "book_close.mp3"], ["page_flip2.mp3", "book_close.mp3"]], "gap": 0.2, "rate": [0.97, 1.03]},
+        "interrupt": {"file": "bell.mp3"}
       }
     },
     "sci-fi": {
@@ -183,7 +263,17 @@
         "subagent_start": {"sox": "synth 0.2 sine 200:1000 tremolo 6 fade 0.01 0.2 0.08 reverb 30"},
         "subagent_stop":  {"sox": "synth 0.2 sine 1000:300 fade 0.01 0.2 0.1 reverb 25"},
         "compact":       {"sox": "synth 0.3 sine 800:200 tremolo 12 vol 0.3 fade 0.01 0.3 0.15"},
-        "stop":          {"sox": "synth 0.5 sine 300:900 fade 0.01 0.5 0.2 tremolo 6 reverb 40"}
+        "stop":          {"sox": "synth 0.5 sine 300:900 fade 0.01 0.5 0.2 tremolo 6 reverb 40"},
+        "user_prompt": {"sox": "synth 0.6 sine 100:800 tremolo 3 reverb 40 fade 0.02 0.6 0.3"},
+        "read": {"sox": "synth 0.1 sine 1400:900 fade 0.01 0.1 0.05"},
+        "tool": {"sox": "synth 0.2 sawtooth 150:300 tremolo 10 fade 0.01 0.2 0.1"},
+        "plan": {"sox": "synth 0.15 sine 1100:550 fade 0.01 0.15 0.08"},
+        "test": {"sox": "synth 0.5 sine 300:900 fade 0.01 0.5 0.2 tremolo 6 reverb 40"},
+        "build": {"sox": "synth 0.5 sine 300:900 fade 0.01 0.5 0.2 tremolo 6 reverb 40"},
+        "git": {"sox": "synth 0.2 sawtooth 150:300 tremolo 10 fade 0.01 0.2 0.1"},
+        "pre_compact": {"sox": "synth 0.3 sine 800:200 tremolo 12 vol 0.3 fade 0.01 0.3 0.15"},
+        "session_end": {"sox": "synth 0.5 sine 300:900 fade 0.01 0.5 0.2 tremolo 6 reverb 40"},
+        "interrupt": {"sox": "synth 0.1 sine 800:1200 : synth 0.1 sine 1200:800 tremolo 8 fade 0.01 0.2 0.08"}
       }
     },
     "submarine": {
@@ -197,7 +287,17 @@
         "subagent_start": {"sox": "synth 0.6 sine 340:440 vol 0.11 fade 0.15 0.6 0.4 reverb 65"},
         "subagent_stop":  {"sox": "synth 0.6 sine 440:340 vol 0.11 fade 0.15 0.6 0.4 reverb 65"},
         "compact":       {"sox": "synth 0.7 sine 200 vol 0.08 fade 0.2 0.7 0.5 reverb 70"},
-        "stop":          {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"}
+        "stop":          {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"},
+        "user_prompt": {"sox": "synth 1.2 sine 260:330 vol 0.15 fade 0.3 1.2 0.8 reverb 80"},
+        "read": {"sox": "synth 0.4 sine 530 vol 0.09 fade 0.1 0.4 0.28 reverb 75"},
+        "tool": {"sox": "synth 0.6 sine 180:160 vol 0.14 fade 0.15 0.6 0.4 reverb 60"},
+        "plan": {"sox": "synth 0.5 sine 420:400 vol 0.10 fade 0.12 0.5 0.35 reverb 65"},
+        "test": {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"},
+        "build": {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"},
+        "git": {"sox": "synth 0.6 sine 180:160 vol 0.14 fade 0.15 0.6 0.4 reverb 60"},
+        "pre_compact": {"sox": "synth 0.7 sine 200 vol 0.08 fade 0.2 0.7 0.5 reverb 70"},
+        "session_end": {"sox": "synth 0.9 sine 290:260 vol 0.13 fade 0.2 0.9 0.6 reverb 70"},
+        "interrupt": {"sox": "synth 0.8 sine 396 vol 0.18 fade 0.15 0.8 0.5 reverb 60"}
       }
     },
     "silent": {
@@ -235,7 +335,17 @@
           "gap": 0.15
         },
         "compact":       {"file": "upgrading.aiff"},
-        "stop":          {"file": "construction_complete.aiff"}
+        "stop":          {"file": "construction_complete.aiff"},
+        "user_prompt": {"file": "orders_received.aiff"},
+        "read": {"file": "gathering_intel.aiff"},
+        "tool": {"file": "equipment_ready.aiff"},
+        "plan": {"file": "battle_plan.aiff"},
+        "test": {"file": "checks_complete.aiff"},
+        "build": {"file": "build_complete.aiff"},
+        "git": {"file": "repository_updated.aiff"},
+        "pre_compact": {"file": "consolidating_intel.aiff"},
+        "session_end": {"file": "command_center_offline.aiff"},
+        "interrupt": {"file": "hold_position.aiff"}
       }
     }
   }

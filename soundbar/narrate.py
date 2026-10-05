@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Soundbar narrator — multi-provider AI narration for Claude Code sessions.
+"""Soundbar narrator — multi-provider AI narration for Claude Code and Codex sessions.
 
 Called by play.sh when voice_profile is "narrator". Reads hook event JSON from
 stdin, calls an LLM to generate a short narration line, speaks it via macOS TTS.
@@ -191,6 +191,42 @@ def build_context(data):
     event = data.get("hook_event_name", "")
     tool = data.get("tool_name", "")
     inp = data.get("tool_input", {}) or {}
+
+    if data.get("soundbar_agent") == "codex":
+        kind = data.get("soundbar_event", "")
+        lifecycle = {
+            "session_start": f"Codex session {data.get('source', 'startup')}.",
+            "session_end": "Codex session closed.",
+            "pre_compact": "Codex is preparing to compact the conversation context.",
+            "compact": "Codex finished compacting the conversation context.",
+            "interrupt": "The user interrupted the current Codex turn. Pause the work.",
+        }
+        if kind in lifecycle:
+            return lifecycle[kind]
+        if kind == "stop":
+            message = _clip(data.get("last_assistant_message", ""), 250)
+            return "Codex finished this turn." + (f" Final response: {message}" if message else "")
+        if kind == "error":
+            return f"Codex encountered a failure: {_clip(data.get('error_message', ''), 250)}"
+        if kind == "permission":
+            reason = _clip(inp.get("description", inp.get("justification", "")), 180)
+            return f"Codex needs approval for {tool}." + (f" Reason: {reason}" if reason else "")
+        if tool == "Bash":
+            label = _clip(inp.get("description") or inp.get("command", ""), 180)
+            verbs = {"test": "Ran tests", "build": "Ran a build", "git": "Ran a Git command",
+                     "search": "Searched", "read": "Inspected files", "bash": "Ran a shell command"}
+            resp = data.get("tool_response") or {}
+            code = resp.get("exitCode")
+            status = f" Exit code {code}." if code is not None else ""
+            if data.get("soundbar_no_matches"):
+                status = " No matches found; this is a normal search result."
+            output = _clip(resp.get("stderr") or resp.get("stdout", ""), 200)
+            return f"Codex {verbs.get(kind, 'ran a command').lower()}: {label}.{status}" + (f" Output: {output}" if output else "")
+        if kind in ("read", "search", "plan", "tool"):
+            label = tool.split("__")[-1].replace("_", " ")
+            details = _clip(json.dumps(inp, ensure_ascii=False), 250)
+            verbs = {"read": "is inspecting", "search": "is searching with", "plan": "is planning with", "tool": "is using"}
+            return f"Codex {verbs[kind]} {label}. Details: {details}"
 
     if event == "SessionStart":
         return "New coding session started."

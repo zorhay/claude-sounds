@@ -175,10 +175,14 @@ class TestGetStatus:
                 f"style '{name}' missing label/prompt"
             )
 
-    def test_events_list_has_10_events(self):
+    def test_events_list_covers_both_agents(self):
         from server import get_status
         status = get_status()
-        assert len(status["events"]) == 10
+        assert set(status["events"]) == {
+            "session_start", "session_end", "user_prompt", "edit", "read", "search",
+            "bash", "tool", "plan", "test", "build", "git", "permission", "error",
+            "subagent_start", "subagent_stop", "pre_compact", "compact", "stop", "interrupt",
+        }
 
 
 class TestGetPython3:

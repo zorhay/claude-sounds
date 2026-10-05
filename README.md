@@ -26,6 +26,10 @@ bash ./install-codex.sh            # install Codex hooks
 bash ./install-codex.sh --uninstall # remove only Soundbar's Codex hooks
 ```
 
+After upgrading, rerun `bash ./install-codex.sh`, review changed/new hooks in
+`/hooks`, and start a new chat. Regenerate Generals clips with the command below
+when upgrading an existing installation.
+
 The installer merges into `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`),
 backs up an existing file, and preserves other hooks and `config.toml`, including
 any existing `notify` command. Reinstalling does not duplicate hooks.
@@ -34,12 +38,38 @@ Open `/hooks` in the Codex CLI to review and trust the Soundbar commands, then
 start a new chat. Codex skips untrusted hooks; the installer does not alter hook
 trust. See the [official Codex hook documentation](https://learn.chatgpt.com/docs/hooks).
 
-Supported sounds: session start, prompt submission, edits, completed shell
-commands, shell searches (`rg`, `grep`, `find`, `fd`), failed shell commands,
-permission requests, subagent start/stop, compaction, and turn completion.
-Codex does not currently expose Claude's `StopFailure` or `PostToolUseFailure`
-events; the adapter derives shell errors from `PostToolUse` results. Hosted web
-searches do not emit tool hooks. Narration receives normalized Codex tool input.
+All 12 Codex hook events are connected. The mixer supports these categories:
+
+| Codex activity | Soundbar event |
+|----------------|----------------|
+| Session startup/resume/clear and close | `session_start`, `session_end` |
+| User prompt, approval request, turn completion, interruption | `user_prompt`, `permission`, `stop`, `interrupt` |
+| Subagent starts and returns | `subagent_start`, `subagent_stop` |
+| Before and after context compaction | `pre_compact`, `compact` |
+| Patch or file edit, file/context inspection, search | `edit`, `read`, `search` |
+| Plan updates and user-input tools | `plan` |
+| Tests, builds, Git operations, other shell commands | `test`, `build`, `git`, `bash` |
+| Other local and MCP tools | `tool` |
+| Explicit shell, patch, or MCP failure | `error` |
+
+Tool names are classified by their operation (for example `read_page`,
+`write_file`, and `search`); unknown local/MCP operations use the generic tool
+sound. Successful non-shell tools sound before execution; explicit failures
+sound afterward. Shell categories sound when the command completes.
+
+Codex command forms such as `cd repo && rg ... | head`, `env ... bash -lc ...`,
+`uv run pytest`, `python3 -m unittest`, `pnpm run test:unit`, `npm run build`,
+and `git -C repo diff` are recognized without executing the command in the
+adapter. Mixed commands prioritize tests, builds, Git, search, then reads.
+`rg`/`grep` exit 1 means no matches and keeps the search sound; exit 2 is an error.
+Pending unified-exec sessions wait for their completion hook. Polling and agent
+coordination tools stay quiet to avoid duplicate audio.
+
+Hosted web searches do not emit local tool hooks. Failures without an explicit
+error indicator or exit code cannot be reliably detected. Codex has no separate
+`StopFailure` or `PostToolUseFailure` event. `Stop` means the current turn ended;
+it does not assert the entire task is complete. Narration uses Codex-specific
+context for these distinctions.
 
 Both apps share `~/.claude/soundbar/config.json` and the existing control panel.
 Remove the Codex hooks before uninstalling Soundbar itself. This integration
@@ -47,7 +77,7 @@ requires local macOS playback and a Codex version with lifecycle hook support.
 
 #### Generals voice profile
 
-Generals works with Codex through the same sound manifest and 28 local AIFF
+Generals works with Codex through the same sound manifest and 38 local AIFF
 clips used by Claude Code. Select the profile **and enable the Voice layer**:
 
 ```bash
@@ -58,8 +88,9 @@ clips used by Claude Code. Select the profile **and enable the Voice layer**:
 
 The control panel runs at [http://localhost:8111](http://localhost:8111).
 Its profile, volume, and layer controls apply to both agents. Selecting Generals
-alone does not turn Voice on. Generals has no prompt-submission clip, so silence
-on `UserPromptSubmit` is expected.
+alone does not turn Voice on. Generals includes dedicated lines for orders,
+reads, tools, plans, tests, builds, Git operations, compaction, session close,
+and interruption.
 
 Test a completion sound through the Codex adapter without changing saved settings:
 
@@ -186,7 +217,7 @@ Optional local neural TTS engine (alternative to macOS `say`). `kokoro_server.py
 
 ### Events
 
-`session_start` `edit` `bash` `search` `permission` `error` `subagent_start` `subagent_stop` `compact` `stop` `user_prompt`
+`session_start` `session_end` `user_prompt` `edit` `read` `search` `bash` `tool` `plan` `test` `build` `git` `permission` `error` `subagent_start` `subagent_stop` `pre_compact` `compact` `stop` `interrupt`
 
 ## Repo Structure
 
@@ -209,7 +240,7 @@ soundbar/                     # Installed to ~/.claude/soundbar/ (1:1 copy)
 ├── phrases.defaults.json     # Default phrases
 └── sounds/
     ├── construction/         # 18 MP3 — hammer, saw, drill...
-    ├── generals/             # 28 AIFF — pre-rendered TTS voice lines
+    ├── generals/             # 38 AIFF — pre-rendered TTS voice lines
     └── paper/                # 23 MP3 — paper, pencil, typewriter...
 ```
 

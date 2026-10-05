@@ -17,6 +17,9 @@ SOUNDBAR_DIR = REPO_ROOT / "soundbar"
 ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
     "subagent_start", "subagent_stop", "session_start", "compact",
+    "user_prompt",
+    "read", "tool", "plan", "test", "build", "git",
+    "pre_compact", "session_end", "interrupt",
 }
 
 

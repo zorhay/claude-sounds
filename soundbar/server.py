@@ -42,7 +42,9 @@ SOUNDS_FILE = SND / "sounds.json"
 EVENTS = [
     "session_start", "edit", "bash", "search",
     "permission", "error", "subagent_start",
-    "subagent_stop", "compact", "stop",
+    "subagent_stop", "compact", "stop", "user_prompt",
+    "read", "tool", "plan", "test", "build", "git",
+    "pre_compact", "session_end", "interrupt",
 ]
 
 DIALOGUE_EVENTS = {"subagent_start", "subagent_stop"}
@@ -215,15 +217,18 @@ def get_python3():
 
 
 def read_phrases():
-    for path in (PHRASES_FILE, PHRASES_DEFAULTS):
+    phrases = {}
+    for path in (PHRASES_DEFAULTS, PHRASES_FILE):
         try:
-            return json.loads(path.read_text())
+            data = json.loads(path.read_text())
+            if isinstance(data, dict):
+                phrases.update(data)
         except FileNotFoundError:
             continue
         except json.JSONDecodeError as e:
             log.warning("bad JSON in %s: %s", path, e)
             continue
-    return {}
+    return phrases
 
 
 def write_phrases(data):

@@ -5,7 +5,11 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import os
+import shutil
+import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -96,6 +100,180 @@ class CodexTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 codex.install(root, root)
             self.assertEqual((root / "hooks.json").read_text(), "broken")
+
+    def test_all_codex_hook_events_are_registered(self):
+        hooks = codex.hook_definitions(Path('/tmp/soundbar/codex.py'))
+        self.assertEqual(set(hooks), {
+            'SessionStart', 'SessionEnd', 'PreCompact', 'PostCompact',
+            'Interrupt', 'UserPromptSubmit', 'PermissionRequest', 'Stop',
+            'SubagentStart', 'SubagentStop', 'PreToolUse', 'PostToolUse',
+        })
+        self.assertNotIn('matcher', hooks['PreToolUse'][0])
+        self.assertNotIn('matcher', hooks['PostToolUse'][0])
+        self.assertLessEqual(hooks['Interrupt'][0]['hooks'][0]['timeout'], 3)
+
+    def test_codex_command_styles(self):
+        cases = {
+            'cd repo && rg -n "hello world" src | head -20': 'search',
+            'env TERM=xterm bash -lc "cd repo; rg needle src"': 'search',
+            'bash --norc -lc "rg needle src"': 'search',
+            'FOO=bar /usr/bin/grep needle file': 'search',
+            'cd repo\npython3 -m unittest tests.test_codex': 'test',
+            'uv run --project repo pytest -q': 'test',
+            'pnpm run test:unit': 'test',
+            'cargo test --workspace': 'test',
+            'go test ./...': 'test',
+            'npm run build && echo done': 'build',
+            'cmake --build build': 'build',
+            'git -C repo diff --stat': 'git',
+            'sed -n "1,40p" src/app.py': 'read',
+            'echo "pytest and git are words, not commands"': 'bash',
+            'python3 script.py': 'bash',
+        }
+        for command, expected in cases.items():
+            with self.subTest(command=command):
+                self.assertEqual(codex.classify_command(command), expected)
+
+    def test_search_no_matches_and_real_failures(self):
+        for command, code, expected in [
+            ('cd repo && rg needle src', 1, 'search'),
+            ('grep needle file | head', 1, 'search'),
+            ('rg needle src', 2, 'error'),
+            ('find missing', 1, 'error'),
+            ('pytest -q', 1, 'error'),
+        ]:
+            data = {'hook_event_name': 'PostToolUse', 'tool_name': 'Bash',
+                    'tool_input': {'command': command}, 'tool_response': {'exit_code': code}}
+            result = codex.normalize(data)
+            self.assertEqual(result[0], expected)
+            self.assertEqual(bool(result[1].get('soundbar_no_matches')), expected == 'search')
+
+    def test_mcp_and_patch_failures(self):
+        for tool, response in [
+            ('mcp__docs__read_page', {'isError': True, 'content': [{'type': 'text', 'text': 'Denied'}]}),
+            ('apply_patch', {'success': False, 'error': 'Invalid patch'}),
+            ('read_file', {'error': {'message': 'Missing file'}}),
+        ]:
+            result = codex.normalize({'hook_event_name': 'PostToolUse', 'tool_name': tool,
+                                      'tool_input': {}, 'tool_response': response})
+            self.assertEqual(result[0], 'error')
+            self.assertIn(tool, result[1]['error_message'])
+        self.assertIsNone(codex.normalize({'hook_event_name': 'PostToolUse', 'tool_name': 'apply_patch',
+                                          'tool_response': {'success': True}}))
+
+    def test_tool_categories_and_coordination_silence(self):
+        for tool, expected in [('Read', 'read'), ('mcp__docs__read_page', 'read'),
+                               ('mcp__docs__search', 'search'), ('update_plan', 'plan'),
+                               ('mcp__fs__write_file', 'edit'), ('mcp__browser__click', 'tool')]:
+            self.assertEqual(codex.normalize({'hook_event_name': 'PreToolUse', 'tool_name': tool})[0], expected)
+        for tool in ('write_stdin', 'spawn_agent', 'Agent', 'wait_threads'):
+            self.assertIsNone(codex.normalize({'hook_event_name': 'PreToolUse', 'tool_name': tool}))
+
+    def test_background_shell_is_not_reported_as_complete(self):
+        for response in ({'session_id': 123, 'output': 'still running'},
+                         'Process running with session ID 123\nworking'):
+            self.assertIsNone(codex.normalize({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash',
+                                              'tool_input': {'command': 'pytest'}, 'tool_response': response}))
+        result = codex.normalize({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash',
+                                  'tool_input': {'command': ['bash', '-lc', 'cd repo && pytest -q']},
+                                  'tool_response': {'session_id': 123, 'exit_code': 0}})
+        self.assertEqual(result[0], 'test')
+
+
+class CodexPlaybackTests(unittest.TestCase):
+    """Simulate real hook JSON through the adapter and shell dispatcher."""
+
+    def test_new_senior_events_fall_back_without_overwriting_user_phrases(self):
+        source = Path(SPEC.origin).parent
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            soundbar = root / 'soundbar'
+            soundbar.mkdir()
+            for name in ('play.sh', 'sounds.json', 'config.defaults.json', 'phrases.defaults.json'):
+                shutil.copy2(source / name, soundbar / name)
+            player = root / 'afplay'
+            player.write_text('#!/bin/sh\nexit 0\n')
+            player.chmod(0o755)
+            say = root / 'say'
+            say.write_text(f'#!{sys.executable}\nimport os, sys\nfrom pathlib import Path\nPath(os.environ["SOUNDBAR_TEST_LOG"]).write_text(" ".join(sys.argv[1:]))\nPath(sys.argv[sys.argv.index("-o")+1]).touch()\n')
+            say.chmod(0o755)
+            for index, (phrases, expected) in enumerate([
+                ({'bash': ['Custom shell']}, 'Test command finished'),
+                ({'test': ['My custom checks']}, 'My custom checks'),
+                ({'test': []}, None),
+            ]):
+                user = soundbar / 'phrases.json'
+                user.write_text(json.dumps(phrases))
+                before = user.read_bytes()
+                log = root / f'{index}.txt'
+                env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
+                           FORCE_LAYER='voice', FORCE_VOICE_PROFILE='senior', SOUNDBAR_TEST_LOG=str(log))
+                result = subprocess.run(['/bin/bash', str(soundbar / 'play.sh'), 'test'], input='{}',
+                                        text=True, capture_output=True, env=env, timeout=5)
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(user.read_bytes(), before)
+                if expected:
+                    self.assertIn(expected, log.read_text())
+                else:
+                    self.assertFalse(log.exists())
+
+    def test_generals_codex_events_select_the_correct_audio(self):
+        source = Path(SPEC.origin).parent
+        cases = [
+            ({'hook_event_name': 'SessionEnd'}, ['command_center_offline.aiff']),
+            ({'hook_event_name': 'PreCompact'}, ['consolidating_intel.aiff']),
+            ({'hook_event_name': 'Interrupt'}, ['hold_position.aiff']),
+            ({'hook_event_name': 'UserPromptSubmit', 'prompt': 'Fix tests'}, ['orders_received.aiff']),
+            ({'hook_event_name': 'PreToolUse', 'tool_name': 'read_file'}, ['gathering_intel.aiff']),
+            ({'hook_event_name': 'PreToolUse', 'tool_name': 'update_plan'}, ['battle_plan.aiff']),
+            ({'hook_event_name': 'PreToolUse', 'tool_name': 'mcp__browser__click'}, ['equipment_ready.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'cmd': 'cd repo && uv run pytest -q'}, 'tool_response': {'exit_code': 0}}, ['checks_complete.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'npm run build'}, 'tool_response': {'exit_code': 0}}, ['build_complete.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'git status'}, 'tool_response': {'exit_code': 0}}, ['repository_updated.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'cd repo && rg needle .'}, 'tool_response': {'exit_code': 1}}, ['scanning_area.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'apply_patch', 'tool_response': {'success': False}}, ['unit_lost.aiff']),
+            ({'hook_event_name': 'SubagentStart'}, None),
+            ({'hook_event_name': 'Stop'}, ['construction_complete.aiff']),
+            ({'hook_event_name': 'SessionStart', 'source': 'compact'}, []),
+            ({'hook_event_name': 'PreToolUse', 'tool_name': 'write_stdin'}, []),
+        ]
+        with tempfile.TemporaryDirectory(prefix='codex audio test ') as temp:
+            root = Path(temp)
+            soundbar = root / 'soundbar'
+            soundbar.mkdir()
+            for name in ('play.sh', 'sounds.json', 'config.defaults.json', 'phrases.defaults.json'):
+                shutil.copy2(source / name, soundbar / name)
+            player = root / 'afplay'
+            player.write_text(f'#!{sys.executable}\nimport json, os, sys\nwith open(os.environ["SOUNDBAR_TEST_LOG"], "a") as f:\n f.write(json.dumps(sys.argv[1:])+"\\n")\n')
+            player.chmod(0o755)
+            runner = 'import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); import codex; codex.dispatch(json.load(sys.stdin),Path(sys.argv[2]))'
+            for index, (payload, expected) in enumerate(cases):
+                with self.subTest(event=payload):
+                    log = root / f'{index}.log'
+                    env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
+                               FORCE_LAYER='voice', FORCE_VOICE_PROFILE='generals', SOUNDBAR_TEST_LOG=str(log))
+                    result = subprocess.run([sys.executable, '-c', runner, str(source), str(soundbar)],
+                                            input=json.dumps(payload), text=True, capture_output=True, env=env, timeout=5)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, '')
+                    self.assertEqual(result.stderr, '')
+                    count = 2 if expected is None else len(expected)
+                    deadline = time.monotonic() + (3 if count else .15)
+                    names = []
+                    while time.monotonic() < deadline:
+                        if log.exists():
+                            try:
+                                names = [Path(json.loads(line)[-1]).name for line in log.read_text().splitlines()]
+                            except json.JSONDecodeError:
+                                continue
+                        if count and len(names) >= count:
+                            break
+                        time.sleep(.025)
+                    if expected is None:
+                        variants = json.loads((source / 'sounds.json').read_text())['voice']['generals']['events']['subagent_start']['sequence']
+                        self.assertIn(names, variants)
+                    else:
+                        self.assertEqual(names, expected)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ SOUNDBAR_DIR = REPO_ROOT / "soundbar"
 ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
     "subagent_start", "subagent_stop", "session_start", "compact",
+    "read", "tool", "plan", "test", "build", "git",
+    "pre_compact", "session_end", "interrupt",
     "user_prompt",
 }
 
@@ -107,7 +109,7 @@ class TestPlayShEvents:
     """Events in play.sh must be consistent with sounds.json."""
 
     def test_event_header_lists_all_events(self, play_script):
-        """The comment header should list all 11 events."""
+        """The comment header should list all 20 events."""
         # Comment: # Events: stop, edit, bash, search, ...
         m = re.search(r"# Events: (.+)", play_script)
         assert m, "Could not find Events comment in play.sh"
@@ -119,7 +121,7 @@ class TestPlayShEvents:
         )
 
     def test_manifest_events_are_valid(self, sounds_json):
-        """All events in sounds.json should be from the known 10 events."""
+        """All events in sounds.json should be from the known events."""
         for layer in ("effects", "voice"):
             for prof_name, profile in sounds_json[layer].items():
                 for event in profile.get("events", {}).keys():

@@ -10,9 +10,8 @@
     "Writing code"
   ],
   "bash": [
-    "Accessing OS",
-    "SQL injection",
-    "Running command"
+    "Command finished",
+    "Shell command complete"
   ],
   "search": [
     "Searching",
@@ -29,18 +28,48 @@
     "something failed"
   ],
   "subagent_start": [
-    ["Look into this", "On it"],
-    ["Hey, check this out", "I'm on it"],
-    ["Need your help here", "Let me see"],
-    ["Can you handle this?", "Sure thing"],
-    ["Dig into this", "Already on it"]
+    [
+      "Look into this",
+      "On it"
+    ],
+    [
+      "Hey, check this out",
+      "I'm on it"
+    ],
+    [
+      "Need your help here",
+      "Let me see"
+    ],
+    [
+      "Can you handle this?",
+      "Sure thing"
+    ],
+    [
+      "Dig into this",
+      "Already on it"
+    ]
   ],
   "subagent_stop": [
-    ["Done", "Got it"],
-    ["Here you go", "Perfect"],
-    ["All set", "Thanks"],
-    ["Found it", "Nice work"],
-    ["That's done", "Let's move on"]
+    [
+      "Done",
+      "Got it"
+    ],
+    [
+      "Here you go",
+      "Perfect"
+    ],
+    [
+      "All set",
+      "Thanks"
+    ],
+    [
+      "Found it",
+      "Nice work"
+    ],
+    [
+      "That's done",
+      "Let's move on"
+    ]
   ],
   "session_start": [
     "Hi there",
@@ -49,7 +78,40 @@
     "Keep calm"
   ],
   "compact": [
-    "Compacting memory",
-    "What a trash?"
+    "Context compacted",
+    "Conversation context updated"
+  ],
+  "user_prompt": [
+    "Task received",
+    "Ready to begin"
+  ],
+  "read": [
+    "Inspecting files",
+    "Reading project context"
+  ],
+  "tool": [
+    "Using a tool"
+  ],
+  "plan": [
+    "Updating the plan"
+  ],
+  "test": [
+    "Test command finished"
+  ],
+  "build": [
+    "Build command finished"
+  ],
+  "git": [
+    "Git command finished"
+  ],
+  "pre_compact": [
+    "Preparing to compact context"
+  ],
+  "session_end": [
+    "Session closed"
+  ],
+  "interrupt": [
+    "Paused",
+    "Holding position"
   ]
 }
