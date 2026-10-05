@@ -565,6 +565,7 @@
 </div>
 
 <div class="spacing-settings" id="spacingSettings"></div>
+<div class="spacing-settings" id="codexSettings"></div>
 
 <!-- Event mixer table -->
 <div class="mixer"><table>
@@ -627,6 +628,7 @@ function render() {
   renderEffectsChannel();
   renderVoiceChannel();
   renderSpacingSettings();
+  renderCodexSettings();
   renderMixer();
   renderPhrasesVisibility();
   renderNarratorVisibility();
@@ -659,6 +661,20 @@ function renderSpacingSettings() {
       await api('POST', '/api/config', { [key]: S[key] });
     };
   }
+}
+
+function renderCodexSettings() {
+  const enabled = S.codex_permission_sound_on !== false;
+  document.getElementById('codexSettings').innerHTML = `
+    <div class="spacing-top">
+      <label class="toggle"><input type="checkbox" id="codexPermissionSoundOn" aria-label="Play Codex approval sounds" ${enabled ? 'checked' : ''}><span class="toggle-track"></span></label>
+      <span>Play Codex approval sounds</span>
+    </div>
+    <p class="spacing-hint">Turn off to silence approval effects, voice, and narration in all Codex chats. This is a manual preference; it does not change Codex permissions. Previews always play.</p>`;
+  document.getElementById('codexPermissionSoundOn').onchange = async e => {
+    S.codex_permission_sound_on = e.target.checked;
+    await api('POST', '/api/config', { codex_permission_sound_on: S.codex_permission_sound_on });
+  };
 }
 
 // ── Helpers ──

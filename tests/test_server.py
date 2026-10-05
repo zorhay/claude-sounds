@@ -7,7 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -183,6 +183,24 @@ class TestGetStatus:
             "bash", "tool", "plan", "test", "build", "git", "permission", "error",
             "subagent_start", "subagent_stop", "pre_compact", "compact", "stop", "interrupt",
         }
+
+
+class TestCodexApprovalPreference:
+    def test_mixer_config_persists_preference_and_preserves_other_settings(self, tmp_path):
+        import server
+        config = tmp_path / 'config.json'
+        config.write_text('{"voice_profile": "generals", "voice_on": true}')
+        handler = Mock()
+        with patch.object(server, 'CONFIG_FILE', config):
+            assert server.get_status()['codex_permission_sound_on'] is True
+            for enabled in (False, True):
+                server.Handler._handle_post(handler, '/api/config', {'codex_permission_sound_on': enabled})
+                saved = json.loads(config.read_text())
+                assert saved['codex_permission_sound_on'] is enabled
+                assert saved['voice_profile'] == 'generals'
+                assert saved['voice_on'] is True
+                assert handler.json_response.call_args.args[0]['ok'] is True
+                assert server.get_status()['codex_permission_sound_on'] is enabled
 
 
 class TestGetPython3:

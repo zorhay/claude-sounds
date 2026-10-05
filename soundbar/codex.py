@@ -238,6 +238,15 @@ def dispatch(data, soundbar):
     if result is None:
         return
     event, payload = result
+    if event == "permission":
+        # Manual audio preference only; never change Codex's approval flow.
+        # Missing settings in existing installs keep approval cues enabled.
+        try:
+            config = json.loads((soundbar / "config.json").read_text())
+        except (OSError, ValueError):
+            config = {}
+        if isinstance(config, dict) and config.get("codex_permission_sound_on") is False:
+            return
     # Close captured output: background playback must not hold Codex's pipes
     # open or send narration/debug output back into the agent conversation.
     subprocess.run(

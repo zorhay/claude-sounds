@@ -1,5 +1,6 @@
 {
   "python3_path": "/usr/bin/python3",
+  "codex_permission_sound_on": true,
   "sound_spacing_on": true,
   "effects_cooldown_ms": 750,
   "voice_cooldown_ms": 3000,

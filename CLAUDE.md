@@ -79,6 +79,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 - Hook tag: any hook containing `soundbar/play.sh` is ours.
 - Codex hook tag: `soundbar/codex.py`. All 12 Codex hook events are registered. Shell, patch, and MCP failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
 - `server.py` uses unified `/api/config` POST — send any subset of keys.
+- `codex_permission_sound_on` defaults to true. The Codex adapter reads it from Soundbar's `config.json` on each approval hook; false suppresses the entire approval cue without changing Codex permissions. Other events, Claude Code hooks, and direct panel previews are unaffected.
 - `/api/play` takes `{layer, profile, event}` and plays sounds directly (no shell script).
 - `/api/narrator-check` tests provider connectivity, `/api/narrator-test` generates and speaks a test narration.
 - Volume: `afplay -v` for file-based, `vol` effect for sox, render-to-temp for TTS.

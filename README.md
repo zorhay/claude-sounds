@@ -75,6 +75,19 @@ Both apps share `~/.claude/soundbar/config.json` and the existing control panel.
 Remove the Codex hooks before uninstalling Soundbar itself. This integration
 requires local macOS playback and a Codex version with lifecycle hook support.
 
+#### Codex approval sounds
+
+The mixer includes **Play Codex approval sounds**, enabled by default. Turn it
+off when you want quiet approval processing, for example when using Codex's
+“Approve for me.” This is a manual preference shared by all Codex chats; it
+does not detect or change the active Codex approval mode.
+
+Disabling it silences effects, voice, and narrator audio for Codex approval
+requests. Other Codex events, Claude Code approval cues, and the panel's manual
+previews keep working. The setting takes effect on the next hook without
+reinstalling hooks or restarting the chat. You can also set
+`"codex_permission_sound_on": false` in Soundbar's `config.json`.
+
 #### Generals voice profile
 
 Generals works with Codex through the same sound manifest and 38 local AIFF

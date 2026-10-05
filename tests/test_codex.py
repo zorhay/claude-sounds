@@ -64,6 +64,43 @@ class CodexTests(unittest.TestCase):
         self.assertEqual(run.call_args.kwargs["stdout"], subprocess.DEVNULL)
         self.assertEqual(run.call_args.kwargs["stderr"], subprocess.DEVNULL)
 
+    def test_permission_cues_default_on_for_existing_or_invalid_config(self):
+        configs = [None, '{}', '{"codex_permission_sound_on": true}', 'broken',
+                   '[]', 'null', '{"codex_permission_sound_on": "false"}']
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for config in configs:
+                with self.subTest(config=config):
+                    if config is not None:
+                        (root / 'config.json').write_text(config)
+                    with patch.object(codex.subprocess, 'run') as run:
+                        codex.dispatch({'hook_event_name': 'PermissionRequest'}, root)
+                    run.assert_called_once()
+                    self.assertEqual(run.call_args.args[0][-1], 'permission')
+
+    def test_permission_mute_is_live_and_keeps_other_feedback(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = root / 'config.json'
+            permission = {'hook_event_name': 'PermissionRequest', 'session_id': 'one'}
+            with patch.object(codex.subprocess, 'run') as run:
+                config.write_text('{"codex_permission_sound_on": true}')
+                codex.dispatch(permission, root)
+                self.assertEqual(run.call_count, 1)
+                config.write_text('{"codex_permission_sound_on": false}')
+                for session in ('one', 'two'):
+                    codex.dispatch({**permission, 'session_id': session}, root)
+                self.assertEqual(run.call_count, 1)
+                codex.dispatch({'hook_event_name': 'Stop'}, root)
+                codex.dispatch({'hook_event_name': 'PreToolUse', 'tool_name': 'read_file'}, root)
+                codex.dispatch({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash',
+                    'tool_input': {'command': 'pytest'}, 'tool_response': {'exit_code': 1}}, root)
+                self.assertEqual([call.args[0][-1] for call in run.call_args_list],
+                                 ['permission', 'stop', 'read', 'error'])
+                config.write_text('{"codex_permission_sound_on": true}')
+                codex.dispatch(permission, root)
+                self.assertEqual(run.call_count, 5)
+
     def test_install_idempotence_backup_and_surgical_uninstall(self):
         with tempfile.TemporaryDirectory(prefix="soundbar codex ") as temp:
             root = Path(temp)
@@ -182,6 +219,41 @@ class CodexTests(unittest.TestCase):
 
 class CodexPlaybackTests(unittest.TestCase):
     """Simulate real hook JSON through the adapter and shell dispatcher."""
+
+    def test_permission_mute_skips_codex_audio_but_shared_engine_still_plays(self):
+        source = Path(SPEC.origin).parent
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            soundbar = root / 'soundbar'
+            soundbar.mkdir()
+            for name in ('play.sh', 'sounds.json', 'config.defaults.json'):
+                shutil.copy2(source / name, soundbar / name)
+            (soundbar / 'config.json').write_text(json.dumps({
+                'codex_permission_sound_on': False, 'effects_on': True,
+                'effects_profile': 'default', 'voice_on': True, 'voice_profile': 'generals',
+            }))
+            log = root / 'audio.log'
+            player = root / 'afplay'
+            player.write_text(f'#!{sys.executable}\nimport os,sys\nwith open(os.environ["SOUNDBAR_TEST_LOG"],"a") as f: f.write(sys.argv[-1]+"\\n")\n')
+            player.chmod(0o755)
+            env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
+                       SOUNDBAR_TEST_LOG=str(log))
+            runner = 'import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); import codex; codex.dispatch(json.load(sys.stdin),Path(sys.argv[2]))'
+            result = subprocess.run([sys.executable, '-c', runner, str(source), str(soundbar)],
+                input='{"hook_event_name":"PermissionRequest"}', env=env,
+                text=True, capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, '')
+            self.assertEqual(result.stderr, '')
+            self.assertFalse(log.exists())
+            # Claude Code hooks call the engine directly. It ignores this
+            # adapter preference; the panel's previews also bypass the adapter.
+            for overrides in ({}, {'FORCE_LAYER': 'voice', 'FORCE_VOICE_PROFILE': 'generals'}):
+                result = subprocess.run(['/bin/bash', str(soundbar / 'play.sh'), 'permission'],
+                    input='{"hook_event_name":"PermissionRequest"}', env={**env, **overrides},
+                    text=True, capture_output=True, timeout=5)
+                self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(len(log.read_text().splitlines()), 3)
 
     def test_new_senior_events_fall_back_without_overwriting_user_phrases(self):
         source = Path(SPEC.origin).parent

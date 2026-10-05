@@ -50,13 +50,14 @@ EVENTS = [
 DIALOGUE_EVENTS = {"subagent_start", "subagent_stop"}
 VOICE_PROFILES = ["senior", "narrator", "generals"]
 
-CONFIG_KEYS = {"python3_path", "effects_on", "effects_profile", "effects_volume", "voice_on", "voice_profile", "voice_volume", "voice_main", "voice_sub", "tts_engine", "kokoro_voice", "narrator_provider", "narrator_model", "narrator_api_key", "narrator_style", "narrator_deep_context", "sound_spacing_on", "effects_cooldown_ms", "voice_cooldown_ms"}
+CONFIG_KEYS = {"python3_path", "effects_on", "effects_profile", "effects_volume", "voice_on", "voice_profile", "voice_volume", "voice_main", "voice_sub", "tts_engine", "kokoro_voice", "narrator_provider", "narrator_model", "narrator_api_key", "narrator_style", "narrator_deep_context", "sound_spacing_on", "effects_cooldown_ms", "voice_cooldown_ms", "codex_permission_sound_on"}
 
 
 # ── Config ──
 
 DEFAULTS = {
     "python3_path": "/usr/bin/python3",
+    "codex_permission_sound_on": True,
     "sound_spacing_on": True, "effects_cooldown_ms": 750, "voice_cooldown_ms": 3000,
     "effects_on": True, "effects_profile": "default", "effects_volume": 100,
     "voice_on": False, "voice_profile": "senior", "voice_volume": 100,

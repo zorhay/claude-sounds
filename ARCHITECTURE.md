@@ -422,6 +422,15 @@ replacement after backing up an existing file to `hooks.json.soundbar-backup`.
 An unchanged reinstall does not duplicate hooks or replace the backup.
 `config.toml`, existing `notify` commands, and hook trust are not modified.
 
+The mixer preference `codex_permission_sound_on` defaults to `true`. On every
+`PermissionRequest`, the adapter reads Soundbar's `config.json` and skips the
+entire playback dispatch only when the value is the JSON boolean `false`.
+Missing, unreadable, or invalid config keeps cues enabled. This filters audio
+before effects, voice, or narrator work starts; it emits no approval decision.
+The setting is shared by all Codex chats, applies on the next hook, and does
+not inspect Codex approval modes. Claude Code hooks and direct panel previews
+use the shared engine independently of this adapter preference.
+
 Hook commands use absolute, shell-quoted paths to Python and the installed
 adapter, with a five-second timeout (three seconds for `Interrupt`). Codex requires users to review and trust
 the definitions via `/hooks` before execution. Start a new chat after setup.
