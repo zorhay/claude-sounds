@@ -135,6 +135,32 @@ Surgically removes only soundbar hooks from `settings.json`. All other hooks and
 
 Opens a mixer UI in the browser. Server runs in the foreground — Ctrl+C stops it.
 
+### Reduce repeated sounds
+
+The mixer enables **Reduce repeated sounds** by default. A shared playback gate
+coordinates hooks from both agents, so simultaneous events cannot independently
+launch the same cue. The first cue plays immediately; suppressed events are
+dropped instead of queued for later.
+
+- Effects repeat gap: **0.75 seconds**; voice repeat gap: **3 seconds**, adjustable
+  from 0–10 seconds in the mixer.
+- Routine clips reused by different event categories share their repeat window.
+  Different routine cues are also spaced by up to 150 ms for effects and 1.5 s
+  for voice, reducing chatter when event types alternate.
+- Approval, error, turn completion, and interruption bypass the routine spacing
+  budget. Identical important cues are still deduplicated for up to 0.5 s for
+  effects and 1 s for voice.
+- Manual previews always play. Disable the toggle to restore every-event playback.
+
+Repeat windows are measured from the last accepted cue, so a long burst can
+produce occasional feedback rather than indefinite silence. Per-session repeat
+tracking and a shared per-layer spacing budget keep parallel chats manageable.
+This reduces overlap; it does not wait for every clip or spoken line to finish.
+
+Settings: `sound_spacing_on`, `effects_cooldown_ms`, `voice_cooldown_ms` in
+`config.json`. Existing installations pick up defaults without changing user
+settings. Runtime timestamps are stored in a locked temporary state file.
+
 ### CLI
 
 ```bash
@@ -227,6 +253,7 @@ install-codex.sh              # Connect/remove Codex hooks (--dry-run, --uninsta
 uninstall.sh → soundbar/...   # Symlink to uninstaller
 soundbar/                     # Installed to ~/.claude/soundbar/ (1:1 copy)
 ├── play.sh                   # Sound engine (hooks call this)
+├── playback_gate.py          # Concurrent hook deduplication and sound spacing
 ├── codex.py                  # Codex hook installer and event adapter
 ├── narrate.py                # Narrator engine (LLM + TTS)
 ├── sounds.json               # Sound manifest (single source of truth)

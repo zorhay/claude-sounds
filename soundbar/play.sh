@@ -64,6 +64,16 @@ PHRASES="$SND/phrases.json"
 [ "$FORCE_LAYER" = "effects" ] && VOICE_ON="off"
 [ "$FORCE_LAYER" = "voice" ] && EFFECTS_ON="off"
 
+# Coordinate independently launched hooks. Manual previews always play.
+if [ -z "$FORCE_LAYER$FORCE_EFFECTS_PROFILE$FORCE_VOICE_PROFILE" ] && \
+   [ -f "$SND/playback_gate.py" ] && { [ "$EFFECTS_ON" = "on" ] || [ "$VOICE_ON" = "on" ]; }; then
+  GATED=$(printf '%s' "$STDIN_DATA" | "$PYTHON3" "$SND/playback_gate.py" \
+    "$SND" "$EVENT" "$EFFECTS_ON" "$EFFECTS_PROFILE" "$VOICE_ON" "$VOICE_PROFILE")
+  case "$GATED" in
+    'on on'|'on off'|'off on'|'off off') read -r EFFECTS_ON VOICE_ON <<< "$GATED" ;;
+  esac
+fi
+
 # ═══════════════════════════════════════════════════════
 # play_sound — dispatch one layer via sounds.json
 # ═══════════════════════════════════════════════════════

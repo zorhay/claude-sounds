@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Shared playback gate for concurrent hook bursts, per-session sound cooldowns, separate effects/voice spacing, and responsive important cues.
+- Mixer controls for repetition reduction and adjustable cooldowns, with preview bypass and concurrency/playback regression tests.
 - Complete Codex lifecycle coverage, broad local/MCP tool routing, compound command categories (test/build/Git/read/search), and normal no-match search handling.
 - Ten Codex-oriented Generals clips, new mixer events, senior phrase fallbacks, Codex-aware narration, and end-to-end event playback tests.
 - Codex desktop/CLI integration: `install-codex.sh` and `soundbar/codex.py` connect lifecycle hooks to the shared sound engine, including Generals playback and narrator payload normalization.

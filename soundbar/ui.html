@@ -46,6 +46,12 @@
     text-transform: uppercase;
   }
   .tagline { font-size: 11px; color: var(--fg3); font-style: italic; }
+  .spacing-settings { margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); }
+  .spacing-top { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .spacing-hint { margin: 6px 0 10px; font-size: 11px; color: var(--fg2); }
+  .spacing-sliders { display: flex; gap: 24px; flex-wrap: wrap; }
+  .spacing-sliders label { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .spacing-sliders input { width: 130px; accent-color: var(--accent); }
 
   /* ── Channel strips ── */
   .channels {
@@ -558,6 +564,8 @@
   <div class="channel" id="voiceChannel"></div>
 </div>
 
+<div class="spacing-settings" id="spacingSettings"></div>
+
 <!-- Event mixer table -->
 <div class="mixer"><table>
   <thead><tr>
@@ -618,9 +626,39 @@ async function load() {
 function render() {
   renderEffectsChannel();
   renderVoiceChannel();
+  renderSpacingSettings();
   renderMixer();
   renderPhrasesVisibility();
   renderNarratorVisibility();
+}
+
+function renderSpacingSettings() {
+  const enabled = S.sound_spacing_on !== false;
+  const effects = S.effects_cooldown_ms ?? 750;
+  const voice = S.voice_cooldown_ms ?? 3000;
+  document.getElementById('spacingSettings').innerHTML = `
+    <div class="spacing-top">
+      <label class="toggle"><input type="checkbox" id="spacingOn" aria-label="Reduce repeated sounds" ${enabled ? 'checked' : ''}><span class="toggle-track"></span></label>
+      <span>Reduce repeated sounds</span>
+    </div>
+    <p class="spacing-hint">Play the first cue immediately, then skip rapid repeats. Approval, error, completion, and pause cues stay responsive. Previews always play.</p>
+    <div class="spacing-sliders">
+      <label>Effects repeat gap <input id="effectsCooldown" type="range" min="0" max="10000" step="250" value="${effects}" ${enabled ? '' : 'disabled'}><output id="effectsCooldownValue">${(effects / 1000).toFixed(2)}s</output></label>
+      <label>Voice repeat gap <input id="voiceCooldown" type="range" min="0" max="10000" step="250" value="${voice}" ${enabled ? '' : 'disabled'}><output id="voiceCooldownValue">${(voice / 1000).toFixed(2)}s</output></label>
+    </div>`;
+  document.getElementById('spacingOn').onchange = async e => {
+    S.sound_spacing_on = e.target.checked;
+    await api('POST', '/api/config', { sound_spacing_on: S.sound_spacing_on });
+    renderSpacingSettings();
+  };
+  for (const [id, key] of [['effectsCooldown', 'effects_cooldown_ms'], ['voiceCooldown', 'voice_cooldown_ms']]) {
+    const input = document.getElementById(id);
+    input.oninput = e => { document.getElementById(id + 'Value').textContent = (Number(e.target.value) / 1000).toFixed(2) + 's'; };
+    input.onchange = async e => {
+      S[key] = Number(e.target.value);
+      await api('POST', '/api/config', { [key]: S[key] });
+    };
+  }
 }
 
 // ── Helpers ──

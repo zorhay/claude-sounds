@@ -80,6 +80,32 @@ config.json → jq → EFFECTS_ON, EFFECTS_PROFILE, EFFECTS_VOL,
 - `FORCE_EFFECTS_PROFILE=<name>` — override effects profile
 - `FORCE_VOICE_PROFILE=<name>` — override voice profile
 
+**Playback spacing:**
+
+Before dispatching live hook audio, `play.sh` calls `playback_gate.py` to reserve
+effects and voice independently. The gate uses an interprocess `flock` and an
+atomic state-file replacement in a per-user, per-installation temporary directory.
+Lock acquisition waits at most 100 ms, then allows playback rather than holding
+up a cue behind a stalled process.
+Timestamps use `clock_gettime(CLOCK_MONOTONIC)`, which is shared across processes
+even on macOS Python 3.9; `time.monotonic()` on that version has process-local
+origins and cannot coordinate hook subprocesses correctly.
+
+Ordinary events have a per-session/profile/sound repeat window (750 ms effects,
+3000 ms voice) plus a global per-layer spacing budget (up to 150 ms effects,
+1500 ms voice). Shared sound specs deduplicate even when event names differ.
+`permission`, `error`, `stop`, and `interrupt` bypass the routine budget, with
+short event-specific repeat windows of up to 500/1000 ms. Only accepted cues
+advance timestamps; suppressed cues are dropped without queueing. Entries are
+pruned after 60 seconds. Missing sound mappings do not consume a playback budget.
+State contains hashed identifiers and timestamps, not hook context.
+
+Manual `FORCE_*` previews and the panel's direct playback bypass the gate. Users
+can disable or adjust spacing through the mixer. Config/state failures leave
+the original playback behavior available. This is a rate limit, not an audio
+queue or a guarantee that long speech cannot overlap. Burst tests cover actual
+concurrent subprocess reservations and the full shell playback path.
+
 ### 2.1.1 sounds.json — Sound Manifest
 
 **Purpose:** Single source of truth for all sound mappings. Read by both `play.sh` (hooks) and `server.py` (UI).

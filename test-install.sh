@@ -29,7 +29,7 @@ echo "Target: $DEST"
 # ── Files ──
 
 printf '\n\033[1mFiles\033[0m\n'
-for f in play.sh server.py integrations.py narrate.py kokoro_server.py ui.html panel.sh switch.sh sounds.json \
+for f in play.sh playback_gate.py server.py integrations.py narrate.py kokoro_server.py ui.html panel.sh switch.sh sounds.json \
          config.defaults.json phrases.defaults.json; do
   check "$f" test -f "$DEST/$f"
 done
