@@ -269,9 +269,10 @@ class CodexPlaybackTests(unittest.TestCase):
             say = root / 'say'
             say.write_text(f'#!{sys.executable}\nimport os, sys\nfrom pathlib import Path\nPath(os.environ["SOUNDBAR_TEST_LOG"]).write_text(" ".join(sys.argv[1:]))\nPath(sys.argv[sys.argv.index("-o")+1]).touch()\n')
             say.chmod(0o755)
+            default_test_phrases = json.loads((soundbar / 'phrases.defaults.json').read_text())['test']
             for index, (phrases, expected) in enumerate([
-                ({'bash': ['Custom shell']}, 'Test command finished'),
-                ({'test': ['My custom checks']}, 'My custom checks'),
+                ({'bash': ['Custom shell']}, default_test_phrases),
+                ({'test': ['My custom checks']}, ['My custom checks']),
                 ({'test': []}, None),
             ]):
                 user = soundbar / 'phrases.json'
@@ -285,7 +286,8 @@ class CodexPlaybackTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0)
                 self.assertEqual(user.read_bytes(), before)
                 if expected:
-                    self.assertIn(expected, log.read_text())
+                    spoken = log.read_text()
+                    self.assertTrue(any(f' {phrase} -o ' in spoken for phrase in expected), spoken)
                 else:
                     self.assertFalse(log.exists())
 

@@ -2,30 +2,46 @@
   "stop": [
     "Done",
     "Finished",
-    "All set"
+    "All set",
+    "That wraps it up",
+    "Ready for your review",
+    "Over to you"
   ],
   "edit": [
     "Implementing",
     "Scaffolding",
-    "Writing code"
+    "Writing code",
+    "Making the change",
+    "Working on the code",
+    "Putting this together"
   ],
   "bash": [
     "Command finished",
-    "Shell command complete"
+    "Shell command complete",
+    "That command is done",
+    "Back from the shell"
   ],
   "search": [
     "Searching",
     "Where is it",
-    "Let's find that"
+    "Let's find that",
+    "Looking for a match",
+    "Tracking that down",
+    "Checking where this lives"
   ],
   "permission": [
     "Need your approval",
     "Do you agree?",
-    "Hey, look at this"
+    "Hey, look at this",
+    "Can I go ahead?",
+    "Your call on this one",
+    "Take a look before I proceed"
   ],
   "error": [
     "Something went wrong",
-    "something failed"
+    "something failed",
+    "That hit a snag",
+    "We have an issue here"
   ],
   "subagent_start": [
     [
@@ -47,6 +63,26 @@
     [
       "Dig into this",
       "Already on it"
+    ],
+    [
+      "Take a closer look",
+      "Will do"
+    ],
+    [
+      "Check this for me",
+      "Taking a look"
+    ],
+    [
+      "Mind picking this up?",
+      "Leave it with me"
+    ],
+    [
+      "Give me a second opinion",
+      "Let's have a look"
+    ],
+    [
+      "Can you investigate?",
+      "I'll check it out"
     ]
   ],
   "subagent_stop": [
@@ -69,49 +105,88 @@
     [
       "That's done",
       "Let's move on"
+    ],
+    [
+      "Back with the results",
+      "Let's take a look"
+    ],
+    [
+      "My part is finished",
+      "Thanks for the help"
+    ],
+    [
+      "Report is ready",
+      "I'll review it"
+    ],
+    [
+      "Checked it over",
+      "Good, thank you"
+    ],
+    [
+      "Here's what I found",
+      "Let's go through it"
     ]
   ],
   "session_start": [
     "Hi there",
     "Let's do that",
     "what's on your mind",
-    "Keep calm"
+    "Keep calm",
+    "Let's get started",
+    "Ready when you are",
+    "What are we working on?",
+    "Let's take a look"
   ],
   "compact": [
     "Context compacted",
-    "Conversation context updated"
+    "Conversation context updated",
+    "Context trimmed down",
+    "Conversation condensed"
   ],
   "user_prompt": [
     "Task received",
-    "Ready to begin"
+    "Ready to begin",
+    "Got the request",
+    "Let's work on that"
   ],
   "read": [
     "Inspecting files",
-    "Reading project context"
+    "Reading project context",
+    "Taking a closer look",
+    "Checking the source"
   ],
   "tool": [
-    "Using a tool"
+    "Using a tool",
+    "Calling a tool"
   ],
   "plan": [
-    "Updating the plan"
+    "Updating the plan",
+    "Adjusting the next steps"
   ],
   "test": [
-    "Test command finished"
+    "Test command finished",
+    "Test run complete"
   ],
   "build": [
-    "Build command finished"
+    "Build command finished",
+    "Build command complete"
   ],
   "git": [
-    "Git command finished"
+    "Git command finished",
+    "Git operation complete"
   ],
   "pre_compact": [
-    "Preparing to compact context"
+    "Preparing to compact context",
+    "Making room in the context"
   ],
   "session_end": [
-    "Session closed"
+    "Session closed",
+    "Signing off"
   ],
   "interrupt": [
     "Paused",
-    "Holding position"
+    "Holding position",
+    "Stopping here",
+    "Waiting for your next move"
   ]
 }
