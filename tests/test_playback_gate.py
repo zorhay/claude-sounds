@@ -38,7 +38,7 @@ class PlaybackBudgetTests(unittest.TestCase):
     def test_important_cues_bypass_routine_budget_but_deduplicate(self):
         state = {}
         self.assertTrue(self.admit(state, 100))
-        for index, event in enumerate(('permission', 'error', 'stop', 'interrupt')):
+        for index, event in enumerate(('permission', 'error', 'stop', 'interrupt', 'git_commit', 'git_push')):
             now = 100.1 + index * .1
             self.assertTrue(self.admit(state, now, event=event))
             self.assertFalse(self.admit(state, now + .01, event=event))

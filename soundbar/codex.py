@@ -99,6 +99,38 @@ def command_segments(command, depth=0):
     return result
 
 
+def git_command_kind(args):
+    """Find the subcommand after Git global options without executing Git."""
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == '--':
+            index += 1
+            break
+        if not arg.startswith('-'):
+            break
+        if arg in ('--help', '-h', '--version', '-v'):
+            return 'git'
+        if arg in ('-C', '-c', '--git-dir', '--work-tree', '--namespace',
+                   '--super-prefix', '--config-env', '--exec-path'):
+            index += 2
+        else:
+            index += 1
+    if index >= len(args):
+        return 'git'
+    subcommand = args[index]
+    options = args[index + 1:]
+    # Preview and help commands must never announce a saved commit or push.
+    if any(arg in ('--dry-run', '--help', '-h') for arg in options):
+        return 'git'
+    if subcommand == 'push' and any(arg.startswith('-') and not arg.startswith('--') and 'n' in arg for arg in options):
+        return 'git'  # -n means --dry-run for push, but --no-verify for commit.
+    if subcommand == 'commit' and any(arg in ('--short', '--porcelain', '--long') for arg in options):
+        return 'git'  # These status formats imply --dry-run.
+    return {'status': 'git_status', 'log': 'git_history', 'show': 'git_history',
+            'reflog': 'git_history', 'commit': 'git_commit', 'push': 'git_push'}.get(subcommand, 'git')
+
+
 def classify_command(command):
     kinds = []
     for words in command_segments(command):
@@ -113,7 +145,7 @@ def classify_command(command):
         elif executable in ("make", "cmake", "ninja", "tsc", "webpack", "vite") or executable in ("npm", "pnpm", "yarn", "bun", "cargo", "go", "dotnet", "mvn", "gradle") and any(a in ("build", "compile", "package", "install") or a.startswith("build:") for a in args):
             kind = "build"
         elif executable == "git":
-            kind = "git"
+            kind = git_command_kind(args)
         elif executable in ("rg", "grep", "egrep", "fgrep", "find", "fd"):
             kind = "search"
         elif executable in ("cat", "head", "tail", "sed", "awk", "less", "more", "ls", "tree", "wc", "stat", "file"):
@@ -121,7 +153,9 @@ def classify_command(command):
         else:
             kind = "bash"
         kinds.append(kind)
-    priority = {"bash": 0, "read": 1, "search": 2, "git": 3, "build": 4, "test": 5}
+    priority = {"bash": 0, "read": 1, "search": 2, "git_status": 3,
+                "git_history": 4, "git": 5, "build": 6, "test": 7,
+                "git_commit": 8, "git_push": 9}
     return max(kinds, key=priority.get) if kinds else "bash"
 
 
@@ -229,6 +263,8 @@ def normalize(data):
         return "error", data
     if no_matches:
         data["soundbar_no_matches"] = True
+    if code is None and kind in ('git_commit', 'git_push'):
+        kind = 'git'  # No explicit success status: avoid claiming a mutation succeeded.
     data["soundbar_event"] = kind
     return kind, data
 

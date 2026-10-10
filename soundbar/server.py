@@ -44,6 +44,7 @@ EVENTS = [
     "permission", "error", "subagent_start",
     "subagent_stop", "compact", "stop", "user_prompt",
     "read", "tool", "plan", "test", "build", "git",
+    "git_status", "git_history", "git_commit", "git_push",
     "pre_compact", "session_end", "interrupt",
 ]
 

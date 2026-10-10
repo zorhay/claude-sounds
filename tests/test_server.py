@@ -181,6 +181,7 @@ class TestGetStatus:
         assert set(status["events"]) == {
             "session_start", "session_end", "user_prompt", "edit", "read", "search",
             "bash", "tool", "plan", "test", "build", "git", "permission", "error",
+            "git_status", "git_history", "git_commit", "git_push",
             "subagent_start", "subagent_stop", "pre_compact", "compact", "stop", "interrupt",
         }
 

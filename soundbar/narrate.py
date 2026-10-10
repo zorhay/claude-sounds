@@ -214,6 +214,8 @@ def build_context(data):
         if tool == "Bash":
             label = _clip(inp.get("description") or inp.get("command", ""), 180)
             verbs = {"test": "Ran tests", "build": "Ran a build", "git": "Ran a Git command",
+                     "git_status": "Checked Git status", "git_history": "Read Git history",
+                     "git_commit": "Created a Git commit", "git_push": "Finished a Git push",
                      "search": "Searched", "read": "Inspected files", "bash": "Ran a shell command"}
             resp = data.get("tool_response") or {}
             code = resp.get("exitCode")

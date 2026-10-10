@@ -2,7 +2,7 @@
 # Soundbar — Claude Code and Codex sound engine
 # Two independent layers: effects + voice
 # Usage: play.sh <event> [stdin: hook JSON]
-# Events: stop, edit, bash, search, permission, error, subagent_start, subagent_stop, session_start, compact, user_prompt, read, tool, plan, test, build, git, pre_compact, session_end, interrupt
+# Events: stop, edit, bash, search, permission, error, subagent_start, subagent_stop, session_start, compact, user_prompt, read, tool, plan, test, build, git, git_status, git_history, git_commit, git_push, pre_compact, session_end, interrupt
 #
 # Sound mappings are read from sounds.json (shared with the web UI).
 # Narration voice profile reads phrases.json (TTS-specific).

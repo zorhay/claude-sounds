@@ -19,6 +19,7 @@ ALL_EVENTS = {
     "subagent_start", "subagent_stop", "session_start", "compact",
     "user_prompt",
     "read", "tool", "plan", "test", "build", "git",
+    "git_status", "git_history", "git_commit", "git_push",
     "pre_compact", "session_end", "interrupt",
 }
 

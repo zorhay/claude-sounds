@@ -18,6 +18,7 @@ ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
     "subagent_start", "subagent_stop", "session_start", "compact",
     "read", "tool", "plan", "test", "build", "git",
+    "git_status", "git_history", "git_commit", "git_push",
     "pre_compact", "session_end", "interrupt",
     "user_prompt",
 }
@@ -109,7 +110,7 @@ class TestPlayShEvents:
     """Events in play.sh must be consistent with sounds.json."""
 
     def test_event_header_lists_all_events(self, play_script):
-        """The comment header should list all 20 events."""
+        """The comment header should list all supported events."""
         # Comment: # Events: stop, edit, bash, search, ...
         m = re.search(r"# Events: (.+)", play_script)
         assert m, "Could not find Events comment in play.sh"

@@ -185,6 +185,50 @@ class CodexTests(unittest.TestCase):
             self.assertEqual(result[0], expected)
             self.assertEqual(bool(result[1].get('soundbar_no_matches')), expected == 'search')
 
+    def test_git_operations_have_distinct_categories(self):
+        cases = {
+            'git status --short': 'git_status',
+            'git -C repo status': 'git_status',
+            'git --git-dir repo/.git --work-tree repo log -5 --oneline': 'git_history',
+            'git -c color.ui=false --no-pager show HEAD': 'git_history',
+            'git --git-dir=repo/.git reflog': 'git_history',
+            'env FOO=bar bash -lc "git -C repo log -3 | head"': 'git_history',
+            'git add file && git commit -m "Fix it" && git status': 'git_commit',
+            'git commit -n -m "Fix it"': 'git_commit',
+            'git commit -m "Fix it" && git push origin main': 'git_push',
+            'pytest && git push && git status': 'git_push',
+            'git status && git log -1': 'git_history',
+            'git diff --stat': 'git',
+            'git fetch origin': 'git',
+            'git custom-alias': 'git',
+            'git push --dry-run': 'git',
+            'git push -nv': 'git',
+            'git commit --dry-run': 'git',
+            'git commit --porcelain': 'git',
+            'git commit --help': 'git',
+            'git --help commit': 'git',
+            'git -C repo': 'git',
+            'echo "git push"': 'bash',
+        }
+        for command, expected in cases.items():
+            with self.subTest(command=command):
+                self.assertEqual(codex.classify_command(command), expected)
+                result = codex.normalize({'hook_event_name': 'PostToolUse', 'tool_name': 'exec_command',
+                                          'tool_input': {'cmd': command}, 'tool_response': {'exit_code': 0}})
+                self.assertEqual(result[0], expected)
+                self.assertEqual(result[1]['soundbar_event'], expected)
+
+    def test_git_mutation_cues_require_success(self):
+        for command in ('git commit -m "Fix it"', 'git push origin main'):
+            for response, expected in (({'exit_code': 1}, 'error'),
+                                       ({'exit_code': 128}, 'error'),
+                                       ({'output': 'No explicit completion status'}, 'git'),
+                                       ({'session_id': 123}, None)):
+                with self.subTest(command=command, response=response):
+                    result = codex.normalize({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash',
+                                              'tool_input': {'command': command}, 'tool_response': response})
+                    self.assertEqual(result[0] if result else None, expected)
+
     def test_mcp_and_patch_failures(self):
         for tool, response in [
             ('mcp__docs__read_page', {'isError': True, 'content': [{'type': 'text', 'text': 'Denied'}]}),
@@ -303,7 +347,10 @@ class CodexPlaybackTests(unittest.TestCase):
             ({'hook_event_name': 'PreToolUse', 'tool_name': 'mcp__browser__click'}, ['equipment_ready.aiff']),
             ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'cmd': 'cd repo && uv run pytest -q'}, 'tool_response': {'exit_code': 0}}, ['checks_complete.aiff']),
             ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'npm run build'}, 'tool_response': {'exit_code': 0}}, ['build_complete.aiff']),
-            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'git status'}, 'tool_response': {'exit_code': 0}}, ['repository_updated.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'git status'}, 'tool_response': {'exit_code': 0}}, ['git_status_checked.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'git log -1'}, 'tool_response': {'exit_code': 0}}, ['git_history_reviewed.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'git commit -m "Fix it"'}, 'tool_response': {'exit_code': 0}}, ['git_commit_created.aiff']),
+            ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'git push && git status'}, 'tool_response': {'exit_code': 0}}, ['git_push_complete.aiff']),
             ({'hook_event_name': 'PostToolUse', 'tool_name': 'Bash', 'tool_input': {'command': 'cd repo && rg needle .'}, 'tool_response': {'exit_code': 1}}, ['scanning_area.aiff']),
             ({'hook_event_name': 'PostToolUse', 'tool_name': 'apply_patch', 'tool_response': {'success': False}}, ['unit_lost.aiff']),
             ({'hook_event_name': 'SubagentStart'}, None),

@@ -188,5 +188,21 @@
     "Holding position",
     "Stopping here",
     "Waiting for your next move"
+  ],
+  "git_status": [
+    "Checked Git status",
+    "Repository status checked"
+  ],
+  "git_history": [
+    "Reviewed Git history",
+    "Finished reading commit history"
+  ],
+  "git_commit": [
+    "Commit created",
+    "Changes committed"
+  ],
+  "git_push": [
+    "Push complete",
+    "Git push finished"
   ]
 }

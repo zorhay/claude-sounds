@@ -16,7 +16,7 @@ import tempfile
 import time
 
 
-IMPORTANT = {"permission", "error", "stop", "interrupt"}
+IMPORTANT = {"permission", "error", "stop", "interrupt", "git_commit", "git_push"}
 DEFAULTS = {"sound_spacing_on": True, "effects_cooldown_ms": 750, "voice_cooldown_ms": 3000}
 
 

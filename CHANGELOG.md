@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Separate Codex Git status, history, commit, and push events with distinct senior phrases and Generals clips; successful commit/push cues bypass routine spacing.
 - Manual mixer toggle for Codex approval sounds, enabled by default; disabling it silences approval effects, voice, and narration without changing Codex permissions.
 - Shared playback gate for concurrent hook bursts, per-session sound cooldowns, separate effects/voice spacing, and responsive important cues.
 - Mixer controls for repetition reduction and adjustable cooldowns, with preview bypass and concurrency/playback regression tests.

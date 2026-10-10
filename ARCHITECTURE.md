@@ -39,7 +39,7 @@ Enabled layers run in parallel (backgrounded subshells) for events with a profil
 **Invocation:** Called directly by Claude Code hooks, or by the Codex adapter: `~/.claude/soundbar/play.sh <event>`
 
 **Input:**
-- `$1` — event name (one of 20 events across both integrations)
+- `$1` — event name (one of 24 events across both integrations)
 - `stdin` — hook JSON from Claude Code or normalized by the Codex adapter. Captured immediately into `$STDIN_DATA` (~1ms). Consumed by the narrator profile (piped to `narrate.py`); drained and discarded for all other profiles.
 
 **Config reading:** Single `jq` call extracts all config values as TSV for speed:
@@ -448,7 +448,7 @@ the definitions via `/hooks` before execution. Start a new chat after setup.
 | `Stop` | Any | `stop` |
 | `PreToolUse` | File edit, read, search, plan, or other local/MCP tool | `edit`, `read`, `search`, `plan`, `tool` |
 | `PostToolUse` | Explicit shell/patch/MCP failure | `error` |
-| `PostToolUse` | Shell command category | `test`, `build`, `git`, `search`, `read`, `bash` |
+| `PostToolUse` | Shell command category | `test`, `build`, `git`, `git_status`, `git_history`, `git_commit`, `git_push`, `search`, `read`, `bash` |
 
 Pre/post tool handlers match every tool, with classification in the adapter.
 Non-shell successes are announced before execution; post-tool hooks detect
@@ -459,8 +459,10 @@ agent spawning, and coordination waits are silent; lifecycle hooks cover agents.
 
 The shell classifier tokenizes compound commands, pipelines, newlines,
 environment assignments, shell `-c` wrappers, and `uv run`. Setup commands such
-as `cd` and `echo` are ignored. Categories prioritize test, build, Git, search,
-read, then generic shell. It never executes shell input. `rg`/`grep` exit 1 is
+as `cd` and `echo` are ignored. Categories prioritize push, commit, test, build, other Git operations, history,
+status, search, read, then generic shell. Git global options are skipped to find
+the subcommand. Commit/push cues require exit code 0; dry-run and help commands
+retain neutral Git audio. Commit and push cues bypass routine playback spacing. It never executes shell input. `rg`/`grep` exit 1 is
 classified as no matches when the command consists of searches/output filters;
 other nonzero statuses remain errors. Hosted tools have no local hook path.
 Failures without explicit result indicators remain undetectable. There are no
@@ -474,7 +476,7 @@ turns, session closure, and normal no-match searches. Turn completion uses the
 last assistant response rather than claiming the entire task is finished. Unknown lifecycle events are ignored; unknown local tool names use generic tool audio. Runtime failures produce no hook output or permission decision.
 The adapter calls `play.sh` with output streams redirected to `/dev/null`, so
 background playback cannot hold Codex's captured pipes open. Playback uses the
-existing layer toggles and volumes, including 38 Generals clips. Effects profiles
+existing layer toggles and volumes, including 42 Generals clips. Effects profiles
 reuse their existing semantic sounds for the new categories; attention and silent
 profiles retain their limited mappings. Missing senior phrase keys fall back to
 shipped defaults; explicit user phrases and empty lists take precedence.

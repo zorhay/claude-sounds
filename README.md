@@ -85,11 +85,12 @@ The adapter registers 12 lifecycle hook events and maps them to these Soundbar c
 | Before and after context compaction | `pre_compact`, `compact` |
 | Patch or file edit, file/context inspection, search | `edit`, `read`, `search` |
 | Plan updates and user-input tools | `plan` |
-| Tests, builds, Git operations, other shell commands | `test`, `build`, `git`, `bash` |
+| Tests, builds, other Git operations, shell commands | `test`, `build`, `git`, `bash` |
+| Git status, commit history, commit creation, push | `git_status`, `git_history`, `git_commit`, `git_push` |
 | Other local and MCP tools | `tool` |
 | Explicit shell, patch, or MCP failure | `error` |
 
-Non-shell tool cues generally play before execution; explicit failure cues play afterward. Shell cues play when the command completes. Mixed shell commands prioritize tests, builds, Git, search, then reads. For `rg` and `grep`, exit code 1 means no matches and keeps the search cue; exit code 2 is an error.
+Non-shell tool cues generally play before execution; explicit failure cues play afterward. Shell cues play when the command completes. Mixed shell commands prioritize pushes, commits, tests, builds, other Git operations, history, status, search, then reads. Git global options such as `-C` and `-c` are recognized. Commit and push cues require an explicit successful exit status; dry runs use the neutral Git cue. For `rg` and `grep`, exit code 1 means no matches and keeps the search cue; exit code 2 is an error.
 
 Pending shell sessions wait for completion. Polling and agent coordination tools stay quiet to avoid duplicate audio. Hosted web searches do not emit local tool hooks, and failures without an explicit error indicator or exit code cannot be reliably detected.
 
@@ -135,13 +136,13 @@ For example, combine paper effects with Generals voice lines:
 ~/.claude/soundbar/switch.sh voice on
 ```
 
-Generals includes 38 local AIFF clips covering all 20 mixer events, including tests, builds, Git operations, approvals, and interruptions.
+Generals includes 42 local AIFF clips covering all 24 mixer events, including tests, builds, Git operations, approvals, and interruptions.
 
 ### Reduce repeated sounds
 
 **Reduce repeated sounds** is on by default. The first cue plays immediately; rapid repeats are skipped instead of queued. Default repeat gaps are **0.75 seconds for effects** and **3 seconds for voice**, adjustable from 0–10 seconds in the mixer.
 
-Approval, error, turn-completion, and interruption cues stay responsive, while near-simultaneous duplicates are still filtered. Manual previews always play. Turn the setting off if you want a cue for every supported event.
+Approval, error, turn-completion, interruption, Git commit, and Git push cues stay responsive, while near-simultaneous duplicates are still filtered. Manual previews always play. Turn the setting off if you want a cue for every supported event.
 
 This helps with busy or parallel chats, but does not wait for each clip or spoken line to finish.
 
