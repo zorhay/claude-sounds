@@ -1,44 +1,81 @@
 # Soundbar
 
-Audio feedback for Claude Code and Codex — three independent, mixable layers: **effects** (sound profiles), **voice** (spoken lines via TTS), and **narrator** (LLM-generated live commentary).
+Hear what your coding assistant is doing without watching every tool call. Soundbar adds sound effects, spoken cues, and optional AI commentary to **Claude Code and local Codex sessions on macOS**.
 
-## Install
+Mix two independently controlled channels:
+
+| Channel | What you hear |
+|---------|---------------|
+| **Effects** | System sounds, paper rustles, chiptunes, sonar, and more |
+| **Voice** | Short spoken phrases, Generals-style voice lines, or AI-generated narration |
+
+Use either channel on its own or combine them. A fresh install starts with macOS system effects enabled and Voice off. Basic effects and spoken cues need no API key.
+
+[Quick start](#quick-start) · [Connect Codex](#connect-codex) · [Choose your sounds](#choose-your-sounds) · [AI narration](#ai-narration-optional) · [Troubleshooting](#troubleshooting) · [Uninstall](#uninstall)
+
+## Quick start
+
+### 1. Check requirements
+
+Soundbar uses macOS's built-in `afplay` and `say` for audio. You also need **jq** and **Python 3**. **SoX** is optional, but required for generated effects such as chiptune, ambient, and minimal.
+
+If you use Homebrew:
 
 ```bash
-git clone <this-repo>
+brew install jq python
+brew install sox          # optional: enables generated effects
+```
+
+### 2. Install Soundbar
+
+```bash
+git clone https://github.com/zorhay/claude-sounds.git
 cd claude-sounds
-./install.sh              # install
-./install.sh --dry-run    # preview what it will do
-./install.sh --dev        # dev mode: symlink, no copy
+bash ./install.sh --dry-run  # optional: preview the changes
+bash ./install.sh
 ```
 
-Copies `soundbar/` → `~/.claude/soundbar/` and injects hooks into `settings.json` (with backup + validation).
+The installer copies Soundbar to `~/.claude/soundbar/`, creates your settings, and adds Claude Code hooks to `~/.claude/settings.json`. It backs up existing Claude settings and preserves unrelated hooks.
 
-### Connect Codex (desktop app and CLI)
+**Using Codex?** Run this base installation first, then follow [Connect Codex](#connect-codex). The base installer also adds Claude Code hooks, even if you only plan to use Codex.
 
-After installing Soundbar, connect the same sounds and mixer settings to local
-Codex desktop and CLI sessions. The base installer also installs Claude Code
-hooks; the Codex installer adds a separate integration:
+### 3. Open the mixer and try a sound
 
 ```bash
-bash ./install-codex.sh --dry-run  # preview
-bash ./install-codex.sh            # install Codex hooks
-bash ./install-codex.sh --uninstall # remove only Soundbar's Codex hooks
+~/.claude/soundbar/panel.sh
 ```
 
-After upgrading, rerun `bash ./install-codex.sh`, review changed/new hooks in
-`/hooks`, and start a new chat. Regenerate Generals clips with the command below
-when upgrading an existing installation.
+The mixer opens at [localhost:8111](http://localhost:8111). Choose an Effects profile, adjust the volume, and click a play button to preview an event. Start a new Claude Code session to hear sounds as you work.
 
-The installer merges into `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`),
-backs up an existing file, and preserves other hooks and `config.toml`, including
-any existing `notify` command. Reinstalling does not duplicate hooks.
+Keep the terminal open while using the mixer; **Ctrl+C** stops its server. Hook sounds continue working when the mixer is closed.
 
-Open `/hooks` in the Codex CLI to review and trust the Soundbar commands, then
-start a new chat. Codex skips untrusted hooks; the installer does not alter hook
-trust. See the [official Codex hook documentation](https://learn.chatgpt.com/docs/hooks).
+## Connect Codex
 
-All 12 Codex hook events are connected. The mixer supports these categories:
+Soundbar can use the same profiles and volumes for local Codex desktop and CLI sessions. You need a Codex version that supports lifecycle hooks.
+
+From the repository folder, after installing Soundbar:
+
+```bash
+bash ./install-codex.sh --dry-run  # optional: preview the changes
+bash ./install-codex.sh
+```
+
+Then open **`/hooks` in the Codex CLI**, review and trust the Soundbar commands, and **start a new chat**. Untrusted hooks will not play sounds.
+
+The installer merges Soundbar hooks into `$CODEX_HOME/hooks.json` (default: `~/.codex/hooks.json`) and backs up an existing file. It preserves other hooks, `config.toml`, and any existing `notify` command. Reinstalling does not duplicate Soundbar hooks or change hook trust.
+
+Both agents share the mixer and `~/.claude/soundbar/config.json`; changes apply to both.
+
+### Quiet approval sounds
+
+Turn off **Play Codex approval sounds** in the mixer to silence approval cues across all Codex chats. This takes effect on the next approval hook without a restart. Other events, Claude Code approval sounds, and manual previews still work.
+
+This is a manual audio preference: it does not detect or change Codex's approval mode, including “Approve for me.”
+
+<details>
+<summary>Codex event coverage and limitations</summary>
+
+The adapter registers 12 lifecycle hook events and maps them to these Soundbar categories:
 
 | Codex activity | Soundbar event |
 |----------------|----------------|
@@ -52,60 +89,123 @@ All 12 Codex hook events are connected. The mixer supports these categories:
 | Other local and MCP tools | `tool` |
 | Explicit shell, patch, or MCP failure | `error` |
 
-Tool names are classified by their operation (for example `read_page`,
-`write_file`, and `search`); unknown local/MCP operations use the generic tool
-sound. Successful non-shell tools sound before execution; explicit failures
-sound afterward. Shell categories sound when the command completes.
+Non-shell tool cues generally play before execution; explicit failure cues play afterward. Shell cues play when the command completes. Mixed shell commands prioritize tests, builds, Git, search, then reads. For `rg` and `grep`, exit code 1 means no matches and keeps the search cue; exit code 2 is an error.
 
-Codex command forms such as `cd repo && rg ... | head`, `env ... bash -lc ...`,
-`uv run pytest`, `python3 -m unittest`, `pnpm run test:unit`, `npm run build`,
-and `git -C repo diff` are recognized without executing the command in the
-adapter. Mixed commands prioritize tests, builds, Git, search, then reads.
-`rg`/`grep` exit 1 means no matches and keeps the search sound; exit 2 is an error.
-Pending unified-exec sessions wait for their completion hook. Polling and agent
-coordination tools stay quiet to avoid duplicate audio.
+Pending shell sessions wait for completion. Polling and agent coordination tools stay quiet to avoid duplicate audio. Hosted web searches do not emit local tool hooks, and failures without an explicit error indicator or exit code cannot be reliably detected.
 
-Hosted web searches do not emit local tool hooks. Failures without an explicit
-error indicator or exit code cannot be reliably detected. Codex has no separate
-`StopFailure` or `PostToolUseFailure` event. `Stop` means the current turn ended;
-it does not assert the entire task is complete. Narration uses Codex-specific
-context for these distinctions.
+A `stop` cue means the current turn ended, not that the entire task is complete. Profiles only play categories that have a sound mapping.
 
-Both apps share `~/.claude/soundbar/config.json` and the existing control panel.
-Remove the Codex hooks before uninstalling Soundbar itself. This integration
-requires local macOS playback and a Codex version with lifecycle hook support.
+</details>
 
-#### Codex approval sounds
+## Choose your sounds
 
-The mixer includes **Play Codex approval sounds**, enabled by default. Turn it
-off when you want quiet approval processing, for example when using Codex's
-“Approve for me.” This is a manual preference shared by all Codex chats; it
-does not detect or change the active Codex approval mode.
+The mixer is the easiest way to change profiles, enable channels, adjust volumes, and preview sounds. Selecting a profile does **not** enable its channel: turn on **Voice** to hear spoken cues or narration.
 
-Disabling it silences effects, voice, and narrator audio for Codex approval
-requests. Other Codex events, Claude Code approval cues, and the panel's manual
-previews keep working. The setting takes effect on the next hook without
-reinstalling hooks or restarting the chat. You can also set
-`"codex_permission_sound_on": false` in Soundbar's `config.json`.
+### Effects profiles
 
-#### Generals voice profile
+| Profile | Sound | Requires SoX? |
+|---------|-------|---------------|
+| `default` | macOS system sounds | No |
+| `paper` | Paper, pencil, and typewriter | No |
+| `construction` | Hammer, saw, and walkie-talkie | No |
+| `ambient` | Soft, reverberant pads that vary by time of day | Yes |
+| `chiptune` | 8-bit square waves | Yes |
+| `organic` | Plucks and chimes | Yes |
+| `sci-fi` | Sweeping synths | Yes |
+| `minimal` | Quiet single tones | Yes |
+| `factory` | Industrial clanks | Yes |
+| `submarine` | Deep sonar tones | Yes |
+| `attention` | Approval and turn-completion cues only | Yes |
+| `silent` | No effects | No |
 
-Generals works with Codex through the same sound manifest and 38 local AIFF
-clips used by Claude Code. Select the profile **and enable the Voice layer**:
+### Voice profiles
+
+| Profile | What it does | Setup |
+|---------|--------------|-------|
+| `senior` | Speaks short, editable phrases | Built-in macOS speech or optional Kokoro |
+| `generals` | Plays C&C Generals-style voice lines | Clips are generated during installation |
+| `narrator` | Generates live commentary about your coding session | An LLM provider plus a speech engine |
+
+For example, combine paper effects with Generals voice lines:
 
 ```bash
+~/.claude/soundbar/switch.sh effects-profile paper
+~/.claude/soundbar/switch.sh effects on
 ~/.claude/soundbar/switch.sh voice-profile generals
 ~/.claude/soundbar/switch.sh voice on
-~/.claude/soundbar/panel.sh
 ```
 
-The control panel runs at [http://localhost:8111](http://localhost:8111).
-Its profile, volume, and layer controls apply to both agents. Selecting Generals
-alone does not turn Voice on. Generals includes dedicated lines for orders,
-reads, tools, plans, tests, builds, Git operations, compaction, session close,
-and interruption.
+Generals includes 38 local AIFF clips covering all 20 mixer events, including tests, builds, Git operations, approvals, and interruptions.
 
-Test a completion sound through the Codex adapter without changing saved settings:
+### Reduce repeated sounds
+
+**Reduce repeated sounds** is on by default. The first cue plays immediately; rapid repeats are skipped instead of queued. Default repeat gaps are **0.75 seconds for effects** and **3 seconds for voice**, adjustable from 0–10 seconds in the mixer.
+
+Approval, error, turn-completion, and interruption cues stay responsive, while near-simultaneous duplicates are still filtered. Manual previews always play. Turn the setting off if you want a cue for every supported event.
+
+This helps with busy or parallel chats, but does not wait for each clip or spoken line to finish.
+
+### Command-line controls
+
+```bash
+~/.claude/soundbar/switch.sh                       # show status and available commands
+~/.claude/soundbar/switch.sh effects-profile minimal
+~/.claude/soundbar/switch.sh effects off           # mute effects
+~/.claude/soundbar/switch.sh voice off             # mute spoken cues and narration
+```
+
+To mute Soundbar completely, turn off both Effects and Voice.
+
+## AI narration (optional)
+
+The `narrator` Voice profile turns coding events into short spoken observations. It can play alongside Effects and replaces the other Voice profiles while selected.
+
+1. In the mixer, choose **Voice → narrator** and enable Voice.
+2. Select a provider and model in **Narrator settings**. For API providers, enter your key and click **Save**.
+3. Choose a style and voice.
+4. Click **Check connection**, then **Test narration**.
+
+| Provider | What you need |
+|----------|---------------|
+| Claude CLI | Claude Code installed and authenticated |
+| Anthropic | An Anthropic API key |
+| Google Gemini | A Gemini API key |
+| OpenAI | An OpenAI API key |
+| Ollama | Ollama running locally with the selected model available |
+
+Narration sends event context, such as file paths and commands, to the selected provider. API providers may charge for usage. Effects, `senior`, and `generals` do not use an LLM.
+
+There are **12 built-in styles**, including Pair Programmer, Sports Commentator, Nature Documentary, Noir Detective, and Haiku Poet. Use the pencil button next to **Style** to create or edit styles. Enable **Deep context** if you want narration to remember earlier moments in the session.
+
+### Optional local speech with Kokoro
+
+Both `senior` and `narrator` can use **Kokoro**, a local neural speech engine, instead of macOS `say`.
+
+Select Kokoro in the mixer's speech engine controls and click **Install Kokoro** if prompted. The installer finds a compatible Python version and sets up its environment. The first spoken request loads the model; the background process shuts down after 10 idle minutes.
+
+Kokoro changes the speaking voice. The narrator still uses your selected LLM provider to generate its words.
+
+## Troubleshooting
+
+| Problem | What to try |
+|---------|-------------|
+| No sound at all | Preview an event in the mixer. Check the channel toggle, its volume, macOS volume, and the selected output device. |
+| Previews work, but Codex is silent | Review and trust Soundbar hooks in the Codex CLI's `/hooks`, then start a new chat. |
+| Previews work, but Claude Code is silent | Rerun `bash ./install.sh` from the repository folder and start a new session. |
+| A generated Effects profile is silent | Install SoX with `brew install sox`, or try `default` or `paper`. |
+| Generals is silent | Enable Voice as well as selecting `generals`. If clips are missing, regenerate them using the command below. |
+| Spoken phrases are silent | Select an installed macOS voice in the mixer, or check the Kokoro installation if using that engine. |
+| Narrator is silent | Enable Voice, select `narrator`, and use **Check connection** and **Test narration** to check the provider and speech engine. |
+| Only some events play | Check whether the selected profile maps those events. Rapid repeats are also skipped when **Reduce repeated sounds** is enabled. |
+| The panel says it is already running | Open [localhost:8111](http://localhost:8111), or stop the existing panel with Ctrl+C in its terminal. |
+
+Regenerate missing Generals clips:
+
+```bash
+bash ~/.claude/soundbar/sounds/generals/generate.sh
+```
+
+Test a Generals completion cue through the Codex adapter without changing saved settings:
 
 ```bash
 printf '%s\n' '{"hook_event_name":"Stop"}' | \
@@ -113,210 +213,77 @@ printf '%s\n' '{"hook_event_name":"Stop"}' | \
   python3 ~/.claude/soundbar/codex.py
 ```
 
-If this plays but real Codex events are silent, check `/hooks` for enabled,
-trusted Soundbar hooks and start a new chat. If playback is silent too, check
-Voice volume, macOS output volume, and the selected output device. Missing
-Generals clips can be regenerated with
-`bash ~/.claude/soundbar/sounds/generals/generate.sh`.
+For narrator diagnostics:
 
-### Dependencies
+```bash
+python3 ~/.claude/soundbar/narrate.py --check      # provider connection
+python3 ~/.claude/soundbar/narrate.py --check-tts  # speech engine
+```
 
-- **jq** — required (`brew install jq`)
-- **sox** — for generated sound profiles (`brew install sox`)
-- **python3** — for control panel and narrator engine
-- `afplay`, `say` — macOS built-ins
-- LLM provider (narrator only) — one of Claude CLI, Anthropic/Gemini/OpenAI API key, or local Ollama
+## Update Soundbar
+
+From your repository folder, pull the latest changes and rerun the installer:
+
+```bash
+git pull
+bash ./install.sh
+bash ./install-codex.sh  # if you connected Codex
+```
+
+For Codex, review changed or new hooks in `/hooks` and start a new chat. The base installer also runs the Generals clip generator. If you use a [development installation](#development), use `bash ./install.sh --dev` instead.
+
+## Configuration files
+
+The mixer saves settings automatically. For manual customization, your files live in `~/.claude/soundbar/`:
+
+| File | Customize |
+|------|-----------|
+| `config.json` | Enabled channels, profiles, volumes, speech engine, and narrator provider |
+| `phrases.json` | Spoken phrases for the `senior` Voice profile |
+| `narrator_styles.json` | Narrator style names and prompts |
+
+See [config.defaults.json](soundbar/config.defaults.json) for the shipped settings. Edit the user files above to change your installation. Narrator API keys entered in the mixer are stored in `config.json`.
+
+The repeat controls use `sound_spacing_on`, `effects_cooldown_ms`, and `voice_cooldown_ms`. Codex approval audio uses `codex_permission_sound_on`.
 
 ## Uninstall
 
-```bash
-bash ./install-codex.sh --uninstall # remove Codex hooks first, if installed
-./uninstall.sh              # keeps user config
-./uninstall.sh --purge      # removes everything
-./uninstall.sh --dry-run    # preview
-```
-
-Surgically removes only soundbar hooks from `settings.json`. All other hooks and settings are preserved.
-
-## Usage
-
-### Control Panel
+If you connected Codex, remove its hooks **before** removing Soundbar. From the repository folder:
 
 ```bash
-~/.claude/soundbar/panel.sh
+bash ./install-codex.sh --uninstall
 ```
 
-Opens a mixer UI in the browser. Server runs in the foreground — Ctrl+C stops it.
-
-### Reduce repeated sounds
-
-The mixer enables **Reduce repeated sounds** by default. A shared playback gate
-coordinates hooks from both agents, so simultaneous events cannot independently
-launch the same cue. The first cue plays immediately; suppressed events are
-dropped instead of queued for later.
-
-- Effects repeat gap: **0.75 seconds**; voice repeat gap: **3 seconds**, adjustable
-  from 0–10 seconds in the mixer.
-- Routine clips reused by different event categories share their repeat window.
-  Different routine cues are also spaced by up to 150 ms for effects and 1.5 s
-  for voice, reducing chatter when event types alternate.
-- Approval, error, turn completion, and interruption bypass the routine spacing
-  budget. Identical important cues are still deduplicated for up to 0.5 s for
-  effects and 1 s for voice.
-- Manual previews always play. Disable the toggle to restore every-event playback.
-
-Repeat windows are measured from the last accepted cue, so a long burst can
-produce occasional feedback rather than indefinite silence. Per-session repeat
-tracking and a shared per-layer spacing budget keep parallel chats manageable.
-This reduces overlap; it does not wait for every clip or spoken line to finish.
-
-Settings: `sound_spacing_on`, `effects_cooldown_ms`, `voice_cooldown_ms` in
-`config.json`. Existing installations pick up defaults without changing user
-settings. Runtime timestamps are stored in a locked temporary state file.
-
-### CLI
+Then choose one of these commands:
 
 ```bash
-~/.claude/soundbar/switch.sh                        # show status
-~/.claude/soundbar/switch.sh effects on              # toggle
-~/.claude/soundbar/switch.sh effects-profile paper   # switch profile
-~/.claude/soundbar/switch.sh voice on
-~/.claude/soundbar/switch.sh voice-profile generals
+bash ~/.claude/soundbar/uninstall.sh --dry-run  # preview removal
+bash ~/.claude/soundbar/uninstall.sh            # remove Soundbar; keep your settings
+bash ~/.claude/soundbar/uninstall.sh --purge    # also delete your settings
 ```
 
-## Architecture
-
-Enabled layers respond to supported Claude Code or Codex events, mixed together.
-Profiles play only the events defined in their sound mappings:
-
-```
- ┌─────────────┐   ┌─────────────┐   ┌──────────────┐
- │   Effects   │   │    Voice    │   │   Narrator   │
- │  [paper ▼]  │   │ [generals▼] │   │ [LLM + TTS]  │
- │  ON / OFF   │   │  ON / OFF   │   │  ON / OFF    │
- │  Vol: 80%   │   │  Vol: 100%  │   │  Vol: 100%   │
- └──────┬──────┘   └──────┬──────┘   └──────┬───────┘
-        │                 │                  │
-        └────────┬────────┴──────────────────┘
-                 │
-     ┌───────────┴───────────┐
-     │    Event: "stop"      │
-     │  🎵 book_close.mp3    │
-     │  🗣 construction_complete │
-     │  💬 "And with that..." │
-     └───────────────────────┘
-```
-
-### Effects Profiles
-
-| Profile | Type | Description |
-|---------|------|-------------|
-| default | 🖥 System | macOS system sounds |
-| ambient | 🎛 Generated | Soft reverby pads, time-of-day aware |
-| chiptune | 🎛 Generated | 8-bit square waves |
-| organic | 🎛 Generated | Plucks and chimes |
-| sci-fi | 🎛 Generated | Sweeping synths |
-| minimal | 🎛 Generated | Quiet single tones |
-| factory | 🎛 Generated | Industrial clanks |
-| submarine | 🎛 Generated | Deep sonar tones |
-| paper | 🎵 Sampled | Paper, pencil, typewriter |
-| construction | 🎵 Sampled | Hammer, saw, walkie-talkie |
-| attention | 🎛 Generated | Permission + stop only |
-| silent | — | No sounds |
-
-Sound specs support `"rate": [min, max]` for natural playback variation (randomizes `afplay -r` per play).
-
-### Voice Profiles
-
-| Profile | Type | Description |
-|---------|------|-------------|
-| senior | 🗣 TTS | Live phrases via macOS `say` or Kokoro neural TTS, editable in JSON |
-| narrator | 💬 LLM | AI-generated commentary via `narrate.py` — see Narrator section |
-| generals | ⏺ Pre-rendered | C&C Generals-style voice lines |
-
-### Narrator
-
-LLM-powered live commentary on the coding process. `narrate.py` receives hook event JSON, calls an LLM for a one-sentence observation, and speaks it via TTS.
-
-- **5 providers:** Claude CLI, Anthropic API, Google Gemini, OpenAI, Ollama (local)
-- **5 styles:** pair_programmer, narrator, sportscaster, noir, haiku
-- All providers use raw HTTP — no SDK dependencies
-- Lock file prevents overlapping narrations
-
-### Kokoro TTS
-
-Optional local neural TTS engine (alternative to macOS `say`). `kokoro_server.py` runs as a daemon — loads the model once, then serves TTS requests in ~100-200ms via Unix socket.
-
-- **One-click install** from the control panel, or manual:
-  ```bash
-  cd ~/.claude/soundbar && python3 -m venv .venv && .venv/bin/pip install kokoro soundfile
-  ```
-- Auto-starts on first speak request, shuts down after 10 minutes idle
-- Set `tts_engine` to `"kokoro"` in config (or toggle in the panel)
-
-### Events
-
-`session_start` `session_end` `user_prompt` `edit` `read` `search` `bash` `tool` `plan` `test` `build` `git` `permission` `error` `subagent_start` `subagent_stop` `pre_compact` `compact` `stop` `interrupt`
-
-## Repo Structure
-
-```
-install.sh                    # Installer (--dev, --dry-run)
-install-codex.sh              # Connect/remove Codex hooks (--dry-run, --uninstall)
-uninstall.sh → soundbar/...   # Symlink to uninstaller
-soundbar/                     # Installed to ~/.claude/soundbar/ (1:1 copy)
-├── play.sh                   # Sound engine (hooks call this)
-├── playback_gate.py          # Concurrent hook deduplication and sound spacing
-├── codex.py                  # Codex hook installer and event adapter
-├── narrate.py                # Narrator engine (LLM + TTS)
-├── sounds.json               # Sound manifest (single source of truth)
-├── switch.sh                 # CLI control
-├── panel.sh                  # Control panel launcher
-├── server.py                 # Panel HTTP backend
-├── kokoro_server.py          # Kokoro TTS daemon
-├── ui.html                   # Panel frontend (mixer UI)
-├── uninstall.sh              # Uninstaller
-├── config.defaults.json      # Default settings
-├── phrases.defaults.json     # Default phrases
-└── sounds/
-    ├── construction/         # 18 MP3 — hammer, saw, drill...
-    ├── generals/             # 38 AIFF — pre-rendered TTS voice lines
-    └── paper/                # 23 MP3 — paper, pencil, typewriter...
-```
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed component documentation, data flows, and planned features.
-
-## Configuration
-
-`~/.claude/soundbar/config.json`:
-```json
-{
-  "effects_on": true,
-  "effects_profile": "default",
-  "effects_volume": 100,
-  "voice_on": false,
-  "voice_profile": "senior",
-  "voice_volume": 100,
-  "voice_main": "Tara",
-  "voice_sub": "Aman",
-  "tts_engine": "say",
-  "kokoro_voice": "af_heart",
-  "narrator_provider": "claude_cli",
-  "narrator_model": "",
-  "narrator_api_key": "",
-  "narrator_style": "pair_programmer"
-}
-```
+The uninstaller removes Soundbar's Claude Code hooks and stops the panel and Kokoro processes. A normal uninstall keeps `config.json`, `phrases.json`, and `narrator_styles.json`. In development mode, it removes the installation symlink and leaves the source repository intact.
 
 ## Development
 
+Use a development install to make changes in `soundbar/` immediately available to hooks:
+
 ```bash
-./install.sh --dev    # symlinks repo → ~/.claude/soundbar/
-bash ./install-codex.sh # add Codex hooks to the dev installation
-python3 -m unittest tests.test_codex # adapter and installer regression tests
+bash ./install.sh --dev
+bash ./install-codex.sh  # optional: connect Codex to the dev installation
 ```
 
-Edits to files in `soundbar/` are immediately live. Config files live at repo root (gitignored), symlinked into `soundbar/`.
+If `~/.claude/soundbar/` is already a regular installation directory, uninstall it before switching to `--dev`. Back up any settings you want to bring into the development setup, then remove the leftover installation directory. Development settings live at the repository root and are symlinked into `soundbar/`.
+
+Run the Codex adapter and installer regression tests without third-party dependencies:
+
+```bash
+python3 -m unittest tests.test_codex
+```
+
+For the full suite, install `pytest` in your development environment and run `python3 -m pytest`. To check an installed copy, run `bash ./test-install.sh`.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for components and data flows, and [CHANGELOG.md](CHANGELOG.md) for release history. The sound mappings are defined in [soundbar/sounds.json](soundbar/sounds.json).
 
 ## License
 
