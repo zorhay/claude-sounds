@@ -36,8 +36,8 @@ def config_defaults():
 
 
 @pytest.fixture
-def install_script():
-    return (REPO_ROOT / "install.sh").read_text()
+def claude_hooks_json():
+    return (SOUNDBAR_DIR / "claude-hooks.json").read_text()
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 """Hook format tests.
 
-Validates install.sh hook definitions: no trailing &, all events covered,
+Validates Claude hook definitions: no trailing &, all events covered,
 correct script reference, valid JSON.
 """
 
@@ -18,24 +18,17 @@ ALL_EVENTS = {
 }
 
 
-def _extract_hooks_json(install_script):
-    """Extract the HOOKS_JSON heredoc from install.sh and parse it."""
-    # The heredoc is between HOOKS_JSON=$(cat <<'EOF' and EOF)
-    m = re.search(
-        r"HOOKS_JSON=\$\(cat <<'EOF'\n(.*?)\nEOF\s*\)",
-        install_script,
-        re.DOTALL,
-    )
-    assert m, "Could not find HOOKS_JSON heredoc in install.sh"
-    return json.loads(m.group(1))
+def _extract_hooks_json(claude_hooks_json):
+    """Read the shipped Claude hook definitions used by the unified installer."""
+    return json.loads(claude_hooks_json)
 
 
 class TestHookFormat:
     """Hook command format validation."""
 
-    def test_no_trailing_ampersand_in_hook_commands(self, install_script):
+    def test_no_trailing_ampersand_in_hook_commands(self, claude_hooks_json):
         """Regression: play.sh backgrounds its own work; trailing & causes double-fork."""
-        hooks = _extract_hooks_json(install_script)
+        hooks = _extract_hooks_json(claude_hooks_json)
         for event_name, entries in hooks.items():
             for entry in entries:
                 for hook in entry.get("hooks", []):
@@ -45,9 +38,9 @@ class TestHookFormat:
                         f"play.sh handles its own backgrounding"
                     )
 
-    def test_hook_commands_reference_soundbar_play_sh(self, install_script):
+    def test_hook_commands_reference_soundbar_play_sh(self, claude_hooks_json):
         """All hook commands should use soundbar/play.sh, not deprecated play-sound.sh."""
-        hooks = _extract_hooks_json(install_script)
+        hooks = _extract_hooks_json(claude_hooks_json)
         for event_name, entries in hooks.items():
             for entry in entries:
                 for hook in entry.get("hooks", []):
@@ -63,8 +56,8 @@ class TestHookFormat:
 class TestHookCoverage:
     """All 11 events must be covered by hooks."""
 
-    def test_all_events_covered(self, install_script):
-        hooks = _extract_hooks_json(install_script)
+    def test_all_events_covered(self, claude_hooks_json):
+        hooks = _extract_hooks_json(claude_hooks_json)
 
         # Collect all events dispatched by hook commands
         covered_events = set()
@@ -82,14 +75,14 @@ class TestHookCoverage:
 
 
 class TestHookJSON:
-    """The HOOKS_JSON heredoc must be valid, well-structured JSON."""
+    """The shipped hook definitions must be valid, well-structured JSON."""
 
-    def test_hooks_json_is_valid(self, install_script):
-        hooks = _extract_hooks_json(install_script)
+    def test_hooks_json_is_valid(self, claude_hooks_json):
+        hooks = _extract_hooks_json(claude_hooks_json)
         assert isinstance(hooks, dict)
 
-    def test_all_hooks_have_type_command(self, install_script):
-        hooks = _extract_hooks_json(install_script)
+    def test_all_hooks_have_type_command(self, claude_hooks_json):
+        hooks = _extract_hooks_json(claude_hooks_json)
         for event_name, entries in hooks.items():
             for entry in entries:
                 for hook in entry.get("hooks", []):
@@ -97,8 +90,8 @@ class TestHookJSON:
                         f"Hook for {event_name} has type '{hook.get('type')}', expected 'command'"
                     )
 
-    def test_all_hooks_have_timeout(self, install_script):
-        hooks = _extract_hooks_json(install_script)
+    def test_all_hooks_have_timeout(self, claude_hooks_json):
+        hooks = _extract_hooks_json(claude_hooks_json)
         for event_name, entries in hooks.items():
             for entry in entries:
                 for hook in entry.get("hooks", []):

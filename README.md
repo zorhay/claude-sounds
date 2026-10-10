@@ -12,9 +12,9 @@ Give your sessions the rustle of paper, the beeps of an 8-bit game, or a running
 
 | Agent | Connection |
 |-------|------------|
-| **Claude Code** | Lifecycle hooks configured by the [base installer](#quick-start) |
-| **Codex desktop and CLI** | Local lifecycle hooks configured by the [Codex installer](#connect-codex) |
-| **Cursor** | Has worked through the Claude hooks in existing setups; see [Using Cursor](#using-cursor) |
+| **Claude Code** | Lifecycle hooks configured by the [unified installer](#quick-start) |
+| **Codex desktop and CLI** | Local lifecycle hooks configured by the [unified installer](#quick-start) |
+| **Cursor** | Native user hooks configured by the [unified installer](#quick-start) |
 
 ## What you hear
 
@@ -51,11 +51,16 @@ bash ./install.sh --dry-run  # optional: preview the changes
 bash ./install.sh
 ```
 
-The installer copies Code Gossip to `~/.claude/soundbar/`, creates your settings, and adds Claude Code hooks to `~/.claude/settings.json`. It backs up existing Claude settings and preserves unrelated hooks.
+The installer detects Codex, Cursor, and Claude from their commands, configuration directories, and macOS applications. The shared `~/.claude/soundbar/` directory alone does not count as a Claude installation. Choose **all**, or enter multiple agent names or menu numbers (for example, `codex,cursor` or `2 3`). **All** installs for detected agents. You can explicitly select an agent if detection misses it.
 
-The `soundbar` directory name is retained for compatibility with existing installations and hooks.
+For scripted installation, skip the prompt:
 
-**Using Codex?** Run this base installation first, then follow [Connect Codex](#connect-codex). The base installer also adds Claude Code hooks, even if you only plan to use Codex.
+```bash
+bash ./install.sh --agents codex,cursor
+bash ./install.sh --all  # all detected agents
+```
+
+Code Gossip is stored once in `~/.claude/soundbar/` for compatibility. Only selected agents receive hooks: Claude in `~/.claude/settings.json`, Cursor in `~/.cursor/hooks.json`, and Codex in `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). Existing hook files are backed up, unrelated hooks are preserved, and repeated installation does not duplicate hooks. Codex-only and Cursor-only installs do not require Claude Code.
 
 ### 3. Open Soundbar and try a sound
 
@@ -63,7 +68,7 @@ The `soundbar` directory name is retained for compatibility with existing instal
 ~/.claude/soundbar/panel.sh
 ```
 
-Soundbar opens at [localhost:8111](http://localhost:8111). Choose an Effects profile, adjust the volume, and click a play button to preview an event. Start a new Claude Code session to hear sounds as you work.
+Soundbar opens at [localhost:8111](http://localhost:8111). Choose an Effects profile, adjust the volume, and click a play button to preview an event. Start a new session in your selected agent to hear sounds as you work.
 
 Keep the terminal open while using the mixer; **Ctrl+C** stops its server. Hook sounds continue working when the mixer is closed.
 
@@ -71,18 +76,20 @@ Keep the terminal open while using the mixer; **Ctrl+C** stops its server. Hook 
 
 Code Gossip can use the same profiles and volumes for local Codex desktop and CLI sessions. You need a Codex version that supports lifecycle hooks.
 
-From the repository folder, after installing Code Gossip:
+Select Codex in the unified installer, or run this from the repository folder:
 
 ```bash
-bash ./install-codex.sh --dry-run  # optional: preview the changes
-bash ./install-codex.sh
+bash ./install.sh --agents codex --dry-run  # optional: preview the changes
+bash ./install.sh --agents codex
 ```
 
 Then open **`/hooks` in the Codex CLI**, review and trust the Code Gossip commands, and **start a new chat**. Untrusted hooks will not play sounds.
 
 The installer merges Code Gossip hooks into `$CODEX_HOME/hooks.json` (default: `~/.codex/hooks.json`) and backs up an existing file. It preserves other hooks, `config.toml`, and any existing `notify` command. Reinstalling does not duplicate Code Gossip hooks or change hook trust.
 
-Claude Code and Codex share Soundbar and `~/.claude/soundbar/config.json`; changes apply to both.
+If you use a custom `CODEX_HOME`, keep that same environment setting when updating or uninstalling so the scripts find those hooks.
+
+All connected agents share Soundbar and `~/.claude/soundbar/config.json`; changes apply to all of them.
 
 ### Quiet approval sounds
 
@@ -118,9 +125,11 @@ A `stop` cue means the current turn ended, not that the entire task is complete.
 
 ## Using Cursor
 
-Cursor has worked with Code Gossip through the existing Claude hooks. This repository currently ships installers for Claude Code and Codex; it does not include a separate Cursor installer or a verified Cursor event-coverage list.
+Select Cursor in the unified installer, or run `bash ./install.sh --agents cursor`. It configures native [Cursor user hooks](https://cursor.com/docs/hooks) in `~/.cursor/hooks.json` and shares the same sound profiles and mixer settings.
 
-If your Cursor setup already invokes those hooks, it uses the same sound profiles and Soundbar settings. The base installer writes to `~/.claude/settings.json`; it does not configure Cursor-specific hooks.
+The adapter plays cues for session start/end, file edits, completed shell/MCP tools, tool failures, subagent completion, context compaction, and turn completion. Error and aborted turns map to error and interruption cues. It only observes events; it does not make permission decisions or submit follow-up prompts. These hooks target local Cursor sessions.
+
+Narration identifies Cursor lifecycle and failure events. Shell narration includes the command and output without inferring an exit code that Cursor did not provide.
 
 ## Soundbar
 
@@ -272,10 +281,9 @@ From your repository folder, pull the latest changes and rerun the installer:
 ```bash
 git pull
 bash ./install.sh
-bash ./install-codex.sh  # if you connected Codex
 ```
 
-For Codex, review changed or new hooks in `/hooks` and start a new chat. The base installer also runs the Generals clip generator. If you use a [development installation](#development), use `bash ./install.sh --dev` instead.
+For Codex, review changed or new hooks in `/hooks` and start a new chat. The installer also runs the Generals clip generator. If you use a [development installation](#development), use `bash ./install.sh --dev` instead.
 
 ## Configuration files
 
@@ -293,21 +301,21 @@ The repeat controls use `sound_spacing_on`, `effects_cooldown_ms`, and `voice_co
 
 ## Uninstall
 
-If you connected Codex, remove its hooks **before** removing Code Gossip. From the repository folder:
+Run the uninstaller and choose **all** or one or more agents, just as during installation:
 
 ```bash
-bash ./install-codex.sh --uninstall
+bash ~/.claude/soundbar/uninstall.sh --dry-run  # preview selected removals
+bash ~/.claude/soundbar/uninstall.sh            # select integrations to remove
+bash ./uninstall.sh --agents codex,cursor       # remove specific integrations without prompting
+bash ./uninstall.sh --all                       # remove all integrations without any questions
+bash ./uninstall.sh --all --purge               # also delete saved settings
 ```
 
-Then choose one of these commands:
+`--all` checks all supported integrations, even if an agent executable or the shared installation is already gone. Partial removal preserves the shared files and running processes while another integration still uses them. Removing the last integration stops the panel and Kokoro processes and removes the shared installation. By default, it keeps `config.json`, `phrases.json`, and `narrator_styles.json`. Existing hook files are backed up before modification. Development uninstalls remove only the installation symlink and leave the source repository and its settings intact, even with `--purge`.
 
-```bash
-bash ~/.claude/soundbar/uninstall.sh --dry-run  # preview removal
-bash ~/.claude/soundbar/uninstall.sh            # remove Code Gossip; keep your settings
-bash ~/.claude/soundbar/uninstall.sh --purge    # also delete your settings
-```
+You can use the repository's `uninstall.sh` after the installed script has been removed, including to purge retained settings.
 
-The uninstaller removes Code Gossip's Claude Code hooks and stops the panel and Kokoro processes. A normal uninstall keeps `config.json`, `phrases.json`, and `narrator_styles.json`. In development mode, it removes the installation symlink and leaves the source repository intact.
+Malformed hook files must be repaired before uninstalling: the uninstaller checks all integrations before deciding whether the shared runtime is still needed. Installation validates only the agents you select.
 
 ## Development
 
@@ -315,12 +323,11 @@ Use a development install to make changes in `soundbar/` immediately available t
 
 ```bash
 bash ./install.sh --dev
-bash ./install-codex.sh  # optional: connect Codex to the dev installation
 ```
 
 If `~/.claude/soundbar/` is already a regular installation directory, uninstall it before switching to `--dev`. Back up any settings you want to bring into the development setup, then remove the leftover installation directory. Development settings live at the repository root and are symlinked into `soundbar/`.
 
-Run the Codex adapter and installer regression tests without third-party dependencies:
+Run the Codex adapter regression tests without third-party dependencies:
 
 ```bash
 python3 -m unittest tests.test_codex

@@ -6,23 +6,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Unified agent selection for installation and removal: detect Codex, Cursor, and Claude, select one or more interactively, or use `--agents` and `--all` without prompts.
+- Native local Cursor hooks for lifecycle, edit, shell/MCP completion, failure, subagent completion, and compaction cues, with Cursor-aware narration.
+- Selective uninstall keeps shared files while other agents use them; `--all --purge` removes all integrations and saved settings.
 - Separate Codex Git status, history, commit, and push events with distinct senior phrases and Generals clips; successful commit/push cues bypass routine spacing.
 - Manual mixer toggle for Codex approval sounds, enabled by default; disabling it silences approval effects, voice, and narration without changing Codex permissions.
 - Shared playback gate for concurrent hook bursts, per-session sound cooldowns, separate effects/voice spacing, and responsive important cues.
 - Mixer controls for repetition reduction and adjustable cooldowns, with preview bypass and concurrency/playback regression tests.
 - Complete Codex lifecycle coverage, broad local/MCP tool routing, compound command categories (test/build/Git/read/search), and normal no-match search handling.
 - Ten Codex-oriented Generals clips, new mixer events, senior phrase fallbacks, Codex-aware narration, and end-to-end event playback tests.
-- Codex desktop/CLI integration: `install-codex.sh` and `soundbar/codex.py` connect lifecycle hooks to the shared sound engine, including Generals playback and narrator payload normalization.
+- Codex desktop/CLI integration: `install.sh --agents codex` and `soundbar/codex.py` connect lifecycle hooks to the shared sound engine, including Generals playback and narrator payload normalization.
 - Codex hook installation with dry-run preview, backups, idempotent merging, and surgical uninstall that preserves unrelated handlers and settings.
 - Codex setup, hook trust, Generals troubleshooting, event mapping documentation, and adapter/installer regression tests.
 - UI polish: accent brand header, play button pulse animation, toggle/slider glow effects, zebra-striped mixer rows, channel hover borders
 - Narrator settings two-column layout (LLM | Style & Voice) with vertical divider
 
 ### Changed
+- Replaced the separate Codex installer with one shared install/uninstall implementation. Codex-only and Cursor-only setups no longer add Claude hooks. Normal installs exclude development settings and runtime state.
 - Renamed the project and repository to Code Gossip (`code-gossip`). Soundbar remains the web UI for sound configuration, with Code Gossip branding in its header. Existing installation paths and hook identifiers are preserved.
 - Narrator pane sub-titles brighter for scannability
 - Kokoro info box uses distinct callout background
 - Status dots glow green when connected
+
+### Fixed
+- Shared soundbar files alone no longer cause Claude to be detected, and invalid settings for an unselected agent no longer block installation.
+- Panel PID tracking lets uninstall stop the running server; stale or invalid PID files cannot terminate unrelated processes or prevent cleanup.
+- Cursor narration uses normalized lifecycle events and does not infer a successful shell exit when no exit code is supplied.
 
 ## [0.3.0] - 2026-04-15
 

@@ -363,57 +363,27 @@ switch.sh <profile-name>         # shorthand for effects-profile
 4. `exec python3 server.py` — replaces shell with server process
 5. Ctrl+C kills the server directly (no orphans)
 
-### 2.8 install.sh — Installer
+### 2.8 install.sh and soundbar/installer.py — Unified Installer
 
-**Purpose:** Copy `soundbar/` to `~/.claude/soundbar/`, inject hooks into `settings.json`.
+`install.sh` invokes the shared Python installer. It detects Codex, Cursor, and Claude through CLI commands, configuration directories, and macOS app bundles, then prompts for all or multiple agent names/numbers. `--agents codex,cursor` selects explicitly without prompting; `--all` selects detected agents. `--dry-run` validates and previews without writes; `--dev` links the shared runtime to the checkout.
 
-**Modes:**
-- `./install.sh` — production install (copy files)
-- `./install.sh --dev` — development install (symlink + config at repo root)
-- `./install.sh --dry-run` — preview only
+The runtime remains at `~/.claude/soundbar/` for compatibility; this directory alone does not count as a detected Claude installation. Only selected agents receive hooks. Claude definitions live in `soundbar/claude-hooks.json`; Codex and Cursor definitions come from their adapters. Selected hook documents are validated before mutation, backed up when changed, and replaced atomically. Merging removes only Code Gossip handlers, preserving other handlers even in shared matcher groups. Repeat installs are idempotent.
 
-**DRY pattern:** Operations are registered in an `OPS` array. The same array is iterated for both preview and execution — zero mismatch.
+Normal installs copy shipped assets while excluding user settings, virtual environments, caches, logs, and runtime state. Existing user settings are kept, missing settings are created from defaults, the Python path is recorded, and legacy `narration` profiles migrate to `senior`. Generals clips are generated using macOS TTS. Development settings live at the repository root and are symlinked into `soundbar/`.
 
-**Phases:**
-1. Requirements — check jq (required), python3 (required), sox (optional)
-2. Copy files — `rsync` or `ln -s` (dev mode)
-3. User configuration — create config.json and phrases.json from defaults (skip in dev mode; dev uses symlinks to repo root)
-4. Hook injection — backup settings.json, merge hooks via jq, validate JSON
-5. Verify — check all expected files exist
+### 2.9 uninstall.sh — Unified Uninstaller
 
-**Dev mode specifics:**
-- `~/.claude/soundbar` → symlink to `repo/soundbar/`
-- `repo/soundbar/config.json` → symlink to `repo/config.json`
-- `repo/soundbar/phrases.json` → symlink to `repo/phrases.json`
-- Config files at repo root are gitignored
-- Every code edit is immediately live — no reinstall needed
+The installed script and the repository-root symlink invoke `installer.py uninstall`. Selection works like installation, but detection inspects Code Gossip hooks so agents can be removed even after their executable disappears. `--all` removes all three integrations without questions; `--purge` additionally removes saved settings when the last integration is removed. `--dry-run` previews without stopping processes or modifying files.
 
-**Hook injection safety:**
-- Backs up `settings.json` before modifying
-- Validates JSON before and after merge
-- Restores backup if merge produces invalid JSON
-- Idempotent — skips if hooks already present
-- Only adds hooks, never modifies existing ones
+Uninstall removes selected hooks first and retains shared files and processes if another integration still references them. When no integrations remain, it stops the panel/Kokoro processes and removes the runtime, preserving `config.json`, `phrases.json`, and `narrator_styles.json` unless purged. Development uninstalls remove only the shared symlink, never the checkout. Hook backups are retained. Orphan hooks can be removed using the repository script even if the runtime is missing.
 
-### 2.9 uninstall.sh — Uninstaller
+Unlike installation, removal validates every supported hook document before mutation, so invalid unrelated settings cannot cause a shared runtime to be deleted prematurely. Custom Codex homes require the same `CODEX_HOME` during installation and removal. The panel writes `.server.pid` after binding its port and removes it on normal shutdown; the uninstaller checks each candidate PID's command before signaling it, ignoring stale or invalid PID files.
 
-**Purpose:** Remove hooks and files. Lives inside `soundbar/` (available after install), symlinked at repo root.
+### 2.10 codex.py and cursor.py — Agent Adapters
 
-**Modes:**
-- `./uninstall.sh` — keep user config (config.json, phrases.json)
-- `./uninstall.sh --purge` — remove everything
-- `./uninstall.sh --dry-run` — preview only
+The unified installer configures Codex directly, with no prerequisite Claude integration. `codex.py` retains its low-level installation API for compatibility and tests.
 
-**Dev mode safety:** Detects if `~/.claude/soundbar` is a symlink. Only removes the symlink, never deletes files in the source repo.
-
-**Hook removal:** Filters out entries containing `soundbar/play.sh` from all hook event arrays. Validates JSON before writing. Removes empty hook events. Removes the `hooks` key if it becomes empty.
-
-### 2.10 codex.py and install-codex.sh — Codex Integration
-
-`bash install-codex.sh` invokes `soundbar/codex.py --install`. It requires an
-existing Code Gossip installation and copies the adapter there unless the dev
-symlink already points to the source. `--dry-run` previews the merged JSON;
-`--uninstall` removes only handlers whose command contains `soundbar/codex.py`.
+Cursor uses native version-1 user hooks at `~/.cursor/hooks.json`. `cursor.py` maps observational lifecycle, file, shell/MCP completion, and failure events to shared playback, normalizes narrator payloads, and discards playback output. It never returns permission decisions or follow-up messages. Its hook commands use the installed Python interpreter and quoted absolute paths.
 
 The installer merges all 12 event groups into `$CODEX_HOME/hooks.json` (default
 `~/.codex/hooks.json`). It preserves unrelated handlers, including handlers in

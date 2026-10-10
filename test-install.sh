@@ -6,7 +6,6 @@
 set -uo pipefail
 
 DEST="${1:-$HOME/.claude/soundbar}"
-SETTINGS="$HOME/.claude/settings.json"
 
 pass=0
 fail=0
@@ -29,7 +28,7 @@ echo "Target: $DEST"
 # ── Files ──
 
 printf '\n\033[1mFiles\033[0m\n'
-for f in play.sh playback_gate.py server.py integrations.py narrate.py kokoro_server.py ui.html panel.sh switch.sh sounds.json \
+for f in play.sh playback_gate.py server.py integrations.py narrate.py kokoro_server.py ui.html panel.sh switch.sh sounds.json installer.py codex.py cursor.py claude-hooks.json uninstall.sh \
          config.defaults.json phrases.defaults.json; do
   check "$f" test -f "$DEST/$f"
 done
@@ -83,16 +82,22 @@ done
 # ── Hooks ──
 
 printf '\n\033[1mHooks\033[0m\n'
-check "settings.json exists" test -f "$SETTINGS"
-check "hooks reference soundbar/play.sh" \
-  jq -e '.. | strings | select(contains("soundbar/play.sh"))' "$SETTINGS"
+check "at least one agent has Code Gossip hooks" python3 -B -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import installer
+connected = [agent for agent, path in installer.targets(Path.home()).items()
+             if installer.is_connected(installer.read_document(path), agent)]
+sys.exit(0 if connected else 1)
+' "$DEST"
 
 # ── Smoke tests ──
 
 printf '\n\033[1mSmoke tests\033[0m\n'
 check "play.sh is executable" test -x "$DEST/play.sh"
 check "play.sh reads config" \
-  bash -c "FORCE_LAYER=effects FORCE_EFFECTS_PROFILE=silent $DEST/play.sh stop < /dev/null"
+  env FORCE_LAYER=effects FORCE_EFFECTS_PROFILE=silent bash "$DEST/play.sh" stop < /dev/null
 check "play.sh reads sounds.json" \
   jq -e '.effects.default.events.stop.file' "$DEST/sounds.json"
 check "integrations.py imports cleanly" \

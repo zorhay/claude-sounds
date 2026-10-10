@@ -797,11 +797,19 @@ def main():
     _setup_loggers()
     port = int(os.environ.get("PORT", 8111))
     server = ReuseHTTPServer(("127.0.0.1", port), Handler)
+    pid_file = SND / ".server.pid"
+    pid = str(os.getpid())
+    pid_file.write_text(pid)
     print(f"Soundbar: http://localhost:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        server.server_close()
+        # Another panel may have started since this one; keep its PID file.
+        if pid_file.exists() and pid_file.read_text().strip() == pid:
+            pid_file.unlink()
     print("\nStopped.")
 
 

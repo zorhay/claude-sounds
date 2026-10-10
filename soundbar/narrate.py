@@ -192,25 +192,26 @@ def build_context(data):
     tool = data.get("tool_name", "")
     inp = data.get("tool_input", {}) or {}
 
-    if data.get("soundbar_agent") == "codex":
+    if data.get("soundbar_agent") in ("codex", "cursor"):
+        agent = "Cursor" if data["soundbar_agent"] == "cursor" else "Codex"
         kind = data.get("soundbar_event", "")
         lifecycle = {
-            "session_start": f"Codex session {data.get('source', 'startup')}.",
-            "session_end": "Codex session closed.",
-            "pre_compact": "Codex is preparing to compact the conversation context.",
-            "compact": "Codex finished compacting the conversation context.",
-            "interrupt": "The user interrupted the current Codex turn. Pause the work.",
+            "session_start": f"{agent} session {data.get('source', 'startup')}.",
+            "session_end": f"{agent} session closed.",
+            "pre_compact": f"{agent} is preparing to compact the conversation context.",
+            "compact": f"{agent} finished compacting the conversation context.",
+            "interrupt": f"The user interrupted the current {agent} turn. Pause the work.",
         }
         if kind in lifecycle:
             return lifecycle[kind]
         if kind == "stop":
             message = _clip(data.get("last_assistant_message", ""), 250)
-            return "Codex finished this turn." + (f" Final response: {message}" if message else "")
+            return f"{agent} finished this turn." + (f" Final response: {message}" if message else "")
         if kind == "error":
-            return f"Codex encountered a failure: {_clip(data.get('error_message', ''), 250)}"
+            return f"{agent} encountered a failure: {_clip(data.get('error_message', ''), 250)}"
         if kind == "permission":
             reason = _clip(inp.get("description", inp.get("justification", "")), 180)
-            return f"Codex needs approval for {tool}." + (f" Reason: {reason}" if reason else "")
+            return f"{agent} needs approval for {tool}." + (f" Reason: {reason}" if reason else "")
         if tool == "Bash":
             label = _clip(inp.get("description") or inp.get("command", ""), 180)
             verbs = {"test": "Ran tests", "build": "Ran a build", "git": "Ran a Git command",
@@ -223,12 +224,12 @@ def build_context(data):
             if data.get("soundbar_no_matches"):
                 status = " No matches found; this is a normal search result."
             output = _clip(resp.get("stderr") or resp.get("stdout", ""), 200)
-            return f"Codex {verbs.get(kind, 'ran a command').lower()}: {label}.{status}" + (f" Output: {output}" if output else "")
+            return f"{agent} {verbs.get(kind, 'ran a command').lower()}: {label}.{status}" + (f" Output: {output}" if output else "")
         if kind in ("read", "search", "plan", "tool"):
             label = tool.split("__")[-1].replace("_", " ")
             details = _clip(json.dumps(inp, ensure_ascii=False), 250)
             verbs = {"read": "is inspecting", "search": "is searching with", "plan": "is planning with", "tool": "is using"}
-            return f"Codex {verbs[kind]} {label}. Details: {details}"
+            return f"{agent} {verbs[kind]} {label}. Details: {details}"
 
     if event == "SessionStart":
         return "New coding session started."
