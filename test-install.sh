@@ -1,5 +1,5 @@
 #!/bin/bash
-# Soundbar — Installation verification test
+# Code Gossip — Installation verification test
 # Validates that an installed soundbar is complete and functional.
 # Usage: test-install.sh [target-dir]
 #   default target: ~/.claude/soundbar
@@ -22,7 +22,7 @@ check() {
   fi
 }
 
-echo "Soundbar installation test"
+echo "Code Gossip installation test"
 echo "─────────────────────────────────────"
 echo "Target: $DEST"
 

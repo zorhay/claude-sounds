@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Soundbar — Control panel HTTP server for Claude Code sound system.
+"""Soundbar — Control panel HTTP server for Code Gossip.
 
 API:
   GET  /                  → ui.html

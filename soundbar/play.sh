@@ -1,5 +1,5 @@
 #!/bin/bash
-# Soundbar — Claude Code and Codex sound engine
+# Code Gossip — Claude Code and Codex sound engine
 # Two independent layers: effects + voice
 # Usage: play.sh <event> [stdin: hook JSON]
 # Events: stop, edit, bash, search, permission, error, subagent_start, subagent_stop, session_start, compact, user_prompt, read, tool, plan, test, build, git, git_status, git_history, git_commit, git_push, pre_compact, session_end, interrupt

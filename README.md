@@ -1,6 +1,22 @@
-# Soundbar
+# Code Gossip
 
-Hear what your coding assistant is doing without watching every tool call. Soundbar adds sound effects, spoken cues, and optional AI commentary to **Claude Code and local Codex sessions on macOS**.
+**Hear what your coding agents are up to.**
+
+Code Gossip is an open-source audio feedback tool for coding agents on **macOS**. Hear edits, searches, tests, approval requests, and completed turns through sound effects, spoken updates, or live AI commentary—without watching every tool call.
+
+Give your sessions the rustle of paper, the beeps of an 8-bit game, or a running commentary from a sports announcer or noir detective. Use quiet cues when you just want to know that your agent needs you.
+
+**Soundbar** is the web UI for configuring Code Gossip. It brings effects, voices, volumes, previews, and narrator settings into one mixer.
+
+## Coding agents
+
+| Agent | Connection |
+|-------|------------|
+| **Claude Code** | Lifecycle hooks configured by the [base installer](#quick-start) |
+| **Codex desktop and CLI** | Local lifecycle hooks configured by the [Codex installer](#connect-codex) |
+| **Cursor** | Has worked through the Claude hooks in existing setups; see [Using Cursor](#using-cursor) |
+
+## What you hear
 
 Mix two independently controlled channels:
 
@@ -11,13 +27,13 @@ Mix two independently controlled channels:
 
 Use either channel on its own or combine them. A fresh install starts with macOS system effects enabled and Voice off. Basic effects and spoken cues need no API key.
 
-[Quick start](#quick-start) · [Connect Codex](#connect-codex) · [Choose your sounds](#choose-your-sounds) · [AI narration](#ai-narration-optional) · [Troubleshooting](#troubleshooting) · [Uninstall](#uninstall)
+[Quick start](#quick-start) · [Connect Codex](#connect-codex) · [Using Cursor](#using-cursor) · [Soundbar](#soundbar) · [Choose your sounds](#choose-your-sounds) · [AI narration](#ai-narration-optional) · [Troubleshooting](#troubleshooting) · [Uninstall](#uninstall)
 
 ## Quick start
 
 ### 1. Check requirements
 
-Soundbar uses macOS's built-in `afplay` and `say` for audio. You also need **jq** and **Python 3**. **SoX** is optional, but required for generated effects such as chiptune, ambient, and minimal.
+Code Gossip uses macOS's built-in `afplay` and `say` for audio. You also need **jq** and **Python 3**. **SoX** is optional, but required for generated effects such as chiptune, ambient, and minimal.
 
 If you use Homebrew:
 
@@ -26,45 +42,47 @@ brew install jq python
 brew install sox          # optional: enables generated effects
 ```
 
-### 2. Install Soundbar
+### 2. Install Code Gossip
 
 ```bash
-git clone https://github.com/zorhay/claude-sounds.git
-cd claude-sounds
+git clone https://github.com/zorhay/code-gossip.git
+cd code-gossip
 bash ./install.sh --dry-run  # optional: preview the changes
 bash ./install.sh
 ```
 
-The installer copies Soundbar to `~/.claude/soundbar/`, creates your settings, and adds Claude Code hooks to `~/.claude/settings.json`. It backs up existing Claude settings and preserves unrelated hooks.
+The installer copies Code Gossip to `~/.claude/soundbar/`, creates your settings, and adds Claude Code hooks to `~/.claude/settings.json`. It backs up existing Claude settings and preserves unrelated hooks.
+
+The `soundbar` directory name is retained for compatibility with existing installations and hooks.
 
 **Using Codex?** Run this base installation first, then follow [Connect Codex](#connect-codex). The base installer also adds Claude Code hooks, even if you only plan to use Codex.
 
-### 3. Open the mixer and try a sound
+### 3. Open Soundbar and try a sound
 
 ```bash
 ~/.claude/soundbar/panel.sh
 ```
 
-The mixer opens at [localhost:8111](http://localhost:8111). Choose an Effects profile, adjust the volume, and click a play button to preview an event. Start a new Claude Code session to hear sounds as you work.
+Soundbar opens at [localhost:8111](http://localhost:8111). Choose an Effects profile, adjust the volume, and click a play button to preview an event. Start a new Claude Code session to hear sounds as you work.
 
 Keep the terminal open while using the mixer; **Ctrl+C** stops its server. Hook sounds continue working when the mixer is closed.
 
 ## Connect Codex
 
-Soundbar can use the same profiles and volumes for local Codex desktop and CLI sessions. You need a Codex version that supports lifecycle hooks.
+Code Gossip can use the same profiles and volumes for local Codex desktop and CLI sessions. You need a Codex version that supports lifecycle hooks.
 
-From the repository folder, after installing Soundbar:
+From the repository folder, after installing Code Gossip:
 
 ```bash
 bash ./install-codex.sh --dry-run  # optional: preview the changes
 bash ./install-codex.sh
 ```
 
-Then open **`/hooks` in the Codex CLI**, review and trust the Soundbar commands, and **start a new chat**. Untrusted hooks will not play sounds.
+Then open **`/hooks` in the Codex CLI**, review and trust the Code Gossip commands, and **start a new chat**. Untrusted hooks will not play sounds.
 
-The installer merges Soundbar hooks into `$CODEX_HOME/hooks.json` (default: `~/.codex/hooks.json`) and backs up an existing file. It preserves other hooks, `config.toml`, and any existing `notify` command. Reinstalling does not duplicate Soundbar hooks or change hook trust.
+The installer merges Code Gossip hooks into `$CODEX_HOME/hooks.json` (default: `~/.codex/hooks.json`) and backs up an existing file. It preserves other hooks, `config.toml`, and any existing `notify` command. Reinstalling does not duplicate Code Gossip hooks or change hook trust.
 
-Both agents share the mixer and `~/.claude/soundbar/config.json`; changes apply to both.
+Claude Code and Codex share Soundbar and `~/.claude/soundbar/config.json`; changes apply to both.
 
 ### Quiet approval sounds
 
@@ -75,9 +93,9 @@ This is a manual audio preference: it does not detect or change Codex's approval
 <details>
 <summary>Codex event coverage and limitations</summary>
 
-The adapter registers 12 lifecycle hook events and maps them to these Soundbar categories:
+The adapter registers 12 lifecycle hook events and maps them to these Code Gossip categories:
 
-| Codex activity | Soundbar event |
+| Codex activity | Code Gossip event |
 |----------------|----------------|
 | Session startup/resume/clear and close | `session_start`, `session_end` |
 | User prompt, approval request, turn completion, interruption | `user_prompt`, `permission`, `stop`, `interrupt` |
@@ -98,9 +116,27 @@ A `stop` cue means the current turn ended, not that the entire task is complete.
 
 </details>
 
+## Using Cursor
+
+Cursor has worked with Code Gossip through the existing Claude hooks. This repository currently ships installers for Claude Code and Codex; it does not include a separate Cursor installer or a verified Cursor event-coverage list.
+
+If your Cursor setup already invokes those hooks, it uses the same sound profiles and Soundbar settings. The base installer writes to `~/.claude/settings.json`; it does not configure Cursor-specific hooks.
+
+## Soundbar
+
+Soundbar is Code Gossip’s web UI for sound configuration. Open it with:
+
+```bash
+~/.claude/soundbar/panel.sh
+```
+
+The panel shows **Code Gossip** at the top and **Soundbar · Sound configuration** underneath. Use it to enable Effects and Voice independently, select profiles, set volumes, preview event cues, edit spoken phrases, and configure AI narration.
+
+Settings are shared across connected agents. Closing Soundbar stops the configuration server; installed hooks continue to play audio using your saved settings.
+
 ## Choose your sounds
 
-The mixer is the easiest way to change profiles, enable channels, adjust volumes, and preview sounds. Selecting a profile does **not** enable its channel: turn on **Voice** to hear spoken cues or narration.
+Use Soundbar to change profiles, enable channels, adjust volumes, and preview sounds. Selecting a profile does **not** enable its channel: turn on **Voice** to hear spoken cues or narration.
 
 ### Effects profiles
 
@@ -155,7 +191,7 @@ This helps with busy or parallel chats, but does not wait for each clip or spoke
 ~/.claude/soundbar/switch.sh voice off             # mute spoken cues and narration
 ```
 
-To mute Soundbar completely, turn off both Effects and Voice.
+To mute Code Gossip completely, turn off both Effects and Voice.
 
 ## AI narration (optional)
 
@@ -191,7 +227,7 @@ Kokoro changes the speaking voice. The narrator still uses your selected LLM pro
 | Problem | What to try |
 |---------|-------------|
 | No sound at all | Preview an event in the mixer. Check the channel toggle, its volume, macOS volume, and the selected output device. |
-| Previews work, but Codex is silent | Review and trust Soundbar hooks in the Codex CLI's `/hooks`, then start a new chat. |
+| Previews work, but Codex is silent | Review and trust Code Gossip hooks in the Codex CLI's `/hooks`, then start a new chat. |
 | Previews work, but Claude Code is silent | Rerun `bash ./install.sh` from the repository folder and start a new session. |
 | A generated Effects profile is silent | Install SoX with `brew install sox`, or try `default` or `paper`. |
 | Generals is silent | Enable Voice as well as selecting `generals`. If clips are missing, regenerate them using the command below. |
@@ -221,7 +257,15 @@ python3 ~/.claude/soundbar/narrate.py --check      # provider connection
 python3 ~/.claude/soundbar/narrate.py --check-tts  # speech engine
 ```
 
-## Update Soundbar
+## Update Code Gossip
+
+If you cloned the project under its former repository name, `claude-sounds`, update your remote from inside that checkout:
+
+```bash
+git remote set-url origin https://github.com/zorhay/code-gossip.git
+```
+
+Your local folder can keep its old name. In particular, keep it in place if a development installation links to it. Existing settings and hook paths remain valid.
 
 From your repository folder, pull the latest changes and rerun the installer:
 
@@ -249,7 +293,7 @@ The repeat controls use `sound_spacing_on`, `effects_cooldown_ms`, and `voice_co
 
 ## Uninstall
 
-If you connected Codex, remove its hooks **before** removing Soundbar. From the repository folder:
+If you connected Codex, remove its hooks **before** removing Code Gossip. From the repository folder:
 
 ```bash
 bash ./install-codex.sh --uninstall
@@ -259,11 +303,11 @@ Then choose one of these commands:
 
 ```bash
 bash ~/.claude/soundbar/uninstall.sh --dry-run  # preview removal
-bash ~/.claude/soundbar/uninstall.sh            # remove Soundbar; keep your settings
+bash ~/.claude/soundbar/uninstall.sh            # remove Code Gossip; keep your settings
 bash ~/.claude/soundbar/uninstall.sh --purge    # also delete your settings
 ```
 
-The uninstaller removes Soundbar's Claude Code hooks and stops the panel and Kokoro processes. A normal uninstall keeps `config.json`, `phrases.json`, and `narrator_styles.json`. In development mode, it removes the installation symlink and leaves the source repository intact.
+The uninstaller removes Code Gossip's Claude Code hooks and stops the panel and Kokoro processes. A normal uninstall keeps `config.json`, `phrases.json`, and `narrator_styles.json`. In development mode, it removes the installation symlink and leaves the source repository intact.
 
 ## Development
 

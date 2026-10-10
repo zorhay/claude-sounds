@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Audio feedback plugin for Claude Code and local Codex sessions. Three independent, mixable layers:
+Code Gossip is an audio feedback plugin for coding agents. Soundbar is its web UI for sound configuration. The documented integrations cover Claude Code and local Codex sessions. Three independent, mixable layers:
 - **Effects layer** — sound profiles triggered by hook events (12 profiles)
 - **Voice layer** — spoken lines via TTS or pre-rendered audio (2 profiles)
 - **Narrator layer** — LLM-generated live commentary on the coding process (5 providers, 12 built-in styles, user-editable)
@@ -39,7 +39,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 **Event flow:** Claude Code hook → `soundbar/play.sh <event>` → captures stdin JSON, backgrounds all work → Layer 1 (voice) + Layer 2 (effects) in parallel.
 
-**Codex flow:** Codex hook → `soundbar/codex.py` → normalizes the event and narrator payload → the same `play.sh`. `bash install-codex.sh` connects an existing Soundbar installation to `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). Supports `--dry-run` and `--uninstall`, preserves unrelated handlers, backs up changes, and never edits Codex trust or `config.toml`. Users review/trust hooks through `/hooks`. Remove Codex hooks before the shared installation. Generals requires `voice_on: true` as well as `voice_profile: "generals"`.
+**Codex flow:** Codex hook → `soundbar/codex.py` → normalizes the event and narrator payload → the same `play.sh`. `bash install-codex.sh` connects an existing Code Gossip installation to `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). Supports `--dry-run` and `--uninstall`, preserves unrelated handlers, backs up changes, and never edits Codex trust or `config.toml`. Users review/trust hooks through `/hooks`. Remove Codex hooks before the shared installation. Generals requires `voice_on: true` as well as `voice_profile: "generals"`.
 
 **Pre vs Post hooks:** Most tool events fire on `PreToolUse` (Edit, Write, Grep, Glob) — narration kicks in *before* the tool runs, characterizing intent. **Bash is the exception** — it's wired to `PostToolUse` so the narrator can react to actual results (exit code, stdout, stderr from `tool_response`). This means Bash narration arrives after the command finishes, not before. Only one hook fires per Bash call, avoiding lock collisions in `narrate.py`.
 
@@ -79,7 +79,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 - Hook tag: any hook containing `soundbar/play.sh` is ours.
 - Codex hook tag: `soundbar/codex.py`. All 12 Codex hook events are registered. Shell, patch, and MCP failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
 - `server.py` uses unified `/api/config` POST — send any subset of keys.
-- `codex_permission_sound_on` defaults to true. The Codex adapter reads it from Soundbar's `config.json` on each approval hook; false suppresses the entire approval cue without changing Codex permissions. Other events, Claude Code hooks, and direct panel previews are unaffected.
+- `codex_permission_sound_on` defaults to true. The Codex adapter reads it from Code Gossip's `config.json` on each approval hook; false suppresses the entire approval cue without changing Codex permissions. Other events, Claude Code hooks, and direct panel previews are unaffected.
 - `/api/play` takes `{layer, profile, event}` and plays sounds directly (no shell script).
 - `/api/narrator-check` tests provider connectivity, `/api/narrator-test` generates and speaks a test narration.
 - Volume: `afplay -v` for file-based, `vol` effect for sox, render-to-temp for TTS.

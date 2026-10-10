@@ -1,5 +1,5 @@
 #!/bin/bash
-# Soundbar — Install Claude Code sound system
+# Code Gossip — Install Claude Code sound system
 # Copies soundbar/ → ~/.claude/soundbar/, injects hooks into settings.json.
 set -euo pipefail
 
@@ -362,9 +362,9 @@ preview_op() {
 # ═══════════════════════════════════════════
 
 if [ "$DEV" = "1" ]; then
-  echo "Soundbar installer (dev mode)"
+  echo "Code Gossip installer (dev mode)"
 else
-  echo "Soundbar installer"
+  echo "Code Gossip installer"
 fi
 echo "─────────────────────────────────────"
 
@@ -445,7 +445,7 @@ done
 
 echo ""
 echo "─────────────────────────────────────"
-printf '\033[32mSoundbar installed.\033[0m\n'
+printf '\033[32mCode Gossip installed.\033[0m\n'
 echo ""
 echo "  Panel:      ~/.claude/soundbar/panel.sh"
 echo "  CLI:        ~/.claude/soundbar/switch.sh"

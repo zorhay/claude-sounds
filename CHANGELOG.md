@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Soundbar are documented here.
+All notable changes to Code Gossip are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
@@ -19,6 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - Narrator settings two-column layout (LLM | Style & Voice) with vertical divider
 
 ### Changed
+- Renamed the project and repository to Code Gossip (`code-gossip`). Soundbar remains the web UI for sound configuration, with Code Gossip branding in its header. Existing installation paths and hook identifiers are preserved.
 - Narrator pane sub-titles brighter for scannability
 - Kokoro info box uses distinct callout background
 - Status dots glow green when connected

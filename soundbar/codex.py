@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Connect Codex lifecycle hooks to the existing Soundbar installation.
+"""Connect Codex lifecycle hooks to the existing Code Gossip installation.
 
 No hook output is emitted and no permission decisions are made. Hook trust is
 managed by Codex; installation never modifies trust or config.toml.
@@ -332,13 +332,13 @@ def install(codex_home, soundbar, dry_run=False, uninstall=False):
     target = codex_home / "hooks.json"
     adapter = soundbar / "codex.py"
     if not uninstall and not (soundbar / "play.sh").is_file():
-        raise ValueError("Install Soundbar first with ./install.sh (or ./install.sh --dev)")
+        raise ValueError("Install Code Gossip first with ./install.sh (or ./install.sh --dev)")
     original = target.read_text() if target.exists() else "{}"
     document = json.loads(original)
     updated = merge_hooks(document, {} if uninstall else hook_definitions(adapter))
     rendered = json.dumps(updated, indent=2) + "\n"
     if dry_run:
-        print(f"Would {'remove Soundbar hooks from' if uninstall else 'merge Soundbar hooks into'} {target}")
+        print(f"Would {'remove Code Gossip hooks from' if uninstall else 'merge Code Gossip hooks into'} {target}")
         print(rendered, end="")
         return
     if not uninstall and Path(__file__).resolve() != adapter.resolve():
@@ -355,9 +355,9 @@ def install(codex_home, soundbar, dry_run=False, uninstall=False):
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
-    print(f"Soundbar hooks {'removed from' if uninstall else 'installed in'} {target}")
+    print(f"Code Gossip hooks {'removed from' if uninstall else 'installed in'} {target}")
     if not uninstall:
-        print("Open /hooks in Codex CLI to review and trust the Soundbar commands, then start a new chat.")
+        print("Open /hooks in Codex CLI to review and trust the Code Gossip commands, then start a new chat.")
 
 
 def main():
@@ -372,7 +372,7 @@ def main():
         try:
             install(codex_home, soundbar, args.dry_run, args.uninstall)
         except (OSError, ValueError, TypeError, AttributeError) as exc:
-            parser.exit(1, f"Soundbar: {exc}\n")
+            parser.exit(1, f"Code Gossip: {exc}\n")
     else:
         try:
             dispatch(json.load(sys.stdin), soundbar)

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Soundbar — CLI control for Claude Code sound layers
+# Code Gossip — CLI control for Claude Code sound layers
 # Usage: switch.sh <command> [value]
 
 SOUNDBAR="$HOME/.claude/soundbar"
 CFG="$SOUNDBAR/config.json"
 [ ! -f "$CFG" ] && CFG="$SOUNDBAR/config.defaults.json"
-[ ! -f "$CFG" ] && { echo "Soundbar not installed. Run install.sh first."; exit 1; }
+[ ! -f "$CFG" ] && { echo "Code Gossip not installed. Run install.sh first."; exit 1; }
 
 EFFECTS_PROFILES="ambient attention chiptune construction default factory minimal organic paper sci-fi submarine silent"
 VOICE_PROFILES="senior narrator generals"

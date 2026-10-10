@@ -1,12 +1,12 @@
 ---
 name: sounds
-description: Manage Claude Code sound system — create profiles, find and download sounds, customize phrases
+description: Manage Code Gossip audio feedback — create profiles, find and download sounds, customize phrases
 argument-hint: [create <profile> | find <query> | add <profile> <event> <url>]
 ---
 
 # /sounds — Sound Profile Designer
 
-Creative tasks for the Claude Code sound system. For simple controls (toggle, switch profile), use the CLI directly: `~/.claude/soundbar/switch.sh`.
+Creative tasks for Code Gossip, the audio feedback system for coding agents. Soundbar is its web UI for sound configuration. For simple controls (toggle, switch profile), use the CLI directly: `~/.claude/soundbar/switch.sh`.
 
 ## System layout
 

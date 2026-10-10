@@ -1,5 +1,5 @@
 #!/bin/bash
-# Soundbar — Uninstall Claude Code sound system
+# Code Gossip — Uninstall Claude Code sound system
 # Removes hooks from settings.json, deletes installed files.
 # User config (config.json, phrases.json) kept unless --purge.
 set -euo pipefail
@@ -23,7 +23,7 @@ for arg in "$@"; do
 done
 
 if [ ! -d "$DEST" ] && [ ! -L "$DEST" ]; then
-  echo "Soundbar is not installed ($DEST not found)."
+  echo "Code Gossip is not installed ($DEST not found)."
   exit 0
 fi
 
@@ -32,7 +32,7 @@ if [ -L "$DEST" ]; then
   IS_DEV=1
 fi
 
-echo "Soundbar uninstaller"
+echo "Code Gossip uninstaller"
 echo "─────────────────────────────────────"
 
 # ═══════════════════════════════════════════
@@ -215,5 +215,5 @@ done
 
 echo ""
 echo "─────────────────────────────────────"
-printf '\033[32mSoundbar uninstalled.\033[0m\n'
+printf '\033[32mCode Gossip uninstalled.\033[0m\n'
 echo ""

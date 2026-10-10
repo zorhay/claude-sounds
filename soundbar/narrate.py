@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Soundbar narrator — multi-provider AI narration for Claude Code and Codex sessions.
+"""Code Gossip narrator — multi-provider AI narration for Claude Code and Codex sessions.
 
 Called by play.sh when voice_profile is "narrator". Reads hook event JSON from
 stdin, calls an LLM to generate a short narration line, speaks it via macOS TTS.

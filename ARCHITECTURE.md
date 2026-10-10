@@ -1,15 +1,15 @@
-# Soundbar — Architecture & Implementation Guide
+# Code Gossip — Architecture & Implementation Guide
 
-Comprehensive reference for the Claude Code and Codex audio feedback system. Covers all components, their connections, data flows, and planned features.
+Comprehensive reference for Code Gossip, the Claude Code and Codex audio feedback system. Soundbar is its web UI for sound configuration. Covers all components, their connections, data flows, and planned features.
 
 ---
 
 ## 1. System Overview
 
-Soundbar adds audio feedback to Claude Code and local Codex sessions through three independent, mixable layers:
+Code Gossip adds audio feedback to Claude Code and local Codex sessions through three independent, mixable layers:
 
 ```
-Claude Code                    Soundbar
+Claude Code                    Code Gossip
 ┌──────────┐    hook event    ┌──────────────────────────────────────────┐
 │ Action   │ ──────────────→  │ play.sh <event>                          │
 │ (edit,   │    stdin JSON     │                                          │
@@ -411,7 +411,7 @@ switch.sh <profile-name>         # shorthand for effects-profile
 ### 2.10 codex.py and install-codex.sh — Codex Integration
 
 `bash install-codex.sh` invokes `soundbar/codex.py --install`. It requires an
-existing Soundbar installation and copies the adapter there unless the dev
+existing Code Gossip installation and copies the adapter there unless the dev
 symlink already points to the source. `--dry-run` previews the merged JSON;
 `--uninstall` removes only handlers whose command contains `soundbar/codex.py`.
 
@@ -423,7 +423,7 @@ An unchanged reinstall does not duplicate hooks or replace the backup.
 `config.toml`, existing `notify` commands, and hook trust are not modified.
 
 The mixer preference `codex_permission_sound_on` defaults to `true`. On every
-`PermissionRequest`, the adapter reads Soundbar's `config.json` and skips the
+`PermissionRequest`, the adapter reads Code Gossip's `config.json` and skips the
 entire playback dispatch only when the value is the JSON boolean `false`.
 Missing, unreadable, or invalid config keeps cues enabled. This filters audio
 before effects, voice, or narrator work starts; it emits no approval decision.
@@ -435,7 +435,7 @@ Hook commands use absolute, shell-quoted paths to Python and the installed
 adapter, with a five-second timeout (three seconds for `Interrupt`). Codex requires users to review and trust
 the definitions via `/hooks` before execution. Start a new chat after setup.
 
-| Codex hook | Matcher or condition | Soundbar event |
+| Codex hook | Matcher or condition | Code Gossip event |
 |------------|----------------------|----------------|
 | `SessionStart` | `startup`, `resume`, `clear` | `session_start` |
 | `UserPromptSubmit` | Any | `user_prompt` |
