@@ -13,32 +13,37 @@ import shutil
 import signal
 import socket as sock_mod
 import subprocess
-import sys
 import tempfile
 import time
 import urllib.request
 import wave
+import sys
 from pathlib import Path
 
-LOCK_FILE = "/tmp/soundbar_narrator.lock"
-SND = Path.home() / ".claude" / "soundbar"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paths import CONFIGS, ENGINE, STATE
+
+
+LOCK_FILE = str(STATE / "narrator.lock")
+
+STATE.mkdir(parents=True, exist_ok=True)
 
 # File logger — narrate.py runs as subprocess with stdout/stderr suppressed,
 # so file logging is the only way to trace issues.
 _log = logging.getLogger("narrate")
 _log.setLevel(logging.DEBUG)
-_fh = logging.FileHandler(SND / "debug.log", mode="a")
+_fh = logging.FileHandler(STATE / "debug.log", mode="a")
 _fh.setFormatter(logging.Formatter("%(asctime)s NARRATE %(levelname)s %(message)s", datefmt="%H:%M:%S"))
 _fh.setLevel(logging.DEBUG)
 _log.addHandler(_fh)
-_eh = logging.FileHandler(SND / "error.log", mode="a")
+_eh = logging.FileHandler(STATE / "error.log", mode="a")
 _eh.setFormatter(logging.Formatter("%(asctime)s NARRATE %(levelname)s %(message)s", datefmt="%H:%M:%S"))
 _eh.setLevel(logging.ERROR)
 _log.addHandler(_eh)
-CONFIG_FILE = SND / "config.json"
-CONFIG_DEFAULTS = SND / "config.defaults.json"
-STYLES_FILE = SND / "narrator_styles.json"
-STYLES_DEFAULTS = SND / "narrator_styles.defaults.json"
+CONFIG_FILE = CONFIGS / "config.json"
+CONFIG_DEFAULTS = CONFIGS / "config.defaults.json"
+STYLES_FILE = CONFIGS / "narrator_styles.json"
+STYLES_DEFAULTS = CONFIGS / "narrator_styles.defaults.json"
 
 PROVIDERS = {
     "claude_cli": {
@@ -98,7 +103,7 @@ COMPRESS_SYSTEM = (
 )
 
 # Session context parameters.
-SESSION_DIR = SND / "session_context"
+SESSION_DIR = STATE / "session_context"
 SESSION_RECENT_KEEP = 4     # how many recent entries survive a compression pass
 SESSION_RECENT_TRIGGER = 10 # compress once recent exceeds this
 SESSION_MAX_AGE = 7 * 24 * 3600  # drop session files older than 7 days
@@ -125,15 +130,10 @@ def style_prompt(style_id):
     s = styles.get(style_id) if style_id else None
     if isinstance(s, dict) and s.get("prompt"):
         return s["prompt"]
-    # Legacy flat mapping {id: "prompt string"}
-    if isinstance(s, str):
-        return s
     # Fall back to pair_programmer default, then hardcoded string
     pp = styles.get("pair_programmer")
     if isinstance(pp, dict) and pp.get("prompt"):
         return pp["prompt"]
-    if isinstance(pp, str):
-        return pp
     return FALLBACK_STYLE_PROMPT
 
 
@@ -525,9 +525,9 @@ def speak_say(text, voice, volume):
                 pass
 
 
-KOKORO_SOCK = SND / "kokoro.sock"
-KOKORO_VENV = SND / ".venv" / "bin" / "python"
-KOKORO_DAEMON = SND / "kokoro_server.py"
+KOKORO_SOCK = STATE / "kokoro.sock"
+KOKORO_VENV = STATE / ".venv" / "bin" / "python"
+KOKORO_DAEMON = ENGINE / "kokoro_server.py"
 
 
 def _kokoro_request(cmd, timeout=30, **kwargs):
@@ -577,7 +577,7 @@ def _ensure_kokoro_daemon():
     _log.info("starting kokoro daemon: %s", daemon_cmd)
 
     # Capture daemon stderr to a log file for debugging
-    daemon_log = SND / "kokoro_daemon.log"
+    daemon_log = STATE / "kokoro_daemon.log"
     try:
         daemon_err = open(daemon_log, "a")
     except Exception:
@@ -624,7 +624,7 @@ def speak_kokoro(text, voice, volume):
 def _read_integrations():
     """Read integrations.json for cached state."""
     try:
-        return json.loads((SND / "integrations.json").read_text())
+        return json.loads((STATE / "integrations.json").read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 

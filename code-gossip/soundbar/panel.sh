@@ -3,12 +3,12 @@
 # Runs the server in the foreground. Opens the browser. Ctrl+C stops everything.
 
 PORT=8111
-SND="$(cd "$(dirname "$0")" && pwd)"
-SERVER="$SND/server.py"
+SND="$(cd "$(dirname "$0")/.." && pwd)"
+SERVER="$SND/soundbar/server.py"
 
 # Resolve python3: config → which → fallback
-CFG="$SND/config.json"
-[ ! -f "$CFG" ] && CFG="$SND/config.defaults.json"
+CFG="$SND/configs/config.json"
+[ ! -f "$CFG" ] && CFG="$SND/configs/config.defaults.json"
 PYTHON3=""
 if [ -f "$CFG" ] && command -v jq &>/dev/null; then
   PYTHON3=$(jq -r '.python3_path // ""' "$CFG" 2>/dev/null)

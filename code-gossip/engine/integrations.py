@@ -21,10 +21,14 @@ import os
 import shutil
 import subprocess
 import threading
+import sys
 from pathlib import Path
 
-SND = Path(__file__).parent
-INTEGRATIONS_FILE = SND / "integrations.json"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paths import STATE
+
+
+INTEGRATIONS_FILE = STATE / "integrations.json"
 
 # ── File loggers (same debug.log / error.log as server.py) ──
 
@@ -39,16 +43,17 @@ def _setup_loggers():
     global _loggers_initialized
     if _loggers_initialized:
         return
+    STATE.mkdir(parents=True, exist_ok=True)
     _loggers_initialized = True
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
     # debug.log — everything (DEBUG+)
-    dh = logging.FileHandler(SND / "debug.log", mode="a")
+    dh = logging.FileHandler(STATE / "debug.log", mode="a")
     dh.setLevel(logging.DEBUG)
     dh.setFormatter(fmt)
     _dlog.addHandler(dh)
     _dlog.setLevel(logging.DEBUG)
     # error.log — errors only
-    eh = logging.FileHandler(SND / "error.log", mode="a")
+    eh = logging.FileHandler(STATE / "error.log", mode="a")
     eh.setLevel(logging.ERROR)
     eh.setFormatter(fmt)
     _elog.addHandler(eh)
@@ -105,7 +110,7 @@ class VenvIntegration:
         self.python_min = python_min
         self.python_max = python_max
         self.verify_import = verify_import
-        self.venv_dir = venv_dir or (SND / ".venv")
+        self.venv_dir = venv_dir or (STATE / ".venv")
         self.venv_py = self.venv_dir / "bin" / "python"
         self._progress = {"status": "idle", "message": ""}
         self._lock = threading.Lock()
@@ -608,5 +613,5 @@ kokoro = VenvIntegration(
     python_min=(3, 9),
     python_max=(3, 12),
     verify_import="import kokoro",
-    venv_dir=None,  # defaults to SND / ".venv"
+    venv_dir=None,  # defaults to STATE / ".venv"
 )

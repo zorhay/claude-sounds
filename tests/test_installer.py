@@ -59,18 +59,19 @@ def test_interactive_multi_selection_and_partial_uninstall(sandbox):
     assert not document(home, "claude")
     assert installer.is_connected(document(home, "codex"), "codex")
     assert document(home, "cursor")["version"] == 1
-    dest = home / ".claude/soundbar"
+    dest = home / ".code-gossip"
     # Partial uninstall must neither remove files nor stop the shared server.
-    (dest / ".server.pid").write_text(str(os.getpid()))
+    (dest / "state").mkdir(exist_ok=True)
+    (dest / "state/.server.pid").write_text(str(os.getpid()))
     result = run(dest / "uninstall.sh", "--purge", selection="codex\n")
-    assert "Keep shared soundbar files and processes for: cursor" in result.stdout
-    assert (dest / ".server.pid").exists()
-    (dest / ".server.pid").unlink()
+    assert "Keep shared Code Gossip files and processes for: cursor" in result.stdout
+    assert (dest / "state/.server.pid").exists()
+    (dest / "state/.server.pid").unlink()
     assert not installer.is_connected(document(home, "codex"), "codex")
-    assert (dest / "play.sh").exists()
+    assert (dest / "engine/play.sh").exists()
     run(dest / "uninstall.sh", "--all")
-    assert not (dest / "play.sh").exists()
-    assert set(p.name for p in dest.iterdir()) == set(installer.USER_FILES)
+    assert not (dest / "engine/play.sh").exists()
+    assert set(p.name for p in (dest / "configs").iterdir()) == set(installer.USER_FILES)
     run("uninstall.sh", "--all", "--purge")
     assert not dest.exists()
 
@@ -91,9 +92,9 @@ def test_all_install_reinstall_and_uninstall_preserve_unrelated_hooks(sandbox):
             first["hooks"].append({"type": "command", "command": "echo keep"})
         doc["keep"] = True
         path.write_text(json.dumps(doc))
-    dest = home / ".claude/soundbar"
-    config = dest / "config.json"
-    config.write_text('{"voice_profile":"narration", "volume":17}')
+    dest = home / ".code-gossip"
+    config = dest / "configs/config.json"
+    config.write_text('{"voice_profile":"senior", "volume":17}')
     run("install.sh", "--agents", "all")
     assert json.loads(config.read_text())["volume"] == 17
     assert json.loads(config.read_text())["voice_profile"] == "senior"
@@ -150,9 +151,9 @@ def test_orphan_hooks_removed_without_shared_files(sandbox):
     path = home / ".claude/settings.json"
     path.parent.mkdir()
     path.write_text(json.dumps({"hooks": {"Stop": [{"hooks": [
-        {"command": "old/play-sound.sh"}, {"command": "echo keep"}]}]}}))
+        {"command": "~/.code-gossip/engine/play.sh stop"}, {"command": "echo keep"}]}]}}))
     run("uninstall.sh", "--all")
-    assert "play-sound.sh" not in path.read_text()
+    assert "code-gossip/engine/play.sh" not in path.read_text()
     assert "echo keep" in path.read_text()
 
 
@@ -171,18 +172,18 @@ def test_dev_uninstall_never_deletes_checkout(sandbox, tmp_path, repo_root):
     checkout = tmp_path / "checkout"
     checkout.mkdir()
     shutil.copy2(repo_root / "install.sh", checkout)
-    shutil.copytree(repo_root / "soundbar", checkout / "soundbar",
+    shutil.copytree(repo_root / "code-gossip", checkout / "code-gossip",
                     ignore=shutil.ignore_patterns(*installer.USER_FILES, ".venv", "__pycache__",
-                                                 "*.sock", "*.log", "session_context"))
-    (checkout / "uninstall.sh").symlink_to("soundbar/uninstall.sh")
+                                                 "*.sock", "*.log", "session_context", "state"))
+    (checkout / "uninstall.sh").symlink_to("code-gossip/uninstall.sh")
     run(checkout / "install.sh", "--dev", "--agents", "cursor,claude")
-    dest = home / ".claude/soundbar"
+    dest = home / ".code-gossip"
     assert dest.is_symlink()
     run(checkout / "install.sh", "--agents", "codex", success=False)
     run(dest / "uninstall.sh", "--all", "--purge")
     assert not dest.is_symlink()
-    assert (checkout / "soundbar/play.sh").exists()
-    assert (checkout / "config.json").exists()
+    assert (checkout / "code-gossip/engine/play.sh").exists()
+    assert (checkout / "code-gossip/configs/config.json").exists()
 
 
 def test_detection_and_all_selection(tmp_path, monkeypatch):
@@ -202,10 +203,11 @@ def test_detection_and_all_selection(tmp_path, monkeypatch):
 def test_shared_runtime_does_not_count_as_claude(tmp_path, monkeypatch):
     monkeypatch.setattr(installer.shutil, "which", lambda name: None)
     paths = {agent: tmp_path / f".{agent}" / "hooks.json" for agent in installer.AGENTS}
-    (tmp_path / ".claude/soundbar").mkdir(parents=True)
+    (tmp_path / ".code-gossip").mkdir()
     real_is_dir = Path.is_dir
     monkeypatch.setattr(Path, "is_dir", lambda path: False if str(path).startswith("/Applications/") else real_is_dir(path))
     assert installer.detected_agents(tmp_path, paths) == []
+    (tmp_path / ".claude").mkdir()
     (tmp_path / ".claude/settings.json").write_text("{}")
     assert installer.detected_agents(tmp_path, paths) == ["claude"]
 
@@ -220,20 +222,20 @@ def test_unselected_invalid_settings_do_not_block_install(sandbox):
     assert path.read_text() == "broken"
     # Removal must still fail safely if another integration cannot be inspected.
     run("uninstall.sh", "--agents", "codex", success=False)
-    assert (home / ".claude/soundbar/play.sh").exists()
+    assert (home / ".code-gossip/engine/play.sh").exists()
 
 
 def test_uninstall_stops_running_panel(sandbox):
     home, env, run = sandbox
     run("install.sh", "--agents", "codex")
-    dest = home / ".claude/soundbar"
-    panel = subprocess.Popen([sys.executable, str(dest / "server.py")],
+    dest = home / ".code-gossip"
+    panel = subprocess.Popen([sys.executable, str(dest / "soundbar/server.py")],
                              env={**env, "PORT": "0"}, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         deadline = time.monotonic() + 5
-        while not (dest / ".server.pid").exists() and panel.poll() is None and time.monotonic() < deadline:
+        while not (dest / "state/.server.pid").exists() and panel.poll() is None and time.monotonic() < deadline:
             time.sleep(.05)
-        assert (dest / ".server.pid").read_text() == str(panel.pid)
+        assert (dest / "state/.server.pid").read_text() == str(panel.pid)
         run("uninstall.sh", "--all", "--purge")
         assert panel.wait(timeout=5) != 0
         assert not dest.exists()
@@ -249,8 +251,9 @@ def test_stale_pid_does_not_break_uninstall_or_kill_other_processes(sandbox, sta
     run("install.sh", "--agents", "codex")
     unrelated = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
     try:
-        dest = home / ".claude/soundbar"
-        (dest / ".server.pid").write_text(str(unrelated.pid) if stale == "reused" else "not a pid")
+        dest = home / ".code-gossip"
+        (dest / "state").mkdir(exist_ok=True)
+        (dest / "state/.server.pid").write_text(str(unrelated.pid) if stale == "reused" else "not a pid")
         run("uninstall.sh", "--all", "--purge")
         assert unrelated.poll() is None
         assert not dest.exists()
@@ -274,15 +277,17 @@ def test_cursor_event_mapping(event, data, expected):
 
 
 def test_cursor_hook_command_executes_without_output(tmp_path):
-    soundbar = tmp_path / "path with spaces/soundbar"
-    soundbar.mkdir(parents=True)
-    shutil.copy2(Path(cursor.__file__), soundbar / "cursor.py")
-    (soundbar / "play.sh").write_text('printf "%s" "$1" > "$(dirname "$0")/event"\ncat > "$(dirname "$0")/payload"\necho hidden\n')
-    command = cursor.hook_definitions(soundbar / "cursor.py")["stop"][0]["command"]
+    soundbar = tmp_path / "path with spaces/code-gossip"
+    (soundbar / "hooks").mkdir(parents=True)
+    (soundbar / "engine").mkdir()
+    shutil.copy2(Path(cursor.__file__), soundbar / "hooks/cursor.py")
+    shutil.copy2(Path(cursor.__file__).parents[1] / "paths.py", soundbar / "paths.py")
+    (soundbar / "engine/play.sh").write_text('printf "%s" "$1" > "$(dirname "$0")/event"\ncat > "$(dirname "$0")/payload"\necho hidden\n')
+    command = cursor.hook_definitions(soundbar / "hooks/cursor.py")["stop"][0]["command"]
     result = subprocess.run(command, shell=True, input='{"status":"error"}', text=True, capture_output=True)
     assert result.returncode == 0
     assert result.stdout == result.stderr == ""
-    assert (soundbar / "event").read_text() == "error"
+    assert (soundbar / "engine/event").read_text() == "error"
 
 
 @pytest.mark.parametrize("event,data,expected", [
@@ -302,3 +307,20 @@ def test_cursor_narration_uses_normalized_events(event, data, expected):
     assert expected in context
     assert "Codex" not in context
     assert "exit 0" not in context.lower()  # Cursor does not supply an exit code here.
+
+
+def test_cached_hooks_are_silent_after_uninstall(sandbox):
+    home, env, run = sandbox
+    run("install.sh", "--agents", "codex,cursor,claude")
+    commands = set()
+    for agent in installer.AGENTS:
+        for groups in document(home, agent)["hooks"].values():
+            for group in groups:
+                for handler in ([group] if agent == "cursor" else group["hooks"]):
+                    commands.add(handler["command"])
+    run("uninstall.sh", "--all", "--purge")
+    for command in commands:
+        result = subprocess.run(["/bin/sh", "-c", command], input="{}", env=env,
+                                text=True, capture_output=True, timeout=5)
+        assert result.returncode == 0, command
+        assert result.stdout == result.stderr == "", command

@@ -6,10 +6,15 @@ decisions or asks Cursor to continue a conversation.
 """
 
 import json
+import sys
 from pathlib import Path
+
+
 import shlex
 import subprocess
-import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paths import ENGINE
 
 
 EVENTS = {
@@ -26,8 +31,9 @@ EVENTS = {
 
 
 def hook_definitions(adapter):
-    command = f"{shlex.quote(sys.executable)} {shlex.quote(str(adapter))}"
-    return {event: [{"command": f"{command} {event}", "timeout": 5}]
+    path = shlex.quote(str(adapter))
+    command = f"{shlex.quote(sys.executable)} {path}"
+    return {event: [{"command": f"if [ -f {path} ]; then {command} {event} || true; fi", "timeout": 5}]
             for event in EVENTS}
 
 
@@ -59,7 +65,7 @@ def main():
         if result:
             event, payload = result
             subprocess.run(
-                ["/bin/bash", str(Path(__file__).parent / "play.sh"), event],
+                ["/bin/bash", str(ENGINE / "play.sh"), event],
                 input=json.dumps(payload), text=True, timeout=4,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )

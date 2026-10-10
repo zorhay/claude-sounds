@@ -2,10 +2,13 @@
 # Code Gossip — Installation verification test
 # Validates that an installed soundbar is complete and functional.
 # Usage: test-install.sh [target-dir]
-#   default target: ~/.claude/soundbar
+#   default target: ~/.code-gossip
 set -uo pipefail
 
-DEST="${1:-$HOME/.claude/soundbar}"
+DEST="${1:-$HOME/.code-gossip}"
+
+MANIFEST="$DEST/configs/sounds.json"
+[ ! -f "$MANIFEST" ] && MANIFEST="$DEST/data/sounds.json"
 
 pass=0
 fail=0
@@ -28,37 +31,37 @@ echo "Target: $DEST"
 # ── Files ──
 
 printf '\n\033[1mFiles\033[0m\n'
-for f in play.sh playback_gate.py server.py integrations.py narrate.py kokoro_server.py ui.html panel.sh switch.sh sounds.json installer.py codex.py cursor.py claude-hooks.json uninstall.sh \
-         config.defaults.json phrases.defaults.json; do
+for f in engine/play.sh engine/playback_gate.py soundbar/server.py engine/integrations.py engine/narrate.py engine/kokoro_server.py soundbar/ui.html soundbar/panel.sh switch.sh data/sounds.json installer.py paths.py hooks/codex.py hooks/cursor.py hooks/claude-hooks.json uninstall.sh \
+         configs/config.defaults.json configs/phrases.defaults.json; do
   check "$f" test -f "$DEST/$f"
 done
-for f in config.json phrases.json; do
+for f in configs/config.json configs/phrases.json; do
   check "$f (user config)" test -f "$DEST/$f"
 done
 
 # ── JSON validity ──
 
 printf '\n\033[1mJSON validity\033[0m\n'
-for f in config.json config.defaults.json phrases.json phrases.defaults.json sounds.json; do
+for f in configs/config.json configs/config.defaults.json configs/phrases.json configs/phrases.defaults.json data/sounds.json; do
   check "$f" jq empty "$DEST/$f"
 done
 
 # ── Manifest structure ──
 
-printf '\n\033[1mManifest (sounds.json)\033[0m\n'
-check "has effects profiles" jq -e '.effects | keys | length > 0' "$DEST/sounds.json"
-check "has voice profiles" jq -e '.voice | keys | length > 0' "$DEST/sounds.json"
+printf '\n\033[1mManifest (data/sounds.json)\033[0m\n'
+check "has effects profiles" jq -e '.effects | keys | length > 0' "$MANIFEST"
+check "has voice profiles" jq -e '.voice | keys | length > 0' "$MANIFEST"
 
 # Verify every effects profile has an events object
-EPROFILES=$(jq -r '.effects | keys[]' "$DEST/sounds.json" 2>/dev/null)
+EPROFILES=$(jq -r '.effects | keys[]' "$MANIFEST" 2>/dev/null)
 for p in $EPROFILES; do
-  check "effects/$p has events" jq -e ".effects.\"$p\".events" "$DEST/sounds.json"
+  check "effects/$p has events" jq -e ".effects.\"$p\".events" "$MANIFEST"
 done
 
 # Verify every voice profile has an events object
-VPROFILES=$(jq -r '.voice | keys[]' "$DEST/sounds.json" 2>/dev/null)
+VPROFILES=$(jq -r '.voice | keys[]' "$MANIFEST" 2>/dev/null)
 for p in $VPROFILES; do
-  check "voice/$p has events" jq -e ".voice.\"$p\".events" "$DEST/sounds.json"
+  check "voice/$p has events" jq -e ".voice.\"$p\".events" "$MANIFEST"
 done
 
 # ── Sound assets ──
@@ -66,15 +69,15 @@ done
 printf '\n\033[1mSound assets\033[0m\n'
 # Check dirs referenced by manifest
 for layer in effects voice; do
-  for p in $(jq -r ".${layer} | to_entries[] | select(.value.dir) | .key" "$DEST/sounds.json" 2>/dev/null); do
-    dir=$(jq -r ".${layer}.\"$p\".dir" "$DEST/sounds.json")
-    check "$dir/ exists" test -d "$DEST/$dir"
+  for p in $(jq -r ".${layer} | to_entries[] | select(.value.dir) | .key" "$MANIFEST" 2>/dev/null); do
+    dir=$(jq -r ".${layer}.\"$p\".dir" "$MANIFEST")
+    check "$dir/ exists" test -d "$DEST/data/$dir"
     # Spot-check: at least one referenced file exists
     first=$(jq -r ".${layer}.\"$p\".events | to_entries[0].value |
       if .file then .file elif .files then .files[0]
-      elif .sequence then .sequence[0][0] else empty end" "$DEST/sounds.json" 2>/dev/null)
+      elif .sequence then .sequence[0][0] else empty end" "$MANIFEST" 2>/dev/null)
     if [ -n "$first" ]; then
-      check "$dir/$first" test -f "$DEST/$dir/$first"
+      check "$dir/$first" test -f "$DEST/data/$dir/$first"
     fi
   done
 done
@@ -95,17 +98,18 @@ sys.exit(0 if connected else 1)
 # ── Smoke tests ──
 
 printf '\n\033[1mSmoke tests\033[0m\n'
-check "play.sh is executable" test -x "$DEST/play.sh"
-check "play.sh reads config" \
-  env FORCE_LAYER=effects FORCE_EFFECTS_PROFILE=silent bash "$DEST/play.sh" stop < /dev/null
-check "play.sh reads sounds.json" \
-  jq -e '.effects.default.events.stop.file' "$DEST/sounds.json"
-check "integrations.py imports cleanly" \
-  python3 -c "import sys; sys.path.insert(0,'$DEST'); import integrations"
-check "server.py imports cleanly" \
-  python3 -c "import sys; sys.path.insert(0,'$DEST'); import server"
-check "narrate.py imports cleanly" \
-  python3 -c "import sys; sys.path.insert(0,'$DEST'); import narrate"
+check "engine/play.sh is executable" test -x "$DEST/engine/play.sh"
+check "engine/play.sh reads config" \
+  env FORCE_LAYER=effects FORCE_EFFECTS_PROFILE=silent bash "$DEST/engine/play.sh" stop < /dev/null
+check "engine/play.sh reads data/sounds.json" \
+  jq -e '.effects.default.events.stop.file' "$MANIFEST"
+for module in engine.integrations soundbar.server engine.narrate; do
+  check "$module imports cleanly" python3 -B -c '
+import importlib, sys
+sys.path.insert(0, sys.argv[1])
+importlib.import_module(sys.argv[2])
+' "$DEST" "$module"
+done
 
 # ── Results ──
 

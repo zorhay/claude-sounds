@@ -10,10 +10,13 @@ import sys
 import tempfile
 import unittest
 
-SOURCE = Path(__file__).resolve().parents[1] / 'soundbar'
-SPEC = importlib.util.spec_from_file_location('playback_gate', SOURCE / 'playback_gate.py')
+SOURCE = Path(__file__).resolve().parents[1] / 'code-gossip'
+SPEC = importlib.util.spec_from_file_location('playback_gate', SOURCE / 'engine/playback_gate.py')
 gate = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(gate)
+
+
+LAYOUT = {'play.sh': 'engine/play.sh', 'playback_gate.py': 'engine/playback_gate.py', 'sounds.json': 'data/sounds.json', 'phrases.defaults.json': 'configs/phrases.defaults.json', 'config.defaults.json': 'configs/config.defaults.json'}
 
 
 class PlaybackBudgetTests(unittest.TestCase):
@@ -57,16 +60,18 @@ class ConcurrentPlaybackTests(unittest.TestCase):
     def setup_soundbar(self, directory):
         root = Path(directory)
         for name in ('playback_gate.py', 'play.sh', 'sounds.json', 'phrases.defaults.json', 'config.defaults.json'):
-            shutil.copy2(SOURCE / name, root / name)
+            target = root / LAYOUT[name]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(SOURCE / LAYOUT[name], target)
         config = {'effects_on': True, 'effects_profile': 'default', 'voice_on': True,
                   'voice_profile': 'generals', 'effects_cooldown_ms': 10000, 'voice_cooldown_ms': 10000}
-        (root / 'config.json').write_text(json.dumps(config))
+        (root / 'configs/config.json').write_text(json.dumps(config))
         return root
 
     def test_simultaneous_hook_processes_admit_exactly_one_per_layer(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.setup_soundbar(directory)
-            processes = [subprocess.Popen([sys.executable, str(root / 'playback_gate.py'),
+            processes = [subprocess.Popen([sys.executable, str(root / 'engine/playback_gate.py'),
                          str(root), 'read', 'on', 'default', 'on', 'generals'],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                          for _ in range(12)]
@@ -87,9 +92,9 @@ class ConcurrentPlaybackTests(unittest.TestCase):
     def test_disabled_gate_allows_every_event(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.setup_soundbar(directory)
-            cfg = json.loads((root / 'config.json').read_text())
+            cfg = json.loads((root / 'configs/config.json').read_text())
             cfg['sound_spacing_on'] = False
-            (root / 'config.json').write_text(json.dumps(cfg))
+            (root / 'configs/config.json').write_text(json.dumps(cfg))
             for _ in range(3):
                 self.assertEqual(gate.gate(root, 'read', {'effects': (True, 'default'), 'voice': (True, 'generals')},
                                            {'session_id': 'one'}, root / 'state'), {'effects': True, 'voice': True})
@@ -99,11 +104,11 @@ class ConcurrentPlaybackTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = self.setup_soundbar(directory)
             name = gate.fingerprint(str(root.resolve()))[:16]
-            state = root / f'soundbar-playback-{os.getuid()}-{name}'
-            state.mkdir()
+            state = root / 'state/playback'
+            state.mkdir(parents=True)
             with (state / 'lock').open('a') as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX)
-                result = subprocess.run([sys.executable, str(root / 'playback_gate.py'),
+                result = subprocess.run([sys.executable, str(root / 'engine/playback_gate.py'),
                     str(root), 'permission', 'on', 'default', 'on', 'generals'],
                     input='{}', env=dict(os.environ, TMPDIR=str(root)),
                     text=True, capture_output=True, timeout=3)
@@ -133,7 +138,7 @@ class ConcurrentPlaybackTests(unittest.TestCase):
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'], SOUNDBAR_AUDIO_LOG=str(log))
             # Direct engine calls await the stub's inherited pipes, so reads are complete.
             for _ in range(4):
-                result = subprocess.run(['/bin/bash', str(root / 'play.sh'), 'read'],
+                result = subprocess.run(['/bin/bash', str(root / 'engine/play.sh'), 'read'],
                     input=json.dumps({'session_id': 'burst'}), env=env, text=True, capture_output=True, timeout=5)
                 self.assertEqual(result.returncode, 0, result.stderr)
             clips = log.read_text().splitlines()
@@ -141,7 +146,7 @@ class ConcurrentPlaybackTests(unittest.TestCase):
             self.assertEqual(sum('gathering_intel.aiff' in clip for clip in clips), 1)
             env.update(FORCE_LAYER='voice', FORCE_VOICE_PROFILE='generals')
             for _ in range(2):
-                subprocess.run(['/bin/bash', str(root / 'play.sh'), 'read'], input='{}', env=env,
+                subprocess.run(['/bin/bash', str(root / 'engine/play.sh'), 'read'], input='{}', env=env,
                                text=True, capture_output=True, check=True, timeout=5)
             self.assertEqual(len(log.read_text().splitlines()), 4)
 

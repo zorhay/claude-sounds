@@ -26,9 +26,29 @@ Claude Code                    Code Gossip
 ```
 
 Codex events pass through `codex.py` before reaching the same `play.sh` dispatcher.
-Both integrations share the installation, sound manifest, mixer settings, and audio assets in `~/.claude/soundbar/`.
+Both integrations share the installation, sound manifest, mixer settings, and audio assets in `~/.code-gossip/`.
 
 Enabled layers run in parallel (backgrounded subshells) for events with a profile mapping. The voice layer covers both voice profiles (senior, generals) and the narrator profile — selected by `voice_profile` config key.
+
+### Package layout
+
+```
+code-gossip/                       → ~/.code-gossip/
+├── hooks/                         # Agent adapters and Claude hook definitions
+├── engine/                        # Playback, narration, spacing, Kokoro integration
+├── soundbar/                      # Panel launcher, server, UI, and mockups
+├── data/
+│   ├── sounds.json                # Shipped sound manifest
+│   └── sounds/                    # Audio assets and Generals generator
+├── configs/                       # Shipped defaults and gitignored user settings
+├── state/                         # Gitignored logs, sockets, caches, optional .venv
+├── paths.py                       # Shared Python path definitions
+├── installer.py                   # Unified install and uninstall
+├── switch.sh                      # CLI controls
+└── uninstall.sh                   # Installed uninstall entrypoint
+```
+
+`paths.py` defines shared locations for Python modules. Shell entrypoints derive the same package root from their own location. User configuration stays in `configs/`; runtime files stay in `state/`. The shipped manifest at `data/sounds.json` may be overridden by `configs/sounds.json`, with asset paths still relative to `data/`.
 
 ## 2. Components
 
@@ -36,7 +56,7 @@ Enabled layers run in parallel (backgrounded subshells) for events with a profil
 
 **Purpose:** Core audio engine. Receives an event name, reads config and sound manifest, plays sounds from both layers.
 
-**Invocation:** Called directly by Claude Code hooks, or by the Codex adapter: `~/.claude/soundbar/play.sh <event>`
+**Invocation:** Called directly by Claude Code hooks, or by the Codex adapter: `~/.code-gossip/engine/play.sh <event>`
 
 **Input:**
 - `$1` — event name (one of 24 events across both integrations)
@@ -84,7 +104,7 @@ config.json → jq → EFFECTS_ON, EFFECTS_PROFILE, EFFECTS_VOL,
 
 Before dispatching live hook audio, `play.sh` calls `playback_gate.py` to reserve
 effects and voice independently. The gate uses an interprocess `flock` and an
-atomic state-file replacement in a per-user, per-installation temporary directory.
+atomic state-file replacement in `state/playback/` inside this installation.
 Lock acquisition waits at most 100 ms, then allows playback rather than holding
 up a cue behind a stalled process.
 Timestamps use `clock_gettime(CLOCK_MONOTONIC)`, which is shared across processes
@@ -179,7 +199,7 @@ python3 narrate.py --speak "text to speak"
 
 **Context extraction:** `build_context(data)` parses hook JSON and returns a short narration-relevant string. Handles all hook event types — tool use (Edit/Write, Bash, Grep/Glob, Read, Agent), session events (start, stop, compact), sub-agent events, permission requests, errors. Extracts file paths (shortened to last 2 components), command descriptions, search patterns.
 
-**Concurrency:** Lock file (`/tmp/soundbar_narrator.lock`) prevents overlapping narrations. If a narration is in progress, new events are silently dropped. Lock stores PID; stale locks from dead processes are cleaned up.
+**Concurrency:** Lock file (`state/narrator.lock`) prevents overlapping narrations. If a narration is in progress, new events are silently dropped. Lock stores PID; stale locks from dead processes are cleaned up.
 
 **TTS dispatch:** `speak(text, engine, voice, volume)` routes to the configured engine:
 - `say` → `speak_say()`: render to temp `.aiff` via `say -v <voice> -r 190`, play with `afplay -v <vol>`, delete temp
@@ -198,7 +218,7 @@ narrate.py --dry-run       # read stdin JSON, call LLM, print text (no speech)
 
 **Purpose:** Keeps the Kokoro-82M model warm in memory for fast TTS (~100-200ms latency vs. 3-5s cold start). Runs as a background daemon from the Kokoro venv.
 
-**Socket:** `~/.claude/soundbar/kokoro.sock` (Unix stream socket, mode `0600`)
+**Socket:** `~/.code-gossip/state/kokoro.sock` (Unix stream socket, mode `0600`)
 
 **Protocol:** Newline-delimited JSON over Unix stream socket. One request-response per connection.
 
@@ -230,11 +250,11 @@ Responses:
 
 **Setup:**
 ```bash
-python3 -m venv ~/.claude/soundbar/.venv
-~/.claude/soundbar/.venv/bin/pip install kokoro soundfile
+python3 -m venv ~/.code-gossip/state/.venv
+~/.code-gossip/state/.venv/bin/pip install kokoro soundfile
 ```
 
-**Run:** `~/.claude/soundbar/.venv/bin/python3 kokoro_server.py`
+**Run:** `~/.code-gossip/state/.venv/bin/python3 kokoro_server.py`
 
 ### 2.4 server.py — Panel HTTP Backend
 
@@ -363,32 +383,32 @@ switch.sh <profile-name>         # shorthand for effects-profile
 4. `exec python3 server.py` — replaces shell with server process
 5. Ctrl+C kills the server directly (no orphans)
 
-### 2.8 install.sh and soundbar/installer.py — Unified Installer
+### 2.8 install.sh and code-gossip/installer.py — Unified Installer
 
 `install.sh` invokes the shared Python installer. It detects Codex, Cursor, and Claude through CLI commands, configuration directories, and macOS app bundles, then prompts for all or multiple agent names/numbers. `--agents codex,cursor` selects explicitly without prompting; `--all` selects detected agents. `--dry-run` validates and previews without writes; `--dev` links the shared runtime to the checkout.
 
-The runtime remains at `~/.claude/soundbar/` for compatibility; this directory alone does not count as a detected Claude installation. Only selected agents receive hooks. Claude definitions live in `soundbar/claude-hooks.json`; Codex and Cursor definitions come from their adapters. Selected hook documents are validated before mutation, backed up when changed, and replaced atomically. Merging removes only Code Gossip handlers, preserving other handlers even in shared matcher groups. Repeat installs are idempotent.
+The runtime lives at the agent-independent `~/.code-gossip/`. Only selected agents receive hooks. Claude definitions live in `code-gossip/hooks/claude-hooks.json`; Codex and Cursor definitions come from their adapters. Selected hook documents are validated before mutation, backed up when changed, and replaced atomically. Merging removes only Code Gossip handlers, preserving other handlers even in shared matcher groups. Repeat installs are idempotent.
 
-Normal installs copy shipped assets while excluding user settings, virtual environments, caches, logs, and runtime state. Existing user settings are kept, missing settings are created from defaults, the Python path is recorded, and legacy `narration` profiles migrate to `senior`. Generals clips are generated using macOS TTS. Development settings live at the repository root and are symlinked into `soundbar/`.
+Normal installs copy shipped assets while excluding user settings, virtual environments, caches, logs, and runtime state. Existing user settings are kept, missing settings are created from defaults, and the Python path is recorded. Generals clips are generated using macOS TTS. Development settings live in the package’s gitignored `configs/` directory.
 
 ### 2.9 uninstall.sh — Unified Uninstaller
 
 The installed script and the repository-root symlink invoke `installer.py uninstall`. Selection works like installation, but detection inspects Code Gossip hooks so agents can be removed even after their executable disappears. `--all` removes all three integrations without questions; `--purge` additionally removes saved settings when the last integration is removed. `--dry-run` previews without stopping processes or modifying files.
 
-Uninstall removes selected hooks first and retains shared files and processes if another integration still references them. When no integrations remain, it stops the panel/Kokoro processes and removes the runtime, preserving `config.json`, `phrases.json`, and `narrator_styles.json` unless purged. Development uninstalls remove only the shared symlink, never the checkout. Hook backups are retained. Orphan hooks can be removed using the repository script even if the runtime is missing.
+Uninstall removes selected hooks first and retains shared files and processes if another integration still references them. When no integrations remain, it stops the panel/Kokoro processes and removes the runtime, preserving user files in `configs/` unless purged. Development uninstalls remove only the shared symlink, never the checkout. Cached hook commands check that their entrypoint exists and exit successfully after removal, allowing active chats to continue. Hook backups are retained. Orphan hooks can be removed using the repository script even if the runtime is missing.
 
-Unlike installation, removal validates every supported hook document before mutation, so invalid unrelated settings cannot cause a shared runtime to be deleted prematurely. Custom Codex homes require the same `CODEX_HOME` during installation and removal. The panel writes `.server.pid` after binding its port and removes it on normal shutdown; the uninstaller checks each candidate PID's command before signaling it, ignoring stale or invalid PID files.
+Unlike installation, removal validates every supported hook document before mutation, so invalid unrelated settings cannot cause a shared runtime to be deleted prematurely. Custom Codex homes require the same `CODEX_HOME` during installation and removal. The panel writes `state/.server.pid` after binding its port and removes it on normal shutdown; the uninstaller checks each candidate PID's command before signaling it, ignoring stale or invalid PID files.
 
 ### 2.10 codex.py and cursor.py — Agent Adapters
 
-The unified installer configures Codex directly, with no prerequisite Claude integration. `codex.py` retains its low-level installation API for compatibility and tests.
+The unified installer configures Codex directly, with no prerequisite Claude integration. Both adapters only dispatch hook events; all installation and removal goes through the shared installer.
 
 Cursor uses native version-1 user hooks at `~/.cursor/hooks.json`. `cursor.py` maps observational lifecycle, file, shell/MCP completion, and failure events to shared playback, normalizes narrator payloads, and discards playback output. It never returns permission decisions or follow-up messages. Its hook commands use the installed Python interpreter and quoted absolute paths.
 
 The installer merges all 12 event groups into `$CODEX_HOME/hooks.json` (default
 `~/.codex/hooks.json`). It preserves unrelated handlers, including handlers in
 the same matcher group, and unrelated JSON fields. Changes use an atomic file
-replacement after backing up an existing file to `hooks.json.soundbar-backup`.
+replacement after backing up an existing file to `hooks.json.code-gossip-backup`.
 An unchanged reinstall does not duplicate hooks or replace the backup.
 `config.toml`, existing `notify` commands, and hook trust are not modified.
 
@@ -514,9 +534,9 @@ Hooks are injected into `~/.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "Stop": [{"hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh stop", "timeout": 5}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "~/.code-gossip/engine/play.sh stop", "timeout": 5}]}],
     "PreToolUse": [
-      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.claude/soundbar/play.sh edit", "timeout": 5}]},
+      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.code-gossip/engine/play.sh edit", "timeout": 5}]},
       ...
     ],
     ...
@@ -636,7 +656,7 @@ Linux equivalents: `espeak-ng` for TTS, `paplay`/`pw-play`/`aplay` for playback.
 │  CLI: switch.sh --reads/writes--> config.json                    │
 │                                                                  │
 │  Install:                                                        │
-│  install.sh --copies--> soundbar/ -> ~/.claude/soundbar/         │
+│  install.sh --copies--> code-gossip/ -> ~/.code-gossip/         │
 │             --merges--> settings.json (hooks)                    │
 │  test-install.sh --validates--> checks                           │
 │                                                                  │
@@ -706,6 +726,6 @@ Webview panel in VS Code sidebar. Reuses ui.html with minor adjustments. No sepa
 
 Install script creates a symlink for easy access:
 ```bash
-ln -sf ~/.claude/soundbar/panel.sh /usr/local/bin/soundbar
+ln -sf ~/.code-gossip/soundbar/panel.sh /usr/local/bin/soundbar
 ```
 User types `soundbar` from any terminal. Needs sudo or `~/.local/bin` alternative.

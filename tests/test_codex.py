@@ -1,7 +1,6 @@
 """Codex adapter tests; runnable with the standard library or pytest."""
 
 import importlib.util
-import io
 import json
 from pathlib import Path
 import subprocess
@@ -11,15 +10,17 @@ import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stdout
 from unittest.mock import patch
 
 
 SPEC = importlib.util.spec_from_file_location(
-    "soundbar_codex", Path(__file__).resolve().parents[1] / "soundbar" / "codex.py"
+    "soundbar_codex", Path(__file__).resolve().parents[1] / "code-gossip" / "hooks/codex.py"
 )
 codex = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(codex)
+
+
+LAYOUT = {'play.sh': 'engine/play.sh', 'playback_gate.py': 'engine/playback_gate.py', 'sounds.json': 'data/sounds.json', 'phrases.defaults.json': 'configs/phrases.defaults.json', 'config.defaults.json': 'configs/config.defaults.json'}
 
 
 class CodexTests(unittest.TestCase):
@@ -58,8 +59,8 @@ class CodexTests(unittest.TestCase):
 
     def test_playback_receives_event_and_normalized_json(self):
         with patch.object(codex.subprocess, "run") as run:
-            codex.dispatch({"hook_event_name": "Stop", "session_id": "abc"}, Path("/tmp/soundbar"))
-        self.assertEqual(run.call_args.args[0], ["/bin/bash", "/tmp/soundbar/play.sh", "stop"])
+            codex.dispatch({"hook_event_name": "Stop", "session_id": "abc"}, Path("/tmp/code-gossip"))
+        self.assertEqual(run.call_args.args[0], ["/bin/bash", "/tmp/code-gossip/engine/play.sh", "stop"])
         self.assertEqual(json.loads(run.call_args.kwargs["input"])["session_id"], "abc")
         self.assertEqual(run.call_args.kwargs["stdout"], subprocess.DEVNULL)
         self.assertEqual(run.call_args.kwargs["stderr"], subprocess.DEVNULL)
@@ -69,10 +70,11 @@ class CodexTests(unittest.TestCase):
                    '[]', 'null', '{"codex_permission_sound_on": "false"}']
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
+            (root / "configs").mkdir()
             for config in configs:
                 with self.subTest(config=config):
                     if config is not None:
-                        (root / 'config.json').write_text(config)
+                        (root / 'configs/config.json').write_text(config)
                     with patch.object(codex.subprocess, 'run') as run:
                         codex.dispatch({'hook_event_name': 'PermissionRequest'}, root)
                     run.assert_called_once()
@@ -81,7 +83,8 @@ class CodexTests(unittest.TestCase):
     def test_permission_mute_is_live_and_keeps_other_feedback(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            config = root / 'config.json'
+            (root / 'configs').mkdir()
+            config = root / 'configs/config.json'
             permission = {'hook_event_name': 'PermissionRequest', 'session_id': 'one'}
             with patch.object(codex.subprocess, 'run') as run:
                 config.write_text('{"codex_permission_sound_on": true}')
@@ -101,45 +104,8 @@ class CodexTests(unittest.TestCase):
                 codex.dispatch(permission, root)
                 self.assertEqual(run.call_count, 5)
 
-    def test_install_idempotence_backup_and_surgical_uninstall(self):
-        with tempfile.TemporaryDirectory(prefix="soundbar codex ") as temp:
-            root = Path(temp)
-            soundbar = root / "soundbar"
-            soundbar.mkdir()
-            (soundbar / "play.sh").touch()
-            other = {"type": "command", "command": "echo keep"}
-            original = {"description": "keep me", "hooks": {"Stop": [{"hooks": [other]}]}}
-            target = root / "hooks.json"
-            target.write_text(json.dumps(original))
-            with redirect_stdout(io.StringIO()):
-                codex.install(root, soundbar, dry_run=True)
-                self.assertEqual(json.loads(target.read_text()), original)
-                self.assertFalse((soundbar / "codex.py").exists())
-                codex.install(root, soundbar)
-                once = target.read_text()
-                codex.install(root, soundbar)
-                self.assertEqual(target.read_text(), once)
-                self.assertEqual(json.loads((root / "hooks.json.soundbar-backup").read_text()), original)
-                installed = json.loads(once)
-                # An unrelated handler in the very same matcher group survives.
-                installed["hooks"]["Stop"][-1]["hooks"].append(other)
-                target.write_text(json.dumps(installed))
-                codex.install(root, soundbar, uninstall=True)
-            cleaned = json.loads(target.read_text())
-            self.assertEqual(cleaned["description"], "keep me")
-            self.assertEqual(cleaned["hooks"]["Stop"], [{"hooks": [other]}, {"hooks": [other]}])
-
-    def test_invalid_json_is_not_overwritten(self):
-        with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            (root / "play.sh").touch()
-            (root / "hooks.json").write_text("broken")
-            with self.assertRaises(ValueError):
-                codex.install(root, root)
-            self.assertEqual((root / "hooks.json").read_text(), "broken")
-
     def test_all_codex_hook_events_are_registered(self):
-        hooks = codex.hook_definitions(Path('/tmp/soundbar/codex.py'))
+        hooks = codex.hook_definitions(Path('/tmp/code-gossip/hooks/codex.py'))
         self.assertEqual(set(hooks), {
             'SessionStart', 'SessionEnd', 'PreCompact', 'PostCompact',
             'Interrupt', 'UserPromptSubmit', 'PermissionRequest', 'Stop',
@@ -265,14 +231,19 @@ class CodexPlaybackTests(unittest.TestCase):
     """Simulate real hook JSON through the adapter and shell dispatcher."""
 
     def test_permission_mute_skips_codex_audio_but_shared_engine_still_plays(self):
-        source = Path(SPEC.origin).parent
+        source = Path(SPEC.origin).parent.parent
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            soundbar = root / 'soundbar'
+            soundbar = root / 'code-gossip'
             soundbar.mkdir()
+            (soundbar / "engine").mkdir()
+            (soundbar / "configs").mkdir()
+            (soundbar / "hooks").mkdir()
             for name in ('play.sh', 'sounds.json', 'config.defaults.json'):
-                shutil.copy2(source / name, soundbar / name)
-            (soundbar / 'config.json').write_text(json.dumps({
+                target = soundbar / LAYOUT[name]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source / LAYOUT[name], target)
+            (soundbar / 'configs/config.json').write_text(json.dumps({
                 'codex_permission_sound_on': False, 'effects_on': True,
                 'effects_profile': 'default', 'voice_on': True, 'voice_profile': 'generals',
             }))
@@ -283,7 +254,7 @@ class CodexPlaybackTests(unittest.TestCase):
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
                        SOUNDBAR_TEST_LOG=str(log))
             runner = 'import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); import codex; codex.dispatch(json.load(sys.stdin),Path(sys.argv[2]))'
-            result = subprocess.run([sys.executable, '-c', runner, str(source), str(soundbar)],
+            result = subprocess.run([sys.executable, '-c', runner, str(source / "hooks"), str(soundbar)],
                 input='{"hook_event_name":"PermissionRequest"}', env=env,
                 text=True, capture_output=True, timeout=5)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -293,39 +264,44 @@ class CodexPlaybackTests(unittest.TestCase):
             # Claude Code hooks call the engine directly. It ignores this
             # adapter preference; the panel's previews also bypass the adapter.
             for overrides in ({}, {'FORCE_LAYER': 'voice', 'FORCE_VOICE_PROFILE': 'generals'}):
-                result = subprocess.run(['/bin/bash', str(soundbar / 'play.sh'), 'permission'],
+                result = subprocess.run(['/bin/bash', str(soundbar / 'engine/play.sh'), 'permission'],
                     input='{"hook_event_name":"PermissionRequest"}', env={**env, **overrides},
                     text=True, capture_output=True, timeout=5)
                 self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(len(log.read_text().splitlines()), 3)
 
     def test_new_senior_events_fall_back_without_overwriting_user_phrases(self):
-        source = Path(SPEC.origin).parent
+        source = Path(SPEC.origin).parent.parent
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            soundbar = root / 'soundbar'
+            soundbar = root / 'code-gossip'
             soundbar.mkdir()
+            (soundbar / "engine").mkdir()
+            (soundbar / "configs").mkdir()
+            (soundbar / "hooks").mkdir()
             for name in ('play.sh', 'sounds.json', 'config.defaults.json', 'phrases.defaults.json'):
-                shutil.copy2(source / name, soundbar / name)
+                target = soundbar / LAYOUT[name]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source / LAYOUT[name], target)
             player = root / 'afplay'
             player.write_text('#!/bin/sh\nexit 0\n')
             player.chmod(0o755)
             say = root / 'say'
             say.write_text(f'#!{sys.executable}\nimport os, sys\nfrom pathlib import Path\nPath(os.environ["SOUNDBAR_TEST_LOG"]).write_text(" ".join(sys.argv[1:]))\nPath(sys.argv[sys.argv.index("-o")+1]).touch()\n')
             say.chmod(0o755)
-            default_test_phrases = json.loads((soundbar / 'phrases.defaults.json').read_text())['test']
+            default_test_phrases = json.loads((soundbar / 'configs/phrases.defaults.json').read_text())['test']
             for index, (phrases, expected) in enumerate([
                 ({'bash': ['Custom shell']}, default_test_phrases),
                 ({'test': ['My custom checks']}, ['My custom checks']),
                 ({'test': []}, None),
             ]):
-                user = soundbar / 'phrases.json'
+                user = soundbar / 'configs/phrases.json'
                 user.write_text(json.dumps(phrases))
                 before = user.read_bytes()
                 log = root / f'{index}.txt'
                 env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
                            FORCE_LAYER='voice', FORCE_VOICE_PROFILE='senior', SOUNDBAR_TEST_LOG=str(log))
-                result = subprocess.run(['/bin/bash', str(soundbar / 'play.sh'), 'test'], input='{}',
+                result = subprocess.run(['/bin/bash', str(soundbar / 'engine/play.sh'), 'test'], input='{}',
                                         text=True, capture_output=True, env=env, timeout=5)
                 self.assertEqual(result.returncode, 0)
                 self.assertEqual(user.read_bytes(), before)
@@ -336,7 +312,7 @@ class CodexPlaybackTests(unittest.TestCase):
                     self.assertFalse(log.exists())
 
     def test_generals_codex_events_select_the_correct_audio(self):
-        source = Path(SPEC.origin).parent
+        source = Path(SPEC.origin).parent.parent
         cases = [
             ({'hook_event_name': 'SessionEnd'}, ['command_center_offline.aiff']),
             ({'hook_event_name': 'PreCompact'}, ['consolidating_intel.aiff']),
@@ -360,10 +336,15 @@ class CodexPlaybackTests(unittest.TestCase):
         ]
         with tempfile.TemporaryDirectory(prefix='codex audio test ') as temp:
             root = Path(temp)
-            soundbar = root / 'soundbar'
+            soundbar = root / 'code-gossip'
             soundbar.mkdir()
+            (soundbar / "engine").mkdir()
+            (soundbar / "configs").mkdir()
+            (soundbar / "hooks").mkdir()
             for name in ('play.sh', 'sounds.json', 'config.defaults.json', 'phrases.defaults.json'):
-                shutil.copy2(source / name, soundbar / name)
+                target = soundbar / LAYOUT[name]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source / LAYOUT[name], target)
             player = root / 'afplay'
             player.write_text(f'#!{sys.executable}\nimport json, os, sys\nwith open(os.environ["SOUNDBAR_TEST_LOG"], "a") as f:\n f.write(json.dumps(sys.argv[1:])+"\\n")\n')
             player.chmod(0o755)
@@ -373,7 +354,7 @@ class CodexPlaybackTests(unittest.TestCase):
                     log = root / f'{index}.log'
                     env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
                                FORCE_LAYER='voice', FORCE_VOICE_PROFILE='generals', SOUNDBAR_TEST_LOG=str(log))
-                    result = subprocess.run([sys.executable, '-c', runner, str(source), str(soundbar)],
+                    result = subprocess.run([sys.executable, '-c', runner, str(source / "hooks"), str(soundbar)],
                                             input=json.dumps(payload), text=True, capture_output=True, env=env, timeout=5)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(result.stdout, '')
@@ -391,7 +372,7 @@ class CodexPlaybackTests(unittest.TestCase):
                             break
                         time.sleep(.025)
                     if expected is None:
-                        variants = json.loads((source / 'sounds.json').read_text())['voice']['generals']['events']['subagent_start']['sequence']
+                        variants = json.loads((source / 'data/sounds.json').read_text())['voice']['generals']['events']['subagent_start']['sequence']
                         self.assertIn(names, variants)
                     else:
                         self.assertEqual(names, expected)

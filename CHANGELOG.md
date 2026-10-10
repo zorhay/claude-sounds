@@ -15,13 +15,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - Mixer controls for repetition reduction and adjustable cooldowns, with preview bypass and concurrency/playback regression tests.
 - Complete Codex lifecycle coverage, broad local/MCP tool routing, compound command categories (test/build/Git/read/search), and normal no-match search handling.
 - Ten Codex-oriented Generals clips, new mixer events, senior phrase fallbacks, Codex-aware narration, and end-to-end event playback tests.
-- Codex desktop/CLI integration: `install.sh --agents codex` and `soundbar/codex.py` connect lifecycle hooks to the shared sound engine, including Generals playback and narrator payload normalization.
+- Codex desktop/CLI integration: `install.sh --agents codex` and `code-gossip/hooks/codex.py` connect lifecycle hooks to the shared sound engine, including Generals playback and narrator payload normalization.
 - Codex hook installation with dry-run preview, backups, idempotent merging, and surgical uninstall that preserves unrelated handlers and settings.
 - Codex setup, hook trust, Generals troubleshooting, event mapping documentation, and adapter/installer regression tests.
 - UI polish: accent brand header, play button pulse animation, toggle/slider glow effects, zebra-striped mixer rows, channel hover borders
 - Narrator settings two-column layout (LLM | Style & Voice) with vertical divider
 
 ### Changed
+- Renamed the runtime package to `code-gossip/` and installation root to `~/.code-gossip/`, with separate `hooks/`, `engine/`, `soundbar/`, `data/`, `configs/`, and gitignored `state/` directories.
+- Removed old installation paths, migration code, settings-format fallbacks, and the separate Codex install command. All agents use the unified installer and the new layout.
 - Replaced the separate Codex installer with one shared install/uninstall implementation. Codex-only and Cursor-only setups no longer add Claude hooks. Normal installs exclude development settings and runtime state.
 - Renamed the project and repository to Code Gossip (`code-gossip`). Soundbar remains the web UI for sound configuration, with Code Gossip branding in its header. Existing installation paths and hook identifiers are preserved.
 - Narrator pane sub-titles brighter for scannability

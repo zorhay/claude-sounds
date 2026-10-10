@@ -14,16 +14,15 @@ import subprocess
 import sys
 import tempfile
 
-import codex
-import cursor
+from hooks import codex, cursor
 
 
 AGENTS = ("codex", "cursor", "claude")
 USER_FILES = ("config.json", "phrases.json", "narrator_styles.json")
 TAGS = {
-    "codex": ("soundbar/codex.py",),
-    "cursor": ("soundbar/cursor.py",),
-    "claude": ("soundbar/play.sh", "play-sound.sh"),
+    "codex": ("code-gossip/hooks/codex.py",),
+    "cursor": ("code-gossip/hooks/cursor.py",),
+    "claude": ("code-gossip/engine/play.sh",),
 }
 
 
@@ -37,17 +36,7 @@ def targets(home):
 def detected_agents(home, paths):
     commands = {"codex": ("codex",), "cursor": ("cursor", "cursor-agent"), "claude": ("claude",)}
     apps = {"codex": "Codex.app", "cursor": "Cursor.app", "claude": "Claude.app"}
-    def has_config(agent):
-        directory = paths[agent].parent
-        if not directory.is_dir():
-            return False
-        # Every integration creates ~/.claude/soundbar. That alone is not
-        # evidence of Claude Code, including after a config-preserving uninstall.
-        if agent == "claude" and (directory / "soundbar").exists():
-            return any(child.name != "soundbar" for child in directory.iterdir())
-        return True
-
-    return [agent for agent in AGENTS if has_config(agent)
+    return [agent for agent in AGENTS if paths[agent].parent.is_dir()
             or any(shutil.which(cmd) for cmd in commands[agent])
             or any((root / apps[agent]).is_dir()
                    for root in (Path("/Applications"), home / "Applications"))]
@@ -138,15 +127,16 @@ def choose(args, available):
 
 def definitions(agent, source, dest):
     if agent == "codex":
-        return codex.hook_definitions(dest / "codex.py")
+        return codex.hook_definitions(dest / "hooks/codex.py")
     if agent == "cursor":
-        return cursor.hook_definitions(dest / "cursor.py")
-    hooks = json.loads((source / "claude-hooks.json").read_text())
+        return cursor.hook_definitions(dest / "hooks/cursor.py")
+    hooks = json.loads((source / "hooks/claude-hooks.json").read_text())
     for groups in hooks.values():
         for group in groups:
             for handler in group["hooks"]:
                 event = handler["command"].rsplit(" ", 1)[1]
-                handler["command"] = f"/bin/bash {shlex.quote(str(dest / 'play.sh'))} {event}"
+                path = shlex.quote(str(dest / "engine/play.sh"))
+                handler["command"] = f"if [ -f {path} ]; then /bin/bash {path} {event} || true; fi"
     return hooks
 
 
@@ -155,8 +145,8 @@ def write_hooks(path, original, updated):
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
-        shutil.copy2(path, path.with_name(path.name + ".soundbar-backup"))
-    fd, temporary = tempfile.mkstemp(prefix=".soundbar-hooks-", dir=path.parent)
+        shutil.copy2(path, path.with_name(path.name + ".code-gossip-backup"))
+    fd, temporary = tempfile.mkstemp(prefix=".code-gossip-hooks-", dir=path.parent)
     try:
         with os.fdopen(fd, "w") as stream:
             json.dump(updated, stream, indent=2)
@@ -177,30 +167,27 @@ def install_files(source, dest, dev):
         # Never copy a developer's private settings, environments, or runtime state.
         ignored = shutil.ignore_patterns(*USER_FILES, ".venv", "__pycache__", ".pytest_cache",
             ".DS_Store", "*.log", "*.sock", ".server.pid", ".manifest", ".soundbar-window",
-            "integrations.json", "session_context", "*.soundbar-backup")
-        shutil.copytree(source, dest, dirs_exist_ok=True, ignore=ignored)
+            "integrations.json", "session_context", "*.code-gossip-backup", "state")
+        def ignore_local(directory, names):
+            excluded = ignored(directory, names)
+            if Path(directory) == source / "configs":
+                excluded.add("sounds.json")
+            return excluded
+        shutil.copytree(source, dest, dirs_exist_ok=True, ignore=ignore_local)
+    configs = dest / "configs"
     for name in USER_FILES:
-        target = source.parent / name if dev else dest / name
+        target = configs / name
         if not target.exists():
-            existing = source / name
-            defaults = source / name.replace(".json", ".defaults.json")
-            shutil.copy2(existing if dev and existing.is_file() else defaults, target)
-        if dev:
-            link = source / name
-            if link.exists() or link.is_symlink():
-                link.unlink()
-            link.symlink_to(Path("..") / name)
-    config_path = source.parent / "config.json" if dev else dest / "config.json"
+            shutil.copy2(configs / name.replace(".json", ".defaults.json"), target)
+    config_path = configs / "config.json"
     config = json.loads(config_path.read_text())
     config["python3_path"] = sys.executable
-    if config.get("voice_profile") == "narration":
-        config["voice_profile"] = "senior"
     config_path.write_text(json.dumps(config, indent=2) + "\n")
-    for name in ("play.sh", "switch.sh", "panel.sh", "uninstall.sh"):
+    for name in ("engine/play.sh", "switch.sh", "soundbar/panel.sh", "uninstall.sh"):
         script = dest / name
         script.chmod(script.stat().st_mode | 0o111)
     if shutil.which("say"):
-        subprocess.run(["/bin/bash", str(dest / "sounds/generals/generate.sh")], check=True)
+        subprocess.run(["/bin/bash", str(dest / "data/sounds/generals/generate.sh")], check=True)
     else:
         print("Skipping Generals voice generation (macOS say is unavailable).")
 
@@ -221,20 +208,22 @@ def stop_process(pid, script):
 
 
 def stop_processes(dest):
-    pid_file = dest / ".server.pid"
+    state = dest / "state"
+    server_script = dest / "soundbar/server.py"
+    daemon_script = dest / "engine/kokoro_server.py"
+    pid_file = state / ".server.pid"
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text().strip())
         except ValueError:
             pid = 0
-        stop_process(pid, dest / "server.py")
+        stop_process(pid, server_script)
         pid_file.unlink()
-    sock = dest / "kokoro.sock"
+    sock = state / "kokoro.sock"
     if sock.exists() and shutil.which("lsof"):
         result = subprocess.run(["lsof", "-t", str(sock)], capture_output=True, text=True)
         for value in result.stdout.split():
-            pid = int(value)
-            stop_process(pid, dest / "kokoro_server.py")
+            stop_process(int(value), daemon_script)
         sock.unlink(missing_ok=True)
 
 
@@ -244,7 +233,13 @@ def remove_files(dest, purge):
         dest.unlink()  # Never remove a development checkout.
     elif dest.exists():
         for child in dest.iterdir():
-            if not purge and child.name in USER_FILES:
+            if not purge and child.name == "configs":
+                for config in child.iterdir():
+                    if config.name not in (*USER_FILES, "sounds.json"):
+                        if config.is_dir() and not config.is_symlink():
+                            shutil.rmtree(config)
+                        else:
+                            config.unlink()
                 continue
             if child.is_dir() and not child.is_symlink():
                 shutil.rmtree(child)
@@ -257,7 +252,7 @@ def remove_files(dest, purge):
 def run(args):
     home = Path.home()
     source = Path(__file__).resolve().parent
-    dest = home / ".claude/soundbar"
+    dest = home / ".code-gossip"
     paths = targets(home)
     uninstall = args.action == "uninstall"
     # Uninstall must inspect every integration before deciding whether the shared
@@ -276,7 +271,7 @@ def run(args):
             raise ValueError(f"{dest} is a regular installation; uninstall it before using --dev.")
         if not args.dev and dest.is_symlink():
             raise ValueError(f"{dest} is a dev symlink; use --dev or uninstall it first.")
-        config_path = source.parent / "config.json" if args.dev else dest / "config.json"
+        config_path = (source if args.dev else dest) / "configs/config.json"
         if config_path.exists() and not isinstance(json.loads(config_path.read_text()), dict):
             raise ValueError(f"{config_path}: expected a JSON object")
     updated = {agent: merge_hooks(documents[agent], agent,
@@ -286,13 +281,13 @@ def run(args):
     for agent in selected:
         print(f"  {'Remove' if uninstall else 'Merge'} Code Gossip hooks: {paths[agent]}")
     if uninstall and remaining:
-        print(f"Keep shared soundbar files and processes for: {', '.join(remaining)}")
+        print(f"Keep shared Code Gossip files and processes for: {', '.join(remaining)}")
     elif uninstall:
         print(f"Remove shared installation: {dest}")
         if not args.purge:
-            print("Keep config.json, phrases.json, and narrator_styles.json (use --purge to remove them).")
+            print("Keep configs/config.json, configs/phrases.json, and configs/narrator_styles.json (use --purge to remove them).")
     else:
-        print(f"{'Symlink' if args.dev else 'Copy'} shared soundbar files: {dest}")
+        print(f"{'Symlink' if args.dev else 'Copy'} shared Code Gossip files: {dest}")
     if args.dry_run:
         print("No changes made.")
         return
@@ -304,7 +299,7 @@ def run(args):
         remove_files(dest, args.purge)
     print(f"Code Gossip {'uninstalled' if uninstall else 'installed'} for {', '.join(selected)}.")
     if not uninstall:
-        print(f"Panel: {dest / 'panel.sh'}\nUninstall: {dest / 'uninstall.sh'}")
+        print(f"Panel: {dest / 'soundbar/panel.sh'}\nUninstall: {dest / 'uninstall.sh'}")
         if "codex" in selected:
             print("Open /hooks in Codex CLI to review and trust the commands, then start a new chat.")
 

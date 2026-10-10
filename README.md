@@ -51,7 +51,7 @@ bash ./install.sh --dry-run  # optional: preview the changes
 bash ./install.sh
 ```
 
-The installer detects Codex, Cursor, and Claude from their commands, configuration directories, and macOS applications. The shared `~/.claude/soundbar/` directory alone does not count as a Claude installation. Choose **all**, or enter multiple agent names or menu numbers (for example, `codex,cursor` or `2 3`). **All** installs for detected agents. You can explicitly select an agent if detection misses it.
+The installer detects Codex, Cursor, and Claude from their commands, configuration directories, and macOS applications. Choose **all**, or enter multiple agent names or menu numbers (for example, `codex,cursor` or `2 3`). **All** installs for detected agents. You can explicitly select an agent if detection misses it.
 
 For scripted installation, skip the prompt:
 
@@ -60,12 +60,12 @@ bash ./install.sh --agents codex,cursor
 bash ./install.sh --all  # all detected agents
 ```
 
-Code Gossip is stored once in `~/.claude/soundbar/` for compatibility. Only selected agents receive hooks: Claude in `~/.claude/settings.json`, Cursor in `~/.cursor/hooks.json`, and Codex in `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). Existing hook files are backed up, unrelated hooks are preserved, and repeated installation does not duplicate hooks. Codex-only and Cursor-only installs do not require Claude Code.
+Code Gossip is stored once in the agent-independent `~/.code-gossip/`. Only selected agents receive hooks: Claude in `~/.claude/settings.json`, Cursor in `~/.cursor/hooks.json`, and Codex in `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). Existing hook files are backed up, unrelated hooks are preserved, and repeated installation does not duplicate hooks. Codex-only and Cursor-only installs do not require Claude Code.
 
 ### 3. Open Soundbar and try a sound
 
 ```bash
-~/.claude/soundbar/panel.sh
+~/.code-gossip/soundbar/panel.sh
 ```
 
 Soundbar opens at [localhost:8111](http://localhost:8111). Choose an Effects profile, adjust the volume, and click a play button to preview an event. Start a new session in your selected agent to hear sounds as you work.
@@ -89,7 +89,7 @@ The installer merges Code Gossip hooks into `$CODEX_HOME/hooks.json` (default: `
 
 If you use a custom `CODEX_HOME`, keep that same environment setting when updating or uninstalling so the scripts find those hooks.
 
-All connected agents share Soundbar and `~/.claude/soundbar/config.json`; changes apply to all of them.
+All connected agents share Soundbar and `~/.code-gossip/configs/config.json`; changes apply to all of them.
 
 ### Quiet approval sounds
 
@@ -136,7 +136,7 @@ Narration identifies Cursor lifecycle and failure events. Shell narration includ
 Soundbar is Code Gossip’s web UI for sound configuration. Open it with:
 
 ```bash
-~/.claude/soundbar/panel.sh
+~/.code-gossip/soundbar/panel.sh
 ```
 
 The panel shows **Code Gossip** at the top and **Soundbar · Sound configuration** underneath. Use it to enable Effects and Voice independently, select profiles, set volumes, preview event cues, edit spoken phrases, and configure AI narration.
@@ -175,10 +175,10 @@ Use Soundbar to change profiles, enable channels, adjust volumes, and preview so
 For example, combine paper effects with Generals voice lines:
 
 ```bash
-~/.claude/soundbar/switch.sh effects-profile paper
-~/.claude/soundbar/switch.sh effects on
-~/.claude/soundbar/switch.sh voice-profile generals
-~/.claude/soundbar/switch.sh voice on
+~/.code-gossip/switch.sh effects-profile paper
+~/.code-gossip/switch.sh effects on
+~/.code-gossip/switch.sh voice-profile generals
+~/.code-gossip/switch.sh voice on
 ```
 
 Generals includes 42 local AIFF clips covering all 24 mixer events, including tests, builds, Git operations, approvals, and interruptions.
@@ -194,10 +194,10 @@ This helps with busy or parallel chats, but does not wait for each clip or spoke
 ### Command-line controls
 
 ```bash
-~/.claude/soundbar/switch.sh                       # show status and available commands
-~/.claude/soundbar/switch.sh effects-profile minimal
-~/.claude/soundbar/switch.sh effects off           # mute effects
-~/.claude/soundbar/switch.sh voice off             # mute spoken cues and narration
+~/.code-gossip/switch.sh                       # show status and available commands
+~/.code-gossip/switch.sh effects-profile minimal
+~/.code-gossip/switch.sh effects off           # mute effects
+~/.code-gossip/switch.sh voice off             # mute spoken cues and narration
 ```
 
 To mute Code Gossip completely, turn off both Effects and Voice.
@@ -248,7 +248,7 @@ Kokoro changes the speaking voice. The narrator still uses your selected LLM pro
 Regenerate missing Generals clips:
 
 ```bash
-bash ~/.claude/soundbar/sounds/generals/generate.sh
+bash ~/.code-gossip/data/sounds/generals/generate.sh
 ```
 
 Test a Generals completion cue through the Codex adapter without changing saved settings:
@@ -256,14 +256,14 @@ Test a Generals completion cue through the Codex adapter without changing saved 
 ```bash
 printf '%s\n' '{"hook_event_name":"Stop"}' | \
   FORCE_LAYER=voice FORCE_VOICE_PROFILE=generals \
-  python3 ~/.claude/soundbar/codex.py
+  python3 ~/.code-gossip/hooks/codex.py
 ```
 
 For narrator diagnostics:
 
 ```bash
-python3 ~/.claude/soundbar/narrate.py --check      # provider connection
-python3 ~/.claude/soundbar/narrate.py --check-tts  # speech engine
+python3 ~/.code-gossip/engine/narrate.py --check      # provider connection
+python3 ~/.code-gossip/engine/narrate.py --check-tts  # speech engine
 ```
 
 ## Update Code Gossip
@@ -285,9 +285,25 @@ bash ./install.sh
 
 For Codex, review changed or new hooks in `/hooks` and start a new chat. The installer also runs the Generals clip generator. If you use a [development installation](#development), use `bash ./install.sh --dev` instead.
 
+## Package layout
+
+```text
+~/.code-gossip/
+├── hooks/       # Claude, Codex, and Cursor integrations
+├── engine/      # Shared playback, narration, and speech engines
+├── soundbar/    # Mixer UI, server, and panel launcher
+├── data/        # Sound manifest and audio assets
+├── configs/     # Defaults and your saved preferences
+└── state/       # Logs, caches, sockets, and optional Python environment
+```
+
+All runtime files use this layout. The optional Kokoro environment is created in `state/.venv`. Development installations link `~/.code-gossip/` directly to the checkout’s `code-gossip/` directory; rerun `bash ./install.sh --dev` to update hooks while preserving settings.
+
+Soundbar remains the name of the mixer UI. Open it with `~/.code-gossip/soundbar/panel.sh`.
+
 ## Configuration files
 
-The mixer saves settings automatically. For manual customization, your files live in `~/.claude/soundbar/`:
+The mixer saves settings automatically. For manual customization, your files live in `~/.code-gossip/configs/`:
 
 | File | Customize |
 |------|-----------|
@@ -295,7 +311,7 @@ The mixer saves settings automatically. For manual customization, your files liv
 | `phrases.json` | Spoken phrases for the `senior` Voice profile |
 | `narrator_styles.json` | Narrator style names and prompts |
 
-See [config.defaults.json](soundbar/config.defaults.json) for the shipped settings. Edit the user files above to change your installation. Narrator API keys entered in the mixer are stored in `config.json`.
+See [config.defaults.json](code-gossip/configs/config.defaults.json) for the shipped settings. Edit the user files above to change your installation. Narrator API keys entered in the mixer are stored in `config.json`.
 
 The repeat controls use `sound_spacing_on`, `effects_cooldown_ms`, and `voice_cooldown_ms`. Codex approval audio uses `codex_permission_sound_on`.
 
@@ -304,14 +320,14 @@ The repeat controls use `sound_spacing_on`, `effects_cooldown_ms`, and `voice_co
 Run the uninstaller and choose **all** or one or more agents, just as during installation:
 
 ```bash
-bash ~/.claude/soundbar/uninstall.sh --dry-run  # preview selected removals
-bash ~/.claude/soundbar/uninstall.sh            # select integrations to remove
+bash ~/.code-gossip/uninstall.sh --dry-run  # preview selected removals
+bash ~/.code-gossip/uninstall.sh            # select integrations to remove
 bash ./uninstall.sh --agents codex,cursor       # remove specific integrations without prompting
 bash ./uninstall.sh --all                       # remove all integrations without any questions
 bash ./uninstall.sh --all --purge               # also delete saved settings
 ```
 
-`--all` checks all supported integrations, even if an agent executable or the shared installation is already gone. Partial removal preserves the shared files and running processes while another integration still uses them. Removing the last integration stops the panel and Kokoro processes and removes the shared installation. By default, it keeps `config.json`, `phrases.json`, and `narrator_styles.json`. Existing hook files are backed up before modification. Development uninstalls remove only the installation symlink and leave the source repository and its settings intact, even with `--purge`.
+`--all` checks all supported integrations, even if an agent executable or the shared installation is already gone. Partial removal preserves the shared files and running processes while another integration still uses them. Removing the last integration stops the panel and Kokoro processes and removes the shared installation. By default, it keeps your `configs/` user settings, including a custom `sounds.json` override. Existing hook files are backed up before modification. Cached hook commands become silent after removal, so an active chat can continue. Development uninstalls remove only the installation symlink and leave the source repository and its settings intact, even with `--purge`.
 
 You can use the repository's `uninstall.sh` after the installed script has been removed, including to purge retained settings.
 
@@ -319,13 +335,13 @@ Malformed hook files must be repaired before uninstalling: the uninstaller check
 
 ## Development
 
-Use a development install to make changes in `soundbar/` immediately available to hooks:
+Use a development install to make changes in `code-gossip/` immediately available to hooks:
 
 ```bash
 bash ./install.sh --dev
 ```
 
-If `~/.claude/soundbar/` is already a regular installation directory, uninstall it before switching to `--dev`. Back up any settings you want to bring into the development setup, then remove the leftover installation directory. Development settings live at the repository root and are symlinked into `soundbar/`.
+If `~/.code-gossip/` is already a regular installation directory, uninstall it before switching to `--dev`. Back up any settings you want to bring into the development setup, then remove the leftover installation directory. Development settings live in `code-gossip/configs/` and runtime files in `code-gossip/state/`; both are gitignored. The `~/.code-gossip/` symlink makes edits immediately available.
 
 Run the Codex adapter regression tests without third-party dependencies:
 
@@ -335,7 +351,7 @@ python3 -m unittest tests.test_codex
 
 For the full suite, install `pytest` in your development environment and run `python3 -m pytest`. To check an installed copy, run `bash ./test-install.sh`.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for components and data flows, and [CHANGELOG.md](CHANGELOG.md) for release history. The sound mappings are defined in [soundbar/sounds.json](soundbar/sounds.json).
+See [ARCHITECTURE.md](ARCHITECTURE.md) for components and data flows, and [CHANGELOG.md](CHANGELOG.md) for release history. The sound mappings are defined in [code-gossip/data/sounds.json](code-gossip/data/sounds.json).
 
 ## License
 

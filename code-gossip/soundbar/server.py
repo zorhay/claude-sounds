@@ -22,22 +22,27 @@ import subprocess
 import threading
 import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+import sys
 from pathlib import Path
+
+
 from urllib.parse import urlparse
 
-from integrations import kokoro
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paths import CONFIGS, DATA, ENGINE, STATE, SOUNDBAR
+
+from engine.integrations import kokoro
 
 log = logging.getLogger("soundbar")
 
-SND = Path(__file__).parent
-UI_FILE = SND / "ui.html"
-CONFIG_FILE = SND / "config.json"
-CONFIG_DEFAULTS = SND / "config.defaults.json"
-PHRASES_FILE = SND / "phrases.json"
-PHRASES_DEFAULTS = SND / "phrases.defaults.json"
-STYLES_FILE = SND / "narrator_styles.json"
-STYLES_DEFAULTS = SND / "narrator_styles.defaults.json"
-SOUNDS_FILE = SND / "sounds.json"
+UI_FILE = SOUNDBAR / "ui.html"
+CONFIG_FILE = CONFIGS / "config.json"
+CONFIG_DEFAULTS = CONFIGS / "config.defaults.json"
+PHRASES_FILE = CONFIGS / "phrases.json"
+PHRASES_DEFAULTS = CONFIGS / "phrases.defaults.json"
+STYLES_FILE = CONFIGS / "narrator_styles.json"
+STYLES_DEFAULTS = CONFIGS / "narrator_styles.defaults.json"
+SOUNDS_FILE = CONFIGS / "sounds.json" if (CONFIGS / "sounds.json").exists() else DATA / "sounds.json"
 
 EVENTS = [
     "session_start", "edit", "bash", "search",
@@ -396,7 +401,7 @@ def _resolve_file(spec, profile_data):
     if f.startswith("/"):
         return f
     d = profile_data.get("dir", "")
-    return str(SND / d / f) if d else f
+    return str(DATA / d / f) if d else f
 
 
 def _say_vol_cmd(voice, rate, phrase, vol):
@@ -411,7 +416,7 @@ def _narrate_speak_cmd(phrase):
     """Build a shell command to speak a phrase via narrate.py --speak (Kokoro-aware)."""
     safe = subprocess.list2cmdline([phrase])
     py3 = subprocess.list2cmdline([get_python3()])
-    return f'{py3} {subprocess.list2cmdline([str(SND / "narrate.py")])} --speak {safe}'
+    return f'{py3} {subprocess.list2cmdline([str(ENGINE / "narrate.py")])} --speak {safe}'
 
 
 def _play_narration(event, config, vol):
@@ -445,7 +450,7 @@ def _play_narration(event, config, vol):
         phrase = items[idx] if not isinstance(items[idx], list) else items[idx][0]
         if tts_engine == "kokoro":
             subprocess.Popen(
-                [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
+                [get_python3(), str(ENGINE / "narrate.py"), "--speak", phrase],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL)
         else:
@@ -501,7 +506,7 @@ def play_profile_event(layer, profile, event):
         for i, fname in enumerate(seq):
             if i > 0:
                 parts.append(f"sleep {gap}")
-            f = str(SND / d / fname) if d and not fname.startswith("/") else fname
+            f = str(DATA / d / fname) if d and not fname.startswith("/") else fname
             parts.append(f'afplay -v {vol}{rate_flag} "{f}"')
         cmd = " && ".join(parts)
         subprocess.Popen(["bash", "-c", cmd],
@@ -512,7 +517,6 @@ def play_profile_event(layer, profile, event):
         subprocess.Popen(["play", "-qn"] + spec["sox"].split() + ["vol", vol],
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
-
 
 
 # ── HTTP Server ──
@@ -592,10 +596,10 @@ class Handler(SimpleHTTPRequestHandler):
             if voice and phrase:
                 if engine == "kokoro":
                     # Verify kokoro daemon is reachable before speaking
-                    kokoro_sock = SND / "kokoro.sock"
+                    kokoro_sock = STATE / "kokoro.sock"
                     if kokoro_sock.exists():
                         subprocess.Popen(
-                            [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
+                            [get_python3(), str(ENGINE / "narrate.py"), "--speak", phrase],
                             stdin=subprocess.DEVNULL,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
@@ -604,7 +608,7 @@ class Handler(SimpleHTTPRequestHandler):
                     else:
                         # Try to start daemon, but report if kokoro is unavailable
                         result = subprocess.run(
-                            [get_python3(), str(SND / "narrate.py"), "--check-tts"],
+                            [get_python3(), str(ENGINE / "narrate.py"), "--check-tts"],
                             capture_output=True, text=True, timeout=15,
                         )
                         tts_ok = False
@@ -614,7 +618,7 @@ class Handler(SimpleHTTPRequestHandler):
                             pass
                         if tts_ok:
                             subprocess.Popen(
-                                [get_python3(), str(SND / "narrate.py"), "--speak", phrase],
+                                [get_python3(), str(ENGINE / "narrate.py"), "--speak", phrase],
                                 stdin=subprocess.DEVNULL,
                                 stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL,
@@ -637,7 +641,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/tts-check":
             try:
                 result = subprocess.run(
-                    [get_python3(), str(SND / "narrate.py"), "--check-tts"],
+                    [get_python3(), str(ENGINE / "narrate.py"), "--check-tts"],
                     capture_output=True, text=True, timeout=10,
                 )
                 self.json_response(json.loads(result.stdout) if result.stdout.strip() else {"ok": False, "message": "No output"})
@@ -715,7 +719,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif path == "/api/narrator-check":
             try:
                 result = subprocess.run(
-                    [get_python3(), str(SND / "narrate.py"), "--check"],
+                    [get_python3(), str(ENGINE / "narrate.py"), "--check"],
                     capture_output=True, text=True, timeout=15,
                 )
                 self.json_response(json.loads(result.stdout) if result.stdout.strip() else {"ok": False, "message": "No output"})
@@ -739,14 +743,14 @@ class Handler(SimpleHTTPRequestHandler):
             })
             try:
                 result = subprocess.run(
-                    [get_python3(), str(SND / "narrate.py"), "--dry-run"],
+                    [get_python3(), str(ENGINE / "narrate.py"), "--dry-run"],
                     input=test_context, capture_output=True, text=True, timeout=15,
                 )
                 text = result.stdout.strip()
                 if text:
                     # Speak using narrate.py --speak (respects tts_engine config)
                     subprocess.Popen(
-                        [get_python3(), str(SND / "narrate.py"), "--speak", text],
+                        [get_python3(), str(ENGINE / "narrate.py"), "--speak", text],
                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                     )
                     self.json_response({"ok": True, "text": text})
@@ -793,11 +797,11 @@ def main():
     logging.root.addHandler(console)
     logging.root.setLevel(logging.DEBUG)
     # Initialize integration file loggers (debug.log / error.log)
-    from integrations import _setup_loggers
+    from engine.integrations import _setup_loggers
     _setup_loggers()
     port = int(os.environ.get("PORT", 8111))
     server = ReuseHTTPServer(("127.0.0.1", port), Handler)
-    pid_file = SND / ".server.pid"
+    pid_file = STATE / ".server.pid"
     pid = str(os.getpid())
     pid_file.write_text(pid)
     print(f"Soundbar: http://localhost:{port}")

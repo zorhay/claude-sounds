@@ -15,9 +15,9 @@ EVENT="${1:-stop}"
 # Background all work — script exits in ~2ms, Claude Code proceeds immediately
 {
 
-SND="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CFG="$SND/config.json"
-[ ! -f "$CFG" ] && CFG="$SND/config.defaults.json"
+SND="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CFG="$SND/configs/config.json"
+[ ! -f "$CFG" ] && CFG="$SND/configs/config.defaults.json"
 [ ! -f "$CFG" ] && exit 0
 
 # Read config (single jq call for speed)
@@ -54,9 +54,10 @@ say_vol() {
   rm -f "$tmp"
 }
 
-MANIFEST="$SND/sounds.json"
-PHRASES="$SND/phrases.json"
-[ ! -f "$PHRASES" ] && PHRASES="$SND/phrases.defaults.json"
+MANIFEST="$SND/configs/sounds.json"
+[ ! -f "$MANIFEST" ] && MANIFEST="$SND/data/sounds.json"
+PHRASES="$SND/configs/phrases.json"
+[ ! -f "$PHRASES" ] && PHRASES="$SND/configs/phrases.defaults.json"
 
 # Preview overrides (for manual testing: FORCE_LAYER=voice ./play.sh stop)
 [ -n "$FORCE_EFFECTS_PROFILE" ] && EFFECTS_PROFILE="$FORCE_EFFECTS_PROFILE" && EFFECTS_ON="on"
@@ -66,8 +67,8 @@ PHRASES="$SND/phrases.json"
 
 # Coordinate independently launched hooks. Manual previews always play.
 if [ -z "$FORCE_LAYER$FORCE_EFFECTS_PROFILE$FORCE_VOICE_PROFILE" ] && \
-   [ -f "$SND/playback_gate.py" ] && { [ "$EFFECTS_ON" = "on" ] || [ "$VOICE_ON" = "on" ]; }; then
-  GATED=$(printf '%s' "$STDIN_DATA" | "$PYTHON3" "$SND/playback_gate.py" \
+   [ -f "$SND/engine/playback_gate.py" ] && { [ "$EFFECTS_ON" = "on" ] || [ "$VOICE_ON" = "on" ]; }; then
+  GATED=$(printf '%s' "$STDIN_DATA" | "$PYTHON3" "$SND/engine/playback_gate.py" \
     "$SND" "$EVENT" "$EFFECTS_ON" "$EFFECTS_PROFILE" "$VOICE_ON" "$VOICE_PROFILE")
   case "$GATED" in
     'on on'|'on off'|'off on'|'off off') read -r EFFECTS_ON VOICE_ON <<< "$GATED" ;;
@@ -111,14 +112,14 @@ play_sound() {
 
   case "$stype" in
     file)
-      [[ "$val" != /* ]] && [ -n "$dir" ] && val="$SND/$dir/$val"
+      [[ "$val" != /* ]] && [ -n "$dir" ] && val="$SND/data/$dir/$val"
       afplay -v "$vol" $rate_flag "$val" &
       ;;
     files)
       local idx=$((RANDOM % val))
       val=$(jq -r --arg l "$layer" --arg p "$profile" --arg e "$event" --argjson i "$idx" \
         '.[$l][$p].events[$e].files[$i]' "$MANIFEST")
-      [ -n "$dir" ] && val="$SND/$dir/$val"
+      [ -n "$dir" ] && val="$SND/data/$dir/$val"
       afplay -v "$vol" $rate_flag "$val" &
       ;;
     sox)
@@ -137,7 +138,7 @@ play_sound() {
         for ((j=0; j<${#seq_files[@]}; j++)); do
           [ $j -gt 0 ] && sleep "$gap"
           local f="${seq_files[$j]}"
-          [[ "$f" != /* ]] && [ -n "$dir" ] && f="$SND/$dir/$f"
+          [[ "$f" != /* ]] && [ -n "$dir" ] && f="$SND/data/$dir/$f"
           afplay -v "$vol" $rate_flag "$f"
         done
       ) &
@@ -152,7 +153,7 @@ play_sound() {
 if [ "$VOICE_ON" = "on" ]; then
   if [ "$VOICE_PROFILE" = "narrator" ]; then
     # Narrator: LLM-powered commentary via narrate.py
-    echo "$STDIN_DATA" | "$PYTHON3" "$SND/narrate.py" &
+    echo "$STDIN_DATA" | "$PYTHON3" "$SND/engine/narrate.py" &
   elif [ "$VOICE_PROFILE" = "senior" ]; then
     # Narration reads phrases.json (TTS, not in manifest)
     if [ -f "$PHRASES" ] && command -v jq &>/dev/null; then
@@ -160,9 +161,9 @@ if [ "$VOICE_ON" = "on" ]; then
       # shipped phrases without overwriting the user's file.
       EVENT_PHRASES="$PHRASES"
       COUNT=$(jq -r ".[\"$EVENT\"] | length // 0" "$EVENT_PHRASES" 2>/dev/null)
-      if [ "$COUNT" = "0" ] && [ "$PHRASES" != "$SND/phrases.defaults.json" ] && \
+      if [ "$COUNT" = "0" ] && [ "$PHRASES" != "$SND/configs/phrases.defaults.json" ] && \
          ! jq -e --arg e "$EVENT" 'has($e)' "$PHRASES" >/dev/null 2>&1; then
-        EVENT_PHRASES="$SND/phrases.defaults.json"
+        EVENT_PHRASES="$SND/configs/phrases.defaults.json"
         COUNT=$(jq -r ".[\"$EVENT\"] | length // 0" "$EVENT_PHRASES" 2>/dev/null)
       fi
       if [ "$COUNT" -gt 0 ] 2>/dev/null; then
@@ -173,16 +174,16 @@ if [ "$VOICE_ON" = "on" ]; then
             subagent_start)
               MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$EVENT_PHRASES")
               SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$EVENT_PHRASES")
-              ("$PYTHON3" "$SND/narrate.py" --speak "$MAIN_P" && "$PYTHON3" "$SND/narrate.py" --speak "$SUB_P") &
+              ("$PYTHON3" "$SND/engine/narrate.py" --speak "$MAIN_P" && "$PYTHON3" "$SND/engine/narrate.py" --speak "$SUB_P") &
               ;;
             subagent_stop)
               SUB_P=$(jq -r ".[\"$EVENT\"][$IDX][0]" "$EVENT_PHRASES")
               MAIN_P=$(jq -r ".[\"$EVENT\"][$IDX][1]" "$EVENT_PHRASES")
-              ("$PYTHON3" "$SND/narrate.py" --speak "$SUB_P" && "$PYTHON3" "$SND/narrate.py" --speak "$MAIN_P") &
+              ("$PYTHON3" "$SND/engine/narrate.py" --speak "$SUB_P" && "$PYTHON3" "$SND/engine/narrate.py" --speak "$MAIN_P") &
               ;;
             *)
               PHRASE=$(jq -r ".[\"$EVENT\"][$IDX]" "$EVENT_PHRASES")
-              "$PYTHON3" "$SND/narrate.py" --speak "$PHRASE" &
+              "$PYTHON3" "$SND/engine/narrate.py" --speak "$PHRASE" &
               ;;
           esac
         else

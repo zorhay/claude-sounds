@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOUNDBAR_DIR = REPO_ROOT / "soundbar"
+SOUNDBAR_DIR = REPO_ROOT / "code-gossip"
 
 if str(SOUNDBAR_DIR) not in sys.path:
     sys.path.insert(0, str(SOUNDBAR_DIR))

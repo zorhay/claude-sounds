@@ -11,35 +11,31 @@ Code Gossip is an audio feedback plugin for coding agents. Soundbar is its web U
 
 ## Repo → Install mapping
 
-`soundbar/` maps 1:1 to `~/.claude/soundbar/`. Install = copy. No restructuring.
+`code-gossip/` is copied to `~/.code-gossip/`, or symlinked there in development mode. Runtime modules resolve paths from the package, never from an agent's home directory.
 
 ```
-soundbar/                          →  ~/.claude/soundbar/
-├── play.sh                        →  Sound engine (hooks call this)
-├── codex.py                       →  Codex hook installer and event adapter
-├── narrate.py                     →  Narrator engine (LLM + TTS, called by play.sh)
-├── sounds.json                    →  Sound manifest (single source of truth)
-├── switch.sh                      →  CLI control
-├── panel.sh                       →  Control panel (runs server, opens browser)
-├── server.py                      →  Panel HTTP backend (port 8111)
-├── integrations.py                →  Modular venv integration system (Kokoro install, Python detection)
-├── ui.html                        →  Panel frontend (mixer layout)
-├── kokoro_server.py                →  Kokoro TTS daemon (runs from .venv)
-├── uninstall.sh                   →  Uninstaller (also symlinked at repo root)
-├── config.defaults.json           →  Default settings (shipped)
-├── phrases.defaults.json          →  Default narration phrases (shipped)
-├── narrator_styles.defaults.json  →  Default narrator styles (shipped, {id: {label, prompt}})
-├── sounds/{paper,construction,generals}/  →  Audio assets
-└── .venv/                         →  Kokoro venv (user-created, gitignored)
+code-gossip/                       → ~/.code-gossip/
+├── hooks/                         # Agent adapters and Claude hook definitions
+├── engine/                        # Playback, narration, spacing, Kokoro integration
+├── soundbar/                      # Panel launcher, server, UI, and mockups
+├── data/
+│   ├── sounds.json                # Shipped sound manifest
+│   └── sounds/                    # Audio assets and Generals generator
+├── configs/                       # Shipped defaults and gitignored user settings
+├── state/                         # Gitignored logs, sockets, caches, optional .venv
+├── paths.py                       # Shared Python path definitions
+├── installer.py                   # Unified install and uninstall
+├── switch.sh                      # CLI controls
+└── uninstall.sh                   # Installed uninstall entrypoint
 ```
 
-User files created on install (never overwritten): `config.json`, `phrases.json`, `narrator_styles.json`.
+User settings live in `configs/config.json`, `configs/phrases.json`, and `configs/narrator_styles.json`. An optional `configs/sounds.json` overrides the shipped manifest for custom profiles. Installation preserves these files. Optional Python environments are created in `state/.venv`.
 
 ## Architecture
 
-**Event flow:** Claude Code hook → `soundbar/play.sh <event>` → captures stdin JSON, backgrounds all work → Layer 1 (voice) + Layer 2 (effects) in parallel.
+**Event flow:** Claude Code hook → `code-gossip/engine/play.sh <event>` → captures stdin JSON, backgrounds all work → Layer 1 (voice) + Layer 2 (effects) in parallel.
 
-**Codex flow:** Codex hook → `soundbar/codex.py` → normalizes the event and narrator payload → the same `play.sh`. `bash install.sh --agents codex` installs the shared runtime and connects it to `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). The unified installer/uninstaller support agent selection and `--dry-run`, preserves unrelated handlers, backs up changes, and never edits Codex trust or `config.toml`. Users review/trust hooks through `/hooks`. The unified uninstaller retains shared files while any integration remains; `--all` removes all integrations without prompting. Generals requires `voice_on: true` as well as `voice_profile: "generals"`.
+**Codex flow:** Codex hook → `code-gossip/hooks/codex.py` → normalizes the event and narrator payload → the same `play.sh`. `bash install.sh --agents codex` installs the shared runtime and connects it to `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`). The unified installer/uninstaller support agent selection and `--dry-run`, preserves unrelated handlers, backs up changes, and never edits Codex trust or `config.toml`. Users review/trust hooks through `/hooks`. The unified uninstaller retains shared files while any integration remains; `--all` removes all integrations without prompting. Generals requires `voice_on: true` as well as `voice_profile: "generals"`.
 
 **Pre vs Post hooks:** Most tool events fire on `PreToolUse` (Edit, Write, Grep, Glob) — narration kicks in *before* the tool runs, characterizing intent. **Bash is the exception** — it's wired to `PostToolUse` so the narrator can react to actual results (exit code, stdout, stderr from `tool_response`). This means Bash narration arrives after the command finishes, not before. Only one hook fires per Bash call, avoiding lock collisions in `narrate.py`.
 
@@ -57,7 +53,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 **Kokoro daemon:** `kokoro_server.py` runs from `.venv/bin/python3`, listens on Unix socket (`kokoro.sock`). Loads `hexgrad/Kokoro-82M` once on startup (~3-5s), then serves TTS in ~100-200ms. Auto-starts on first speak request (via `narrate.py`), auto-shuts down after 10 minutes idle. Protocol: newline-delimited JSON over Unix stream socket (`health`, `speak` commands). Setup: `python3 -m venv .venv && .venv/bin/pip install kokoro soundfile`.
 
-**Integrations:** `integrations.py` provides `VenvIntegration` — a reusable base class for on-demand Python venv-based tools. Handles Python version detection (direct/uv/pyenv/conda), venv creation with fallbacks, package installation, pyvenv.cfg repair, and state persistence via `integrations.json`. Pre-configured `kokoro` instance is imported by `server.py`. Future integrations (different TTS engines, local models) plug into the same pattern.
+**Integrations:** `integrations.py` provides `VenvIntegration` — a reusable base class for on-demand Python venv-based tools. Handles Python version detection (direct/uv/pyenv/conda), venv creation with fallbacks, package installation, pyvenv.cfg repair, and state persistence via `state/integrations.json`. Pre-configured `kokoro` instance is imported by `server.py`. Future integrations (different TTS engines, local models) plug into the same pattern.
 
 **Config:** Single `config.json` (booleans + strings) read by one `jq` call in `play.sh`, or `json.load` in `narrate.py`/`server.py`. Key `python3_path` stores the absolute path to python3 (detected at install time); all scripts use it instead of bare `python3` to avoid PATH issues in hook environments.
 
@@ -65,7 +61,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 **Panel lifecycle:** `panel.sh` runs `server.py` in foreground, opens browser. Ctrl+C stops it.
 
-**Install/Uninstall:** Shell entrypoints call `soundbar/installer.py`; selection and hook merge planning are shared by preview and execution.
+**Install/Uninstall:** Shell entrypoints call `code-gossip/installer.py`; selection and hook merge planning are shared by preview and execution.
 - `install.sh` — detects agents, accepts multiple selections, copies shared files, creates user config, and merges selected hooks (backup + validate)
 - `uninstall.sh` — selectively removes integrations; stops processes and removes shared files after the last integration (preserves user config unless `--purge`); `--all` skips prompts
 - `test-install.sh` — validates an installation (files, JSON, manifest, assets, hooks, smoke tests)
@@ -76,8 +72,8 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 - `play.sh` captures stdin then backgrounds all work via `{ ... } &`. Hook commands must NOT use trailing `&`.
 - `play.sh` is a generic dispatcher — reads manifest via `jq`, plays via `afplay`/`play`/`say`. Two special cases: senior (reads `phrases.json`), narrator (pipes stdin to `narrate.py`).
 - Original Claude hook events: `stop`, `edit`, `bash`, `search`, `permission`, `error`, `subagent_start`, `subagent_stop`, `session_start`, `compact`, `user_prompt`. Codex adds `read`, `tool`, `plan`, `test`, `build`, `git`, `git_status`, `git_history`, `git_commit`, `git_push`, `pre_compact`, `session_end`, and `interrupt`, for 24 mixer events. Generals maps all 24; senior phrases merge missing keys from shipped defaults, while user overrides (including empty lists) are preserved.
-- Hook tag: any hook containing `soundbar/play.sh` is ours.
-- Codex hook tag: `soundbar/codex.py`. All 12 Codex hook events are registered. Shell, patch, and MCP failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
+- Hook tag: any hook containing `code-gossip/engine/play.sh` is ours.
+- Codex hook tag: `code-gossip/hooks/codex.py`. All 12 Codex hook events are registered. Shell, patch, and MCP failures come through `PostToolUse`; do not register Claude-only failure events. Patch inputs use `tool_input.command`. Codex adapter tests run with `python3 -m unittest tests.test_codex` without third-party dependencies.
 - `server.py` uses unified `/api/config` POST — send any subset of keys.
 - `codex_permission_sound_on` defaults to true. The Codex adapter reads it from Code Gossip's `config.json` on each approval hook; false suppresses the entire approval cue without changing Codex permissions. Other events, Claude Code hooks, and direct panel previews are unaffected.
 - `/api/play` takes `{layer, profile, event}` and plays sounds directly (no shell script).
@@ -107,7 +103,7 @@ User files created on install (never overwritten): `config.json`, `phrases.json`
 
 Styles are data-driven. Either:
 - Edit via the panel (Voice → Narrator → pencil icon next to Style) — writes `narrator_styles.json`.
-- Or ship a new built-in: add an entry to `soundbar/narrator_styles.defaults.json` (`{id: {label, prompt}}`).
+- Or ship a new built-in: add an entry to `code-gossip/configs/narrator_styles.defaults.json` (`{id: {label, prompt}}`).
 
 ## Adding a new narrator provider
 
@@ -119,17 +115,17 @@ Styles are data-driven. Either:
 ## Testing
 
 ```bash
-~/.claude/soundbar/play.sh stop        # play a single event
-~/.claude/soundbar/switch.sh           # show current status
-~/.claude/soundbar/panel.sh            # open control panel
+~/.code-gossip/engine/play.sh stop        # play a single event
+~/.code-gossip/switch.sh           # show current status
+~/.code-gossip/soundbar/panel.sh            # open control panel
 ./test-install.sh                      # verify installation
 
 # Narrator testing
-python3 ~/.claude/soundbar/narrate.py --check                    # test provider connection
-python3 ~/.claude/soundbar/narrate.py --check-tts                # test TTS engine availability
-python3 ~/.claude/soundbar/narrate.py --speak "Hello world"      # speak using configured TTS engine
+python3 ~/.code-gossip/engine/narrate.py --check                    # test provider connection
+python3 ~/.code-gossip/engine/narrate.py --check-tts                # test TTS engine availability
+python3 ~/.code-gossip/engine/narrate.py --speak "Hello world"      # speak using configured TTS engine
 echo '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"src/app.ts"}}' \
-  | python3 ~/.claude/soundbar/narrate.py --dry-run              # generate narration text
+  | python3 ~/.code-gossip/engine/narrate.py --dry-run              # generate narration text
 ```
 
 ## Dependencies

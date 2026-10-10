@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOUNDBAR_DIR = REPO_ROOT / "soundbar"
+SOUNDBAR_DIR = REPO_ROOT / "code-gossip"
 
 ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
@@ -29,7 +29,7 @@ class TestPlayShSyntax:
 
     def test_bash_syntax_check(self):
         result = subprocess.run(
-            ["bash", "-n", str(SOUNDBAR_DIR / "play.sh")],
+            ["bash", "-n", str(SOUNDBAR_DIR / "engine/play.sh")],
             capture_output=True, text=True,
         )
         assert result.returncode == 0, (
@@ -136,7 +136,7 @@ class TestPlayShLayerDispatch:
 
     def test_narrator_pipes_to_narrate_py(self, play_script):
         """When voice_profile is narrator, stdin should be piped to narrate.py."""
-        assert 'echo "$STDIN_DATA" | "$PYTHON3" "$SND/narrate.py"' in play_script
+        assert 'echo "$STDIN_DATA" | "$PYTHON3" "$SND/engine/narrate.py"' in play_script
 
     def test_senior_reads_phrases_json(self, play_script):
         """When voice_profile is senior, play.sh reads phrases.json."""

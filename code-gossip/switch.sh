@@ -2,9 +2,9 @@
 # Code Gossip — CLI control for Claude Code sound layers
 # Usage: switch.sh <command> [value]
 
-SOUNDBAR="$HOME/.claude/soundbar"
-CFG="$SOUNDBAR/config.json"
-[ ! -f "$CFG" ] && CFG="$SOUNDBAR/config.defaults.json"
+SOUNDBAR="$(cd "$(dirname "$0")" && pwd)"
+CFG="$SOUNDBAR/configs/config.json"
+[ ! -f "$CFG" ] && CFG="$SOUNDBAR/configs/config.defaults.json"
 [ ! -f "$CFG" ] && { echo "Code Gossip not installed. Run install.sh first."; exit 1; }
 
 EFFECTS_PROFILES="ambient attention chiptune construction default factory minimal organic paper sci-fi submarine silent"
@@ -16,10 +16,10 @@ cfg_get() { jq -r ".$1 // \"$2\"" "$CFG" 2>/dev/null || echo "$2"; }
 # Write a config value (string or boolean)
 cfg_set() {
   local key="$1" val="$2"
-  local user_cfg="$SOUNDBAR/config.json"
+  local user_cfg="$SOUNDBAR/configs/config.json"
   # Ensure user config exists
   if [ ! -f "$user_cfg" ]; then
-    cp "$SOUNDBAR/config.defaults.json" "$user_cfg" 2>/dev/null || echo '{}' > "$user_cfg"
+    cp "$SOUNDBAR/configs/config.defaults.json" "$user_cfg" 2>/dev/null || echo '{}' > "$user_cfg"
   fi
   # Build new JSON
   local tmp

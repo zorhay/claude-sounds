@@ -5,17 +5,18 @@ No hook output is emitted and no permission decisions are made. Hook trust is
 managed by Codex; installation never modifies trust or config.toml.
 """
 
-import argparse
 import copy
 import json
-import os
+import sys
 from pathlib import Path
+
+
 import re
 import shlex
-import shutil
 import subprocess
-import sys
-import tempfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paths import ROOT
 
 
 EVENTS = {
@@ -30,7 +31,6 @@ EVENTS = {
     "SessionEnd": "session_end",
     "Interrupt": "interrupt",
 }
-TAG = "soundbar/codex.py"
 SHELL_TOOLS = {"Bash", "exec_command", "shell", "shell_command"}
 # Polling and coordination already have their own lifecycle or completion hooks.
 QUIET_TOOLS = {"write_stdin", "wait", "wait_agent", "wait_threads", "spawn_agent", "Agent"}
@@ -278,7 +278,7 @@ def dispatch(data, soundbar):
         # Manual audio preference only; never change Codex's approval flow.
         # Missing settings in existing installs keep approval cues enabled.
         try:
-            config = json.loads((soundbar / "config.json").read_text())
+            config = json.loads((soundbar / "configs/config.json").read_text())
         except (OSError, ValueError):
             config = {}
         if isinstance(config, dict) and config.get("codex_permission_sound_on") is False:
@@ -286,14 +286,15 @@ def dispatch(data, soundbar):
     # Close captured output: background playback must not hold Codex's pipes
     # open or send narration/debug output back into the agent conversation.
     subprocess.run(
-        ["/bin/bash", str(soundbar / "play.sh"), event],
+        ["/bin/bash", str(soundbar / "engine/play.sh"), event],
         input=json.dumps(payload), text=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=4,
     )
 
 
 def hook_definitions(adapter):
-    command = f"{shlex.quote(sys.executable)} {shlex.quote(str(adapter))}"
+    path = shlex.quote(str(adapter))
+    command = f"if [ -f {path} ]; then {shlex.quote(sys.executable)} {path} || true; fi"
     hooks = {}
     for event in [*EVENTS, "PreToolUse", "PostToolUse"]:
         group = {"hooks": [{"type": "command", "command": command, "timeout": 3 if event == "Interrupt" else 5}]}
@@ -303,82 +304,12 @@ def hook_definitions(adapter):
     return hooks
 
 
-def merge_hooks(document, new_hooks):
-    """Replace only our handlers, including those inside shared groups."""
-    document = copy.deepcopy(document)
-    existing = document.get("hooks", {})
-    if not isinstance(document, dict) or not isinstance(existing, dict):
-        raise ValueError("Expected a JSON object with a hooks object")
-    merged = {}
-    for event, groups in existing.items():
-        kept = []
-        for group in groups:
-            handlers = group.get("hooks", [])
-            remaining = [h for h in handlers if TAG not in h.get("command", "")]
-            if remaining or not handlers:
-                kept.append({**group, "hooks": remaining})
-        if kept:
-            merged[event] = kept
-    for event, groups in new_hooks.items():
-        merged.setdefault(event, []).extend(groups)
-    if merged:
-        document["hooks"] = merged
-    else:
-        document.pop("hooks", None)
-    return document
-
-
-def install(codex_home, soundbar, dry_run=False, uninstall=False):
-    target = codex_home / "hooks.json"
-    adapter = soundbar / "codex.py"
-    if not uninstall and not (soundbar / "play.sh").is_file():
-        raise ValueError("Install Code Gossip first with ./install.sh (or ./install.sh --dev)")
-    original = target.read_text() if target.exists() else "{}"
-    document = json.loads(original)
-    updated = merge_hooks(document, {} if uninstall else hook_definitions(adapter))
-    rendered = json.dumps(updated, indent=2) + "\n"
-    if dry_run:
-        print(f"Would {'remove Code Gossip hooks from' if uninstall else 'merge Code Gossip hooks into'} {target}")
-        print(rendered, end="")
-        return
-    if not uninstall and Path(__file__).resolve() != adapter.resolve():
-        shutil.copy2(__file__, adapter)
-    if updated != document:
-        codex_home.mkdir(parents=True, exist_ok=True)
-        if target.exists():
-            shutil.copy2(target, target.with_name("hooks.json.soundbar-backup"))
-        fd, temporary = tempfile.mkstemp(prefix=".soundbar-hooks-", dir=codex_home)
-        try:
-            with os.fdopen(fd, "w") as stream:
-                stream.write(rendered)
-            os.replace(temporary, target)
-        finally:
-            if os.path.exists(temporary):
-                os.unlink(temporary)
-    print(f"Code Gossip hooks {'removed from' if uninstall else 'installed in'} {target}")
-    if not uninstall:
-        print("Open /hooks in Codex CLI to review and trust the Code Gossip commands, then start a new chat.")
-
-
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--install", action="store_true")
-    parser.add_argument("--uninstall", action="store_true")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
-    soundbar = Path.home() / ".claude" / "soundbar"
-    if args.install or args.uninstall:
-        codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
-        try:
-            install(codex_home, soundbar, args.dry_run, args.uninstall)
-        except (OSError, ValueError, TypeError, AttributeError) as exc:
-            parser.exit(1, f"Code Gossip: {exc}\n")
-    else:
-        try:
-            dispatch(json.load(sys.stdin), soundbar)
-        except (OSError, ValueError, TypeError, AttributeError, subprocess.TimeoutExpired):
-            # Sound feedback must never break a tool call or block approval.
-            pass
+    try:
+        dispatch(json.load(sys.stdin), ROOT)
+    except (OSError, ValueError, TypeError, AttributeError, subprocess.TimeoutExpired):
+        # Sound feedback must never break a tool call or block approval.
+        pass
 
 
 if __name__ == "__main__":

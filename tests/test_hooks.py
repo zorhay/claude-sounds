@@ -38,19 +38,17 @@ class TestHookFormat:
                         f"play.sh handles its own backgrounding"
                     )
 
-    def test_hook_commands_reference_soundbar_play_sh(self, claude_hooks_json):
-        """All hook commands should use soundbar/play.sh, not deprecated play-sound.sh."""
+    def test_hook_commands_reference_engine_play_sh(self, claude_hooks_json):
+        """All hook commands should use code-gossip/engine/play.sh."""
         hooks = _extract_hooks_json(claude_hooks_json)
         for event_name, entries in hooks.items():
             for entry in entries:
                 for hook in entry.get("hooks", []):
                     cmd = hook.get("command", "")
-                    assert "soundbar/play.sh" in cmd, (
-                        f"Hook for {event_name} doesn't reference soundbar/play.sh: {cmd}"
+                    assert "code-gossip/engine/play.sh" in cmd, (
+                        f"Hook for {event_name} doesn't reference code-gossip/engine/play.sh: {cmd}"
                     )
-                    assert "play-sound.sh" not in cmd, (
-                        f"Hook for {event_name} uses deprecated play-sound.sh: {cmd}"
-                    )
+
 
 
 class TestHookCoverage:

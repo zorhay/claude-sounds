@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOUNDBAR_DIR = REPO_ROOT / "soundbar"
+SOUNDBAR_DIR = REPO_ROOT / "code-gossip"
 
 ALL_EVENTS = {
     "stop", "edit", "bash", "search", "permission", "error",
@@ -28,7 +28,7 @@ class TestManifestStructure:
     """Basic structural validity of sounds.json."""
 
     def test_sounds_json_is_valid_json(self):
-        text = (SOUNDBAR_DIR / "sounds.json").read_text()
+        text = (SOUNDBAR_DIR / "data/sounds.json").read_text()
         data = json.loads(text)
         assert isinstance(data, dict)
 
@@ -73,9 +73,9 @@ class TestAudioFileReferences:
                 # System files (e.g. /System/Library/Sounds/) -- skip
                 continue
             if base_dir:
-                full = SOUNDBAR_DIR / base_dir / filename
+                full = SOUNDBAR_DIR / "data" / base_dir / filename
             else:
-                full = SOUNDBAR_DIR / filename
+                full = SOUNDBAR_DIR / "data" / filename
             if not full.exists():
                 missing.append(f"{prof}/{event}: {full}")
         assert not missing, f"Missing audio files:\n" + "\n".join(missing)

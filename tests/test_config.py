@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOUNDBAR_DIR = REPO_ROOT / "soundbar"
+SOUNDBAR_DIR = REPO_ROOT / "code-gossip"
 
 if str(SOUNDBAR_DIR) not in sys.path:
     sys.path.insert(0, str(SOUNDBAR_DIR))
@@ -20,7 +20,7 @@ class TestConfigDefaults:
     """config.defaults.json validity."""
 
     def test_valid_json(self):
-        text = (SOUNDBAR_DIR / "config.defaults.json").read_text()
+        text = (SOUNDBAR_DIR / "configs/config.defaults.json").read_text()
         data = json.loads(text)
         assert isinstance(data, dict)
 

@@ -5,7 +5,7 @@ Loads the Kokoro-82M model once on startup, then serves TTS requests with
 ~100-200ms latency instead of 3-5s cold starts. Auto-shuts down after 10
 minutes idle.
 
-Socket: ~/.claude/soundbar/kokoro.sock
+Socket: ~/.code-gossip/state/kokoro.sock
 Protocol: newline-delimited JSON over Unix stream socket.
 
 Requests:
@@ -17,25 +17,31 @@ Responses:
   {"ok": false, "error": "..."}
 
 Setup:
-  python3 -m venv ~/.claude/soundbar/.venv
-  ~/.claude/soundbar/.venv/bin/pip install kokoro soundfile
+  python3 -m venv ~/.code-gossip/state/.venv
+  ~/.code-gossip/state/.venv/bin/pip install kokoro soundfile
 
 Run:
-  ~/.claude/soundbar/.venv/bin/python kokoro_server.py
+  ~/.code-gossip/state/.venv/bin/python kokoro_server.py
 """
 
 import json
 import os
+import sys
+from pathlib import Path
+
+
 import signal
 import socketserver
 import subprocess
-import sys
 import tempfile
 import threading
 import time
 import wave
 
-SOCK_PATH = os.path.expanduser("~/.claude/soundbar/kokoro.sock")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from paths import STATE
+
+SOCK_PATH = str(STATE / "kokoro.sock")
 IDLE_TIMEOUT = 600  # 10 minutes
 
 
@@ -184,6 +190,7 @@ def cleanup():
 
 
 def main():
+    STATE.mkdir(parents=True, exist_ok=True)
     if "--check" in sys.argv:
         try:
             from kokoro import KPipeline  # noqa: F401
@@ -192,8 +199,8 @@ def main():
             print(json.dumps({
                 "ok": False,
                 "message": "Kokoro not installed. Run:\n"
-                "  python3 -m venv ~/.claude/soundbar/.venv\n"
-                "  ~/.claude/soundbar/.venv/bin/pip install kokoro soundfile"
+                "  python3 -m venv ~/.code-gossip/state/.venv\n"
+                "  ~/.code-gossip/state/.venv/bin/pip install kokoro soundfile"
             }))
         return
 

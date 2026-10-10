@@ -12,7 +12,6 @@ import json
 import os
 from pathlib import Path
 import sys
-import tempfile
 import time
 
 
@@ -76,11 +75,11 @@ def admit(state, *, layer, session, profile, event, sound, cooldown, now):
 
 def gate(soundbar, event, layers, data, state_dir=None):
     """Return the allowed layers; missing mappings don't consume the budget."""
-    settings = {**DEFAULTS, **read_json(soundbar / "config.defaults.json"), **read_json(soundbar / "config.json")}
+    settings = {**DEFAULTS, **read_json(soundbar / "configs/config.defaults.json"), **read_json(soundbar / "configs/config.json")}
     if settings.get("sound_spacing_on") is False:
         return {layer: enabled for layer, (enabled, _) in layers.items()}
-    sounds = read_json(soundbar / "sounds.json")
-    phrases = {**read_json(soundbar / "phrases.defaults.json"), **read_json(soundbar / "phrases.json")}
+    sounds = read_json(soundbar / "configs/sounds.json") or read_json(soundbar / "data/sounds.json")
+    phrases = {**read_json(soundbar / "configs/phrases.defaults.json"), **read_json(soundbar / "configs/phrases.json")}
     candidates = {}
     for layer, (enabled, profile) in layers.items():
         if not enabled:
@@ -97,8 +96,7 @@ def gate(soundbar, event, layers, data, state_dir=None):
     if not candidates:
         return allowed
     if state_dir is None:
-        name = fingerprint(str(soundbar.resolve()))[:16]
-        state_dir = Path(tempfile.gettempdir()) / f"soundbar-playback-{os.getuid()}-{name}"
+        state_dir = soundbar / "state" / "playback"
     state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     session = str(data.get("session_id") or data.get("cwd") or "manual")
     # Separate lock inode stays stable while the JSON file is atomically replaced.

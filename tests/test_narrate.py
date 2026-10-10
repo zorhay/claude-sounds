@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOUNDBAR_DIR = REPO_ROOT / "soundbar"
+SOUNDBAR_DIR = REPO_ROOT / "code-gossip"
 
 if str(SOUNDBAR_DIR) not in sys.path:
     sys.path.insert(0, str(SOUNDBAR_DIR))
@@ -253,13 +253,13 @@ class TestCheckKokoro:
 
 
 class TestKokoroPaths:
-    """Kokoro paths are under ~/.claude/soundbar/."""
+    """Kokoro paths are under ~/.code-gossip/."""
 
     def test_kokoro_sock_path(self):
         from narrate import KOKORO_SOCK
-        assert str(KOKORO_SOCK).endswith("soundbar/kokoro.sock")
-        assert ".claude/soundbar" in str(KOKORO_SOCK)
+        assert str(KOKORO_SOCK).endswith("code-gossip/state/kokoro.sock")
+        assert KOKORO_SOCK.parent == SOUNDBAR_DIR / "state"
 
     def test_kokoro_venv_path(self):
         from narrate import KOKORO_VENV
-        assert ".claude/soundbar/.venv" in str(KOKORO_VENV)
+        assert "code-gossip/state/.venv" in str(KOKORO_VENV)

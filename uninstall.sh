@@ -1,1 +1,1 @@
-soundbar/uninstall.sh
+code-gossip/uninstall.sh
